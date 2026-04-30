@@ -153,6 +153,8 @@ This KWS model already includes local improvements over the original CB-Whisper 
 
 Method constraint: CB-Whisper is intended to be a lightweight improvement over Whisper, so proposed changes must stay lightweight at inference time. Avoid methods that require a much longer recognition pass, many repeated ASR calls, heavy external models, or large post-hoc search. Because this work is for a paper, changes should also remain methodologically clean and explainable; avoid over-engineered case-specific patches that only tune around observed failures.
 
+Experiment goal: push KWS/keyword-related recall toward at least 0.90 while keeping CER as low as possible. Entity Recall is the primary hotword-success metric for CB-Whisper evaluation; CER, Hotword Only CER, and WER are guardrail metrics and should not be sacrificed casually for recall gains.
+
 Experiment bookkeeping rule: after each code change, commit to git; after each experiment, append the result here and compare against the previous run or best known run.
 
 | Date | Config | Checkpoint | Key settings | Entity Recall | CER | Hotword Only CER | WER | Notes |
