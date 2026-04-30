@@ -1,0 +1,26 @@
+__pycache__
+/checkpoints/*
+/datasets/aishell/logfile.log
+/datasets/acl/logfile.log
+/datasets/mls/logfile.log
+
+# Local environments and caches
+/.autodl/
+/conda/
+/great/
+/miniconda3/
+/hf_cache/
+/pip/
+
+# Built datasets are large generated artifacts. Keep dataset build scripts.
+/datasets/**
+!/datasets/
+!/datasets/*/
+!/datasets/*/build.sh
+
+# Training outputs and checkpoints
+/src/mlruns/
+/src/outputs/
+/src/**/__pycache__/
+*.pyc
+*.ckpt
