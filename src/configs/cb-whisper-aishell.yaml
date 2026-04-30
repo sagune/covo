@@ -105,8 +105,8 @@ model:
     enable_phonetic_rescore: true
     rescore_nbest: 8
     rescore_use_asr_score: true
-    rescore_asr_weight: 1.2
-    rescore_keyword_weight: 2.2
+    rescore_asr_weight: 1.0
+    rescore_keyword_weight: 1.8
     rescore_phonetic_weight: 0.7
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
