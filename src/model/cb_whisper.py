@@ -128,10 +128,6 @@ class CBWhisper(pl.LightningModule):
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
-        enable_rescore_selection_guard: bool = False,
-        rescore_guard_max_asr_drop: float = 0.25,
-        rescore_guard_max_norm_len_growth: int = 6,
-        rescore_guard_max_norm_len_ratio: float = 1.35,
         enable_phonetic_surface_repair: bool = False,
         surface_repair_score_threshold: float = 0.95,
         surface_repair_ambiguity_gap: float = 0.05,
@@ -1255,81 +1251,6 @@ class CBWhisper(pl.LightningModule):
         scored_candidates.sort(key=lambda item: item["total_score"], reverse=True)
         return scored_candidates, int(baseline_idx), float(baseline_phonetic_score)
 
-    def _guard_shortform_rescore_selection(
-        self,
-        scored_candidates: List[dict],
-        candidate_stats: List[dict],
-        baseline_idx: int,
-    ) -> Tuple[List[dict], dict]:
-        if len(scored_candidates) <= 1 or not bool(getattr(self.hparams, "enable_rescore_selection_guard", False)):
-            return scored_candidates, {"applied": False}
-        if baseline_idx < 0 or baseline_idx >= len(candidate_stats):
-            return scored_candidates, {"applied": False, "reason": "missing_baseline"}
-
-        baseline_text = str(candidate_stats[baseline_idx].get("candidate", ""))
-        baseline_candidate = None
-        for rank, item in enumerate(scored_candidates, start=1):
-            item["selection_original_rank"] = int(rank)
-            if str(item.get("candidate", "")) == baseline_text:
-                baseline_candidate = item
-        if baseline_candidate is None:
-            return scored_candidates, {"applied": False, "reason": "baseline_not_found"}
-
-        baseline_asr = float(baseline_candidate.get("asr_score", candidate_stats[baseline_idx].get("asr_score", 0.0)))
-        baseline_norm_len = len(self._normalize_text_for_logging(baseline_text))
-        max_asr_drop = max(0.0, float(getattr(self.hparams, "rescore_guard_max_asr_drop", 0.25)))
-        max_len_growth = max(0, int(getattr(self.hparams, "rescore_guard_max_norm_len_growth", 6)))
-        max_len_ratio = max(1.0, float(getattr(self.hparams, "rescore_guard_max_norm_len_ratio", 1.35)))
-
-        def _is_plausible(item: dict) -> Tuple[bool, dict]:
-            candidate_text = str(item.get("candidate", ""))
-            if candidate_text == baseline_text:
-                return True, {"baseline": True}
-            asr_drop = max(0.0, baseline_asr - float(item.get("asr_score", baseline_asr)))
-            norm_len = len(self._normalize_text_for_logging(candidate_text))
-            len_growth = max(0, norm_len - baseline_norm_len)
-            len_ratio = float(norm_len / max(baseline_norm_len, 1))
-            plausible = (
-                asr_drop <= max_asr_drop
-                and len_growth <= max_len_growth
-                and len_ratio <= max_len_ratio
-            )
-            return plausible, {
-                "baseline": False,
-                "asr_drop": float(asr_drop),
-                "norm_len": int(norm_len),
-                "len_growth": int(len_growth),
-                "len_ratio": float(len_ratio),
-            }
-
-        selected = scored_candidates[0]
-        selected_reason = {"reason": "top1"}
-        top_plausible, top_info = _is_plausible(selected)
-        if not top_plausible:
-            for item in scored_candidates[1:]:
-                plausible, info = _is_plausible(item)
-                if plausible:
-                    selected = item
-                    selected_reason = {"reason": "guarded_fallback", "blocked_top1": top_info, "selected": info}
-                    break
-
-        if selected is scored_candidates[0]:
-            return scored_candidates, {
-                "applied": True,
-                "changed": False,
-                "baseline_asr": float(baseline_asr),
-                **selected_reason,
-            }
-
-        guarded = [selected] + [item for item in scored_candidates if item is not selected]
-        return guarded, {
-            "applied": True,
-            "changed": True,
-            "baseline_asr": float(baseline_asr),
-            "selected_original_rank": int(selected.get("selection_original_rank", -1)),
-            **selected_reason,
-        }
-
     def _shortform_rescore_debug_preview(self, scored_candidates: List[dict], topk: int = 5) -> List[dict]:
         preview = []
         for rank, item in enumerate(scored_candidates[: min(topk, len(scored_candidates))], start=1):
@@ -2165,11 +2086,6 @@ class CBWhisper(pl.LightningModule):
                     candidate_stats=candidate_stats,
                     keyword_weight=effective_keyword_weight,
                 )
-                scored_candidates, selection_guard_info = self._guard_shortform_rescore_selection(
-                    scored_candidates=scored_candidates,
-                    candidate_stats=candidate_stats,
-                    baseline_idx=baseline_idx,
-                )
                 baseline_total_score = float(candidate_stats[baseline_idx].get("asr_score", 0.0))
                 for item in scored_candidates:
                     if str(item.get("candidate", "")) == str(candidate_stats[baseline_idx].get("candidate", "")):
@@ -2196,7 +2112,6 @@ class CBWhisper(pl.LightningModule):
                         "consensus_support": int(item.get("consensus_support", 0)),
                         "consensus_keywords": list(item.get("consensus_keywords", [])),
                         "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
-                        "selection_original_rank": int(item.get("selection_original_rank", rank + 1)),
                     }
                     for rank, item in enumerate(scored_candidates)
                 ]
@@ -2279,7 +2194,6 @@ class CBWhisper(pl.LightningModule):
                             "baseline_final_rank": int(baseline_final_rank),
                             "baseline_total_score": float(baseline_total_score),
                             "final_beats_baseline_total": float(final_candidate.get("total_score", 0.0) - baseline_total_score),
-                            "selection_guard": dict(selection_guard_info),
                         },
                         top_candidates=self._shortform_rescore_debug_preview(scored_candidates),
                     )
