@@ -126,10 +126,6 @@ class CBWhisper(pl.LightningModule):
         hotword_bias_unmatched_scale: float = 0.25,
         hotword_bias_prefix_gain: float = 2.0,
         hotword_bias_continuation_scale: float = 1.0,
-        hotword_bias_restart_scale: float = 0.0,
-        hotword_bias_restart_topk: int = 0,
-        hotword_bias_restart_max_gap_to_top1: float = 0.0,
-        hotword_bias_restart_entry_score_threshold: float = 0.0,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
         rescore_use_asr_score: bool = True,
@@ -1552,14 +1548,6 @@ class CBWhisper(pl.LightningModule):
             hotword_bias_unmatched_scale=float(getattr(self.hparams, "hotword_bias_unmatched_scale", 0.25)),
             hotword_bias_prefix_gain=float(getattr(self.hparams, "hotword_bias_prefix_gain", 2.0)),
             hotword_bias_continuation_scale=float(getattr(self.hparams, "hotword_bias_continuation_scale", 1.0)),
-            hotword_bias_restart_scale=float(getattr(self.hparams, "hotword_bias_restart_scale", 0.0)),
-            hotword_bias_restart_topk=int(getattr(self.hparams, "hotword_bias_restart_topk", 0)),
-            hotword_bias_restart_max_gap_to_top1=float(
-                getattr(self.hparams, "hotword_bias_restart_max_gap_to_top1", 0.0)
-            ),
-            hotword_bias_restart_entry_score_threshold=float(
-                getattr(self.hparams, "hotword_bias_restart_entry_score_threshold", 0.0)
-            ),
         )
 
     def _dedup_shortform_predictions(
