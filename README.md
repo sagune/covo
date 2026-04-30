@@ -114,6 +114,41 @@ python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
 
 For ease of use, there is one config `yaml` file per dataset. Do not forget to set the paths to the dataset folders and the given checkpoint to evaluate. Important settings that must be introduced are capitalized and between square brackets.
 
+### Current CB-Whisper metric-improvement experiments
+
+Current work focuses on improving CB-Whisper entity recall and hotword-specific recognition quality on Aishell hotword evaluation.
+
+Run from the repository root:
+
+```bash
+cd src/
+python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
+```
+
+Useful debug/output environment variables:
+
+```bash
+cd src/
+CBW_DEBUG_LOG=logs/runtime_probe.jsonl \
+CBW_DEBUG_MAX_SAMPLES=100 \
+CBW_DEBUG_CLEAR_ON_START=1 \
+CBW_METRICS_OUT=logs/test_metrics.csv \
+python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
+```
+
+The current Aishell CB-Whisper config enables KWS-based prompting, short-form n-best rescoring, pinyin-based scoring/repair, consensus reranking, and oracle n-best diagnostics. Main output files:
+
+* `logs/test_metrics.csv`: final Entity Recall, CER, Hotword Sentence CER, Hotword Only CER, and WER with confidence intervals.
+* `logs/runtime_probe.jsonl`: sampled per-utterance debug events, keyword candidates, prompt state, n-best rerank traces, and normalization previews.
+* `logs/oracle_nbest_detail_aishell.csv`: per-candidate n-best diagnostic table.
+* `logs/oracle_nbest_summary_aishell.csv`: per-sample top1-vs-oracle diagnostic summary.
+
+Experiment bookkeeping rule: after each code change, commit to git; after each experiment, append the result here and compare against the previous run or best known run.
+
+| Date | Config | Checkpoint | Key settings | Entity Recall | CER | Hotword Only CER | WER | Notes |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| 2026-04-27 | `configs/cb-whisper-aishell.yaml` | `src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt` | KWS prompt, n-best=8, pinyin rescore, surface/consensus repair, consensus rerank | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Current baseline. Oracle n-best top1 recall is 0.8455, oracle recall is 0.8650, leaving about +0.0194 recall headroom in the candidate pool. |
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
