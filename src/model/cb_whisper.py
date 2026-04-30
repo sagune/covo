@@ -126,6 +126,10 @@ class CBWhisper(pl.LightningModule):
         rescore_keyword_weight: float = 2.0,
         rescore_phonetic_weight: float = 1.0,
         rescore_prefix_penalty_weight: float = 1.0,
+        enable_rescore_length_penalty: bool = False,
+        rescore_length_penalty_per_char: float = 0.15,
+        rescore_length_penalty_slack: int = 2,
+        rescore_length_penalty_cap: float = 1.2,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
         enable_phonetic_surface_repair: bool = False,
@@ -1164,6 +1168,11 @@ class CBWhisper(pl.LightningModule):
         use_asr_score = bool(getattr(self.hparams, "rescore_use_asr_score", True))
         asr_weight = float(getattr(self.hparams, "rescore_asr_weight", 1.0)) if use_asr_score else 0.0
         prefix_penalty_weight = float(getattr(self.hparams, "rescore_prefix_penalty_weight", 1.0))
+        length_penalty_enabled = bool(getattr(self.hparams, "enable_rescore_length_penalty", False))
+        length_penalty_per_char = max(0.0, float(getattr(self.hparams, "rescore_length_penalty_per_char", 0.15)))
+        length_penalty_slack = max(0, int(getattr(self.hparams, "rescore_length_penalty_slack", 2)))
+        length_penalty_cap = max(0.0, float(getattr(self.hparams, "rescore_length_penalty_cap", 1.2)))
+        baseline_norm_len = len(self._normalize_text_for_rescore(str(candidate_stats[baseline_idx].get("candidate", ""))))
         consensus_enabled = bool(getattr(self.hparams, "enable_consensus_rerank", False))
         consensus_weight = float(getattr(self.hparams, "consensus_rerank_weight", 0.35)) if consensus_enabled else 0.0
         consensus_min_support = max(1, int(getattr(self.hparams, "consensus_rerank_min_support", 2)))
@@ -1218,6 +1227,13 @@ class CBWhisper(pl.LightningModule):
             prefix_stats = self._prefix_pollution_stats(str(stats.get("candidate", "")))
             prefix_penalty = float(prefix_stats.get("penalty", 0.0))
             prefix_penalty_score = prefix_penalty_weight * prefix_penalty
+            norm_len = len(self._normalize_text_for_rescore(str(stats.get("candidate", ""))))
+            length_growth = max(0, int(norm_len - baseline_norm_len - length_penalty_slack))
+            length_penalty_score = (
+                min(length_penalty_cap, length_growth * length_penalty_per_char)
+                if length_penalty_enabled
+                else 0.0
+            )
             consensus_score, consensus_support, consensus_keywords = _candidate_consensus_score(stats)
             consensus_score_used = consensus_weight * consensus_score
             total_score = (
@@ -1226,6 +1242,7 @@ class CBWhisper(pl.LightningModule):
                 + float(phonetic_weight) * phonetic_score_scaled
                 + float(consensus_score_used)
                 - float(prefix_penalty_score)
+                - float(length_penalty_score)
             )
             scored_candidates.append(
                 {
@@ -1237,6 +1254,9 @@ class CBWhisper(pl.LightningModule):
                     "prefix_penalty": float(prefix_penalty),
                     "prefix_penalty_score": float(prefix_penalty_score),
                     "prefix_stats": prefix_stats,
+                    "norm_len": int(norm_len),
+                    "length_growth": int(length_growth),
+                    "length_penalty_score": float(length_penalty_score),
                     "phonetic_score_used": float(phonetic_score),
                     "phonetic_score_scaled": float(phonetic_score_scaled),
                     "consensus_score": float(consensus_score),
@@ -1281,6 +1301,9 @@ class CBWhisper(pl.LightningModule):
                     "phon_gain_vs_baseline": float(item.get("phon_gain_vs_baseline", 0.0)),
                     "prefix_penalty": float(item.get("prefix_penalty", 0.0)),
                     "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
+                    "norm_len": int(item.get("norm_len", 0)),
+                    "length_growth": int(item.get("length_growth", 0)),
+                    "length_penalty_score": float(item.get("length_penalty_score", 0.0)),
                     "prefix_ascii": str((item.get("prefix_stats", {}) or {}).get("ascii_prefix", "")),
                     "prefix_ascii_len": int((item.get("prefix_stats", {}) or {}).get("ascii_prefix_len", 0)),
                     "prefix_has_cjk_after_ascii": bool((item.get("prefix_stats", {}) or {}).get("has_cjk_after_ascii", False)),
@@ -2112,6 +2135,8 @@ class CBWhisper(pl.LightningModule):
                         "consensus_support": int(item.get("consensus_support", 0)),
                         "consensus_keywords": list(item.get("consensus_keywords", [])),
                         "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
+                        "length_penalty_score": float(item.get("length_penalty_score", 0.0)),
+                        "length_growth": int(item.get("length_growth", 0)),
                     }
                     for rank, item in enumerate(scored_candidates)
                 ]
