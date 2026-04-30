@@ -143,6 +143,14 @@ The current Aishell CB-Whisper config enables KWS-based prompting, short-form n-
 * `logs/oracle_nbest_detail_aishell.csv`: per-candidate n-best diagnostic table.
 * `logs/oracle_nbest_summary_aishell.csv`: per-sample top1-vs-oracle diagnostic summary.
 
+KWS checkpoint policy: keep the KWS model fixed unless the experiment is explicitly about KWS retraining or KWS ablation. The current best KWS checkpoint is:
+
+```text
+src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt
+```
+
+This KWS model already includes local improvements over the original CB-Whisper KWS setup. Current experiments should primarily modify CB-Whisper decoding, prompting, normalization, rescoring, repair, and evaluation logic, while keeping this checkpoint as a controlled variable.
+
 Experiment bookkeeping rule: after each code change, commit to git; after each experiment, append the result here and compare against the previous run or best known run.
 
 | Date | Config | Checkpoint | Key settings | Entity Recall | CER | Hotword Only CER | WER | Notes |
