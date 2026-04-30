@@ -27,6 +27,10 @@ class HotwordTokenBiasLogitsProcessor(LogitsProcessor):
         unmatched_scale: float = 0.25,
         prefix_gain: float = 2.0,
         continuation_scale: float = 1.0,
+        restart_scale: float = 0.0,
+        restart_topk: int = 0,
+        restart_max_gap_to_top1: float = 0.0,
+        restart_entry_score_threshold: float = 0.0,
     ):
         self.entries = []
         for entry in entries or []:
@@ -48,7 +52,46 @@ class HotwordTokenBiasLogitsProcessor(LogitsProcessor):
         self.unmatched_scale = max(0.0, float(unmatched_scale))
         self.prefix_gain = max(0.0, float(prefix_gain))
         self.continuation_scale = max(0.0, float(continuation_scale))
+        self.restart_scale = max(0.0, float(restart_scale))
+        self.restart_topk = max(0, int(restart_topk))
+        self.restart_max_gap_to_top1 = max(0.0, float(restart_max_gap_to_top1))
+        self.restart_entry_score_threshold = max(0.0, float(restart_entry_score_threshold))
         self._start_len = None
+
+    @staticmethod
+    def _contains_subsequence(row: torch.LongTensor, tokens: List[int]) -> bool:
+        if len(tokens) == 0 or row.numel() < len(tokens):
+            return False
+        target = torch.tensor(tokens, device=row.device, dtype=row.dtype)
+        for start in range(0, int(row.numel()) - len(tokens) + 1):
+            if torch.equal(row[start : start + len(tokens)], target):
+                return True
+        return False
+
+    def _restart_boost_scale(
+        self,
+        row_scores: torch.FloatTensor,
+        first_token: int,
+        top_token_ids: set,
+    ) -> float:
+        if self.restart_scale <= 0.0 or first_token < 0 or first_token >= row_scores.shape[-1]:
+            return 0.0
+        first_score = row_scores[first_token]
+        if not bool(torch.isfinite(first_score).item()):
+            return 0.0
+        top1_score = torch.max(row_scores)
+        if not bool(torch.isfinite(top1_score).item()):
+            return 0.0
+        gap = float((top1_score - first_score).item())
+        in_topk = self.restart_topk > 0 and first_token in top_token_ids
+        within_gap = self.restart_max_gap_to_top1 > 0.0 and gap <= self.restart_max_gap_to_top1
+        if not in_topk and not within_gap:
+            return 0.0
+        if self.restart_max_gap_to_top1 > 0.0:
+            gap_scale = max(0.0, 1.0 - gap / self.restart_max_gap_to_top1)
+        else:
+            gap_scale = 1.0
+        return self.restart_scale * max(0.25 if in_topk else 0.0, gap_scale)
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
         if self.weight <= 0.0 or len(self.entries) == 0:
@@ -68,6 +111,12 @@ class HotwordTokenBiasLogitsProcessor(LogitsProcessor):
 
         for row_idx in range(input_ids.shape[0]):
             row = input_ids[row_idx]
+            row_scores = scores[row_idx].detach().clone()
+            top_token_ids = set()
+            if self.restart_scale > 0.0 and self.restart_topk > 0:
+                topk = min(self.restart_topk, int(row_scores.shape[-1]))
+                if topk > 0:
+                    top_token_ids = set(int(t) for t in torch.topk(row_scores, k=topk).indices.tolist())
             for entry in self.entries:
                 tokens = entry["tokens"]
                 base = self.weight * decay * float(entry["score"])
@@ -90,8 +139,11 @@ class HotwordTokenBiasLogitsProcessor(LogitsProcessor):
                         )
                 else:
                     first_token = tokens[0]
-                    if 0 <= first_token < scores.shape[-1]:
-                        scores[row_idx, first_token] += base * self.unmatched_scale
+                    if 0 <= first_token < scores.shape[-1] and not self._contains_subsequence(row, tokens):
+                        restart_scale = 0.0
+                        if float(entry["score"]) >= self.restart_entry_score_threshold:
+                            restart_scale = self._restart_boost_scale(row_scores, first_token, top_token_ids)
+                        scores[row_idx, first_token] += base * max(self.unmatched_scale, restart_scale)
         return scores
 
 
@@ -704,6 +756,14 @@ class PBAWhisper(WhisperForConditionalGeneration):
                     unmatched_scale=hotword_bias_unmatched_scale if hotword_bias_unmatched_scale is not None else 0.25,
                     prefix_gain=hotword_bias_prefix_gain if hotword_bias_prefix_gain is not None else 2.0,
                     continuation_scale=hotword_bias_continuation_scale if hotword_bias_continuation_scale is not None else 1.0,
+                    restart_scale=hotword_bias_restart_scale if hotword_bias_restart_scale is not None else 0.0,
+                    restart_topk=hotword_bias_restart_topk if hotword_bias_restart_topk is not None else 0,
+                    restart_max_gap_to_top1=hotword_bias_restart_max_gap_to_top1
+                    if hotword_bias_restart_max_gap_to_top1 is not None
+                    else 0.0,
+                    restart_entry_score_threshold=hotword_bias_restart_entry_score_threshold
+                    if hotword_bias_restart_entry_score_threshold is not None
+                    else 0.0,
                 )
             )
 
