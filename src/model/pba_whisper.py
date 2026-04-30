@@ -10,10 +10,89 @@ from transformers.models.whisper.generation_whisper import _pad_to_max_length, _
 import copy
 from transformers.generation.configuration_utils import GenerationConfig
 from transformers.generation.logits_process import (
+    LogitsProcessor,
     LogitsProcessorList,
     SuppressTokensLogitsProcessor,
 )
 from transformers.generation.stopping_criteria import StoppingCriteriaList
+
+
+class HotwordTokenBiasLogitsProcessor(LogitsProcessor):
+    def __init__(
+        self,
+        entries: List[dict],
+        weight: float = 0.4,
+        begin_decay_after: int = 12,
+        max_steps: int = 48,
+        unmatched_scale: float = 0.25,
+        prefix_gain: float = 2.0,
+        continuation_scale: float = 1.0,
+    ):
+        self.entries = []
+        for entry in entries or []:
+            tokens = entry.get("tokens", [])
+            if isinstance(tokens, torch.Tensor):
+                tokens = tokens.flatten().tolist()
+            tokens = [int(t) for t in tokens if int(t) >= 0]
+            if len(tokens) == 0:
+                continue
+            self.entries.append(
+                {
+                    "tokens": tokens,
+                    "score": max(0.0, float(entry.get("score", 1.0))),
+                }
+            )
+        self.weight = float(weight)
+        self.begin_decay_after = max(0, int(begin_decay_after))
+        self.max_steps = max(1, int(max_steps))
+        self.unmatched_scale = max(0.0, float(unmatched_scale))
+        self.prefix_gain = max(0.0, float(prefix_gain))
+        self.continuation_scale = max(0.0, float(continuation_scale))
+        self._start_len = None
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self.weight <= 0.0 or len(self.entries) == 0:
+            return scores
+        if self._start_len is None:
+            self._start_len = int(input_ids.shape[-1])
+        step = max(0, int(input_ids.shape[-1]) - int(self._start_len))
+        if step >= self.max_steps:
+            return scores
+        if step <= self.begin_decay_after:
+            decay = 1.0
+        else:
+            denom = max(1, self.max_steps - self.begin_decay_after)
+            decay = max(0.0, 1.0 - float(step - self.begin_decay_after) / float(denom))
+        if decay <= 0.0:
+            return scores
+
+        for row_idx in range(input_ids.shape[0]):
+            row = input_ids[row_idx]
+            for entry in self.entries:
+                tokens = entry["tokens"]
+                base = self.weight * decay * float(entry["score"])
+                if base <= 0.0:
+                    continue
+
+                best_prefix_len = 0
+                max_prefix_len = min(len(tokens) - 1, row.numel())
+                for prefix_len in range(max_prefix_len, 0, -1):
+                    prefix = row[-prefix_len:]
+                    if torch.equal(prefix, torch.tensor(tokens[:prefix_len], device=row.device, dtype=row.dtype)):
+                        best_prefix_len = prefix_len
+                        break
+
+                if best_prefix_len > 0:
+                    next_token = tokens[best_prefix_len]
+                    if 0 <= next_token < scores.shape[-1]:
+                        scores[row_idx, next_token] += base * self.continuation_scale * (
+                            1.0 + self.prefix_gain * best_prefix_len / max(len(tokens), 1)
+                        )
+                else:
+                    first_token = tokens[0]
+                    if 0 <= first_token < scores.shape[-1]:
+                        scores[row_idx, first_token] += base * self.unmatched_scale
+        return scores
 
 
 class PBAWhisper(WhisperForConditionalGeneration):  
@@ -546,6 +625,20 @@ class PBAWhisper(WhisperForConditionalGeneration):
                 raise ValueError(f'PBAWhisper: you can not pass audios with duration of at most 30 seconds in-batch.')
             # obtain tokens corresponding to identified keywords
             prompt_ids = keyword_spotting(input_features=input_features, start_of_prev=True)[0]
+            if hotword_bias_entries is None and keyword_spotting is not None:
+                owner = getattr(keyword_spotting, "__self__", None)
+                token_lists = getattr(owner, "_latest_prompt_token_lists", None)
+                score_maps = getattr(owner, "_latest_prompt_keyword_scores", None)
+                prompt_keywords = getattr(owner, "_latest_prompt_keywords", None)
+                if token_lists and score_maps and prompt_keywords:
+                    hotword_bias_entries = []
+                    for kw, tokens in zip(prompt_keywords[0], token_lists[0]):
+                        hotword_bias_entries.append(
+                            {
+                                "tokens": tokens,
+                                "score": float(score_maps[0].get(kw, 0.0)),
+                            }
+                        )
         # pass self.config for backward compatibility
         self._call_private_if_exists(
             "_set_forced_decoder_ids",
@@ -601,10 +694,18 @@ class PBAWhisper(WhisperForConditionalGeneration):
         )
         if logits_processor_base is None:
             logits_processor_base = LogitsProcessorList()
-        # Keep the newer generate() interface for compatibility with the local
-        # evaluation stack, but restore the original CB-Whisper behavior here:
-        # keyword prompting is the only active injection path during decoding.
-        hotword_bias_entries = []
+        if hotword_bias_weight is not None and float(hotword_bias_weight) > 0.0 and hotword_bias_entries:
+            logits_processor_base.append(
+                HotwordTokenBiasLogitsProcessor(
+                    entries=hotword_bias_entries,
+                    weight=float(hotword_bias_weight),
+                    begin_decay_after=hotword_bias_begin_decay_after if hotword_bias_begin_decay_after is not None else 12,
+                    max_steps=hotword_bias_max_steps if hotword_bias_max_steps is not None else 48,
+                    unmatched_scale=hotword_bias_unmatched_scale if hotword_bias_unmatched_scale is not None else 0.25,
+                    prefix_gain=hotword_bias_prefix_gain if hotword_bias_prefix_gain is not None else 2.0,
+                    continuation_scale=hotword_bias_continuation_scale if hotword_bias_continuation_scale is not None else 1.0,
+                )
+            )
 
         if attention_mask is not None:
             kwargs["attention_mask"] = attention_mask
