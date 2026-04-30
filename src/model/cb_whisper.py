@@ -119,13 +119,6 @@ class CBWhisper(pl.LightningModule):
         prompt_max_injected_keywords: int = 4,
         prompt_score_threshold: float = 0.55,
         prompt_relative_threshold: float = 0.8,
-        enable_hotword_token_bias: bool = False,
-        hotword_bias_weight: float = 0.4,
-        hotword_bias_begin_decay_after: int = 12,
-        hotword_bias_max_steps: int = 48,
-        hotword_bias_unmatched_scale: float = 0.25,
-        hotword_bias_prefix_gain: float = 2.0,
-        hotword_bias_continuation_scale: float = 1.0,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
         rescore_use_asr_score: bool = True,
@@ -1540,14 +1533,6 @@ class CBWhisper(pl.LightningModule):
             temperature=0,
             no_repeat_ngram_size=no_repeat_ngram_size,
             keyword_spotting=self.keyword_spotting,
-            hotword_bias_weight=float(getattr(self.hparams, "hotword_bias_weight", 0.0))
-            if bool(getattr(self.hparams, "enable_hotword_token_bias", False))
-            else None,
-            hotword_bias_begin_decay_after=int(getattr(self.hparams, "hotword_bias_begin_decay_after", 12)),
-            hotword_bias_max_steps=int(getattr(self.hparams, "hotword_bias_max_steps", 48)),
-            hotword_bias_unmatched_scale=float(getattr(self.hparams, "hotword_bias_unmatched_scale", 0.25)),
-            hotword_bias_prefix_gain=float(getattr(self.hparams, "hotword_bias_prefix_gain", 2.0)),
-            hotword_bias_continuation_scale=float(getattr(self.hparams, "hotword_bias_continuation_scale", 1.0)),
         )
 
     def _dedup_shortform_predictions(

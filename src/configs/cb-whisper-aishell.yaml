@@ -101,15 +101,6 @@ model:
     prompt_relative_threshold: 0.80
     keyword_perturb_prob: 0.0
 
-    # Lightweight decode-time bias: only nudges tokens of KWS-selected prompt keywords.
-    enable_hotword_token_bias: true
-    hotword_bias_weight: 0.35
-    hotword_bias_begin_decay_after: 12
-    hotword_bias_max_steps: 48
-    hotword_bias_unmatched_scale: 0.20
-    hotword_bias_prefix_gain: 2.0
-    hotword_bias_continuation_scale: 1.0
-
     # Calibrated n-best rerank: scores are scaled inside each candidate pool in current code.
     enable_phonetic_rescore: true
     rescore_nbest: 8
