@@ -123,6 +123,11 @@ class CBWhisper(pl.LightningModule):
         nested_keyword_promotion_score_ratio: float = 0.95,
         nested_keyword_promotion_min_long_chars: int = 3,
         nested_keyword_promotion_max_extra: int = 2,
+        enable_hotword_prefix_bias: bool = False,
+        hotword_prefix_bias_weight: float = 0.2,
+        hotword_prefix_bias_max_steps: int = 40,
+        hotword_prefix_bias_min_prefix_len: int = 1,
+        hotword_prefix_bias_gain: float = 1.5,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
         rescore_use_asr_score: bool = True,
@@ -1595,6 +1600,12 @@ class CBWhisper(pl.LightningModule):
             temperature=0,
             no_repeat_ngram_size=no_repeat_ngram_size,
             keyword_spotting=self.keyword_spotting,
+            hotword_bias_weight=float(getattr(self.hparams, "hotword_prefix_bias_weight", 0.0))
+            if bool(getattr(self.hparams, "enable_hotword_prefix_bias", False))
+            else None,
+            hotword_bias_max_steps=int(getattr(self.hparams, "hotword_prefix_bias_max_steps", 40)),
+            hotword_bias_suffix_recovery_min_prefix_len=int(getattr(self.hparams, "hotword_prefix_bias_min_prefix_len", 1)),
+            hotword_bias_prefix_gain=float(getattr(self.hparams, "hotword_prefix_bias_gain", 1.5)),
         )
 
     def _dedup_shortform_predictions(
