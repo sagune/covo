@@ -128,6 +128,7 @@ class CBWhisper(pl.LightningModule):
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
+        rescore_use_length_weighted_exact: bool = False,
         rescore_phonetic_weight: float = 1.0,
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
@@ -796,12 +797,24 @@ class CBWhisper(pl.LightningModule):
         total_weight_sum = float(sum(float(kw_scores.get(str(kw), 1.0)) for kw in keywords if str(kw)))
         matched_weight_sum = float(sum(float(kw_scores.get(kw, 1.0)) for kw in matched_keywords))
         weighted_coverage = float(matched_weight_sum / max(total_weight_sum, 1e-9)) if total_keywords > 0 else 0.0
+        total_length_weight_sum = float(
+            sum(float(kw_scores.get(str(kw), 1.0)) * max(1, len(str(kw))) for kw in keywords if str(kw))
+        )
+        matched_length_weight_sum = float(
+            sum(float(kw_scores.get(kw, 1.0)) * max(1, len(str(kw))) for kw in matched_keywords)
+        )
+        length_weighted_coverage = (
+            float(matched_length_weight_sum / max(total_length_weight_sum, 1e-9))
+            if total_keywords > 0
+            else 0.0
+        )
         return {
             "score": float(matched_count),
             "matched_count": int(matched_count),
             "total_keywords": int(total_keywords),
             "coverage_ratio": float(coverage_ratio),
             "weighted_coverage": float(weighted_coverage),
+            "length_weighted_coverage": float(length_weighted_coverage),
             "matched_keywords": matched_keywords[:8],
         }
 
@@ -1229,10 +1242,12 @@ class CBWhisper(pl.LightningModule):
         consensus_enabled = bool(getattr(self.hparams, "enable_consensus_rerank", False))
         consensus_weight = float(getattr(self.hparams, "consensus_rerank_weight", 0.35)) if consensus_enabled else 0.0
         consensus_min_support = max(1, int(getattr(self.hparams, "consensus_rerank_min_support", 2)))
-        exact_raw_scores = [
-            float((item.get("exact_stats", {}) or {}).get("weighted_coverage", 0.0))
-            for item in candidate_stats
-        ]
+        exact_score_key = (
+            "length_weighted_coverage"
+            if bool(getattr(self.hparams, "rescore_use_length_weighted_exact", False))
+            else "weighted_coverage"
+        )
+        exact_raw_scores = [float((item.get("exact_stats", {}) or {}).get(exact_score_key, 0.0)) for item in candidate_stats]
         max_exact_score = max(exact_raw_scores) if len(exact_raw_scores) > 0 else 0.0
         has_exact_evidence = max_exact_score > 0.0
         phonetic_raw_scores = [
@@ -1332,6 +1347,7 @@ class CBWhisper(pl.LightningModule):
                     "exact_total_keywords": int(exact_stats.get("total_keywords", 0)),
                     "exact_coverage_ratio": float(exact_stats.get("coverage_ratio", 0.0)),
                     "exact_weighted_coverage": float(exact_stats.get("weighted_coverage", 0.0)),
+                    "exact_length_weighted_coverage": float(exact_stats.get("length_weighted_coverage", 0.0)),
                     "exact_matched_keywords": list(exact_stats.get("matched_keywords", [])),
                     "phon": float(item["phonetic_score"]),
                     "phon_used": float(item.get("phonetic_score_used", 0.0)),

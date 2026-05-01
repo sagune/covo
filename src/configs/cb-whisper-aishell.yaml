@@ -111,6 +111,7 @@ model:
     rescore_use_asr_score: true
     rescore_asr_weight: 1.0
     rescore_keyword_weight: 1.8
+    rescore_use_length_weighted_exact: true
     rescore_phonetic_weight: 0.7
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
