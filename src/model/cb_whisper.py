@@ -137,7 +137,6 @@ class CBWhisper(pl.LightningModule):
         surface_repair_ambiguity_gap: float = 0.05,
         surface_repair_max_keywords: int = 8,
         surface_repair_max_edits: int = 2,
-        surface_repair_max_changed_ratio: float = 1.0,
         surface_repair_min_keyword_chars: int = 2,
         surface_repair_max_keyword_chars: int = 6,
         enable_phonetic_consensus_repair: bool = False,
@@ -494,7 +493,6 @@ class CBWhisper(pl.LightningModule):
         ambiguity_gap = float(getattr(self.hparams, "surface_repair_ambiguity_gap", 0.05))
         max_keywords = max(1, int(getattr(self.hparams, "surface_repair_max_keywords", 8)))
         max_edits = max(0, int(getattr(self.hparams, "surface_repair_max_edits", 2)))
-        max_changed_ratio = max(0.0, min(1.0, float(getattr(self.hparams, "surface_repair_max_changed_ratio", 1.0))))
         min_chars = max(1, int(getattr(self.hparams, "surface_repair_min_keyword_chars", 2)))
         max_chars = max(min_chars, int(getattr(self.hparams, "surface_repair_max_keyword_chars", 6)))
         if max_edits <= 0:
@@ -591,8 +589,6 @@ class CBWhisper(pl.LightningModule):
                     continue
                 changed_chars = sum(1 for a, b in zip(norm_window, norm_kw) if a != b)
                 if changed_chars <= 0:
-                    continue
-                if float(changed_chars) / max(float(len(kw_chars)), 1.0) > max_changed_ratio:
                     continue
                 windows.append((start, end, window_text, norm_window, changed_chars))
 
