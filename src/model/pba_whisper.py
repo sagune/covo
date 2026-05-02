@@ -10,76 +10,10 @@ from transformers.models.whisper.generation_whisper import _pad_to_max_length, _
 import copy
 from transformers.generation.configuration_utils import GenerationConfig
 from transformers.generation.logits_process import (
-    LogitsProcessor,
     LogitsProcessorList,
     SuppressTokensLogitsProcessor,
 )
 from transformers.generation.stopping_criteria import StoppingCriteriaList
-
-
-class HotwordPrefixBiasLogitsProcessor(LogitsProcessor):
-    def __init__(
-        self,
-        entries: List[dict],
-        weight: float = 0.2,
-        max_steps: int = 40,
-        min_prefix_len: int = 1,
-        prefix_gain: float = 1.5,
-    ):
-        self.entries = []
-        for entry in entries or []:
-            tokens = entry.get("tokens", [])
-            if isinstance(tokens, torch.Tensor):
-                tokens = tokens.flatten().tolist()
-            tokens = [int(t) for t in tokens if int(t) >= 0]
-            if len(tokens) < 2:
-                continue
-            self.entries.append({"tokens": tokens, "score": max(0.0, float(entry.get("score", 1.0)))})
-        self.weight = max(0.0, float(weight))
-        self.max_steps = max(1, int(max_steps))
-        self.min_prefix_len = max(1, int(min_prefix_len))
-        self.prefix_gain = max(0.0, float(prefix_gain))
-        self._start_len = None
-
-    @staticmethod
-    def _contains_subsequence(row: torch.LongTensor, tokens: List[int]) -> bool:
-        if len(tokens) == 0 or row.numel() < len(tokens):
-            return False
-        target = torch.tensor(tokens, device=row.device, dtype=row.dtype)
-        for start in range(0, int(row.numel()) - len(tokens) + 1):
-            if torch.equal(row[start : start + len(tokens)], target):
-                return True
-        return False
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
-        if self.weight <= 0.0 or len(self.entries) == 0:
-            return scores
-        if self._start_len is None:
-            self._start_len = int(input_ids.shape[-1])
-        step = max(0, int(input_ids.shape[-1]) - int(self._start_len))
-        if step >= self.max_steps:
-            return scores
-
-        for row_idx in range(input_ids.shape[0]):
-            row = input_ids[row_idx]
-            for entry in self.entries:
-                tokens = entry["tokens"]
-                if self._contains_subsequence(row, tokens):
-                    continue
-                max_prefix_len = min(len(tokens) - 1, int(row.numel()))
-                best_prefix_len = 0
-                for prefix_len in range(max_prefix_len, self.min_prefix_len - 1, -1):
-                    prefix = torch.tensor(tokens[:prefix_len], device=row.device, dtype=row.dtype)
-                    if torch.equal(row[-prefix_len:], prefix):
-                        best_prefix_len = prefix_len
-                        break
-                if best_prefix_len <= 0:
-                    continue
-                next_token = tokens[best_prefix_len]
-                if 0 <= next_token < scores.shape[-1]:
-                    gain = 1.0 + self.prefix_gain * best_prefix_len / max(len(tokens), 1)
-                    scores[row_idx, next_token] += self.weight * float(entry["score"]) * gain
-        return scores
 
 
 class PBAWhisper(WhisperForConditionalGeneration):  
@@ -612,16 +546,6 @@ class PBAWhisper(WhisperForConditionalGeneration):
                 raise ValueError(f'PBAWhisper: you can not pass audios with duration of at most 30 seconds in-batch.')
             # obtain tokens corresponding to identified keywords
             prompt_ids = keyword_spotting(input_features=input_features, start_of_prev=True)[0]
-            if hotword_bias_entries is None and keyword_spotting is not None:
-                owner = getattr(keyword_spotting, "__self__", None)
-                token_lists = getattr(owner, "_latest_prompt_token_lists", None)
-                score_maps = getattr(owner, "_latest_prompt_keyword_scores", None)
-                prompt_keywords = getattr(owner, "_latest_prompt_keywords", None)
-                if token_lists and score_maps and prompt_keywords:
-                    hotword_bias_entries = [
-                        {"tokens": tokens, "score": float(score_maps[0].get(kw, 0.0))}
-                        for kw, tokens in zip(prompt_keywords[0], token_lists[0])
-                    ]
         # pass self.config for backward compatibility
         self._call_private_if_exists(
             "_set_forced_decoder_ids",
@@ -677,18 +601,10 @@ class PBAWhisper(WhisperForConditionalGeneration):
         )
         if logits_processor_base is None:
             logits_processor_base = LogitsProcessorList()
-        if hotword_bias_weight is not None and float(hotword_bias_weight) > 0.0 and hotword_bias_entries:
-            logits_processor_base.append(
-                HotwordPrefixBiasLogitsProcessor(
-                    entries=hotword_bias_entries,
-                    weight=float(hotword_bias_weight),
-                    max_steps=hotword_bias_max_steps if hotword_bias_max_steps is not None else 40,
-                    min_prefix_len=hotword_bias_suffix_recovery_min_prefix_len
-                    if hotword_bias_suffix_recovery_min_prefix_len is not None
-                    else 1,
-                    prefix_gain=hotword_bias_prefix_gain if hotword_bias_prefix_gain is not None else 1.5,
-                )
-            )
+        # Keep the newer generate() interface for compatibility with the local
+        # evaluation stack, but restore the original CB-Whisper behavior here:
+        # keyword prompting is the only active injection path during decoding.
+        hotword_bias_entries = []
 
         if attention_mask is not None:
             kwargs["attention_mask"] = attention_mask
