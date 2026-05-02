@@ -125,6 +125,10 @@ class CBWhisper(pl.LightningModule):
         nested_keyword_promotion_max_extra: int = 2,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
+        enable_confidence_gated_candidate_budget: bool = False,
+        rescore_high_confidence_max_candidates: int = 16,
+        rescore_candidate_budget_min_top_score: float = 0.0,
+        rescore_candidate_budget_min_score_gap: float = 0.0,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -979,6 +983,18 @@ class CBWhisper(pl.LightningModule):
             fill = 0.0 if neutral_if_flat else (1.0 if max_v > 0.0 else 0.0)
             return [float(fill) for _ in vals]
         return [float((v - min_v) / spread) for v in vals]
+
+    @staticmethod
+    def _keyword_score_top_gap(kw_scores: dict) -> Tuple[float, float]:
+        vals = sorted(
+            [float(v) for v in dict(kw_scores or {}).values()],
+            reverse=True,
+        )
+        if len(vals) == 0:
+            return 0.0, 0.0
+        top_score = float(vals[0])
+        runner_up = float(vals[1]) if len(vals) > 1 else 0.0
+        return top_score, float(top_score - runner_up)
 
     @staticmethod
     def _prompt_weight_concentration(weights: List[float]) -> float:
@@ -2081,7 +2097,26 @@ class CBWhisper(pl.LightningModule):
 
         do_rescore = bool(is_shortform and getattr(self.hparams, "enable_phonetic_rescore", False))
         nbest = max(1, int(getattr(self.hparams, "rescore_nbest", 5)))
-        gen_nbest = min(max(nbest * 3, nbest), 16) if do_rescore else 1
+        gen_nbest_cap = 16
+        budget_top_score = 0.0
+        budget_score_gap = 0.0
+        budget_high_confidence = False
+        if do_rescore and bool(getattr(self.hparams, "enable_confidence_gated_candidate_budget", False)):
+            # Populate KWS state before generation. The generate call reuses the
+            # same keyword cache, so this does not add another KWS forward pass.
+            self.keyword_spotting(input_features, start_of_prev=False)
+            kw_score_map = self._latest_keyword_scores[0] if len(self._latest_keyword_scores) > 0 else {}
+            budget_top_score, budget_score_gap = self._keyword_score_top_gap(kw_score_map)
+            budget_high_confidence = bool(
+                budget_top_score >= float(getattr(self.hparams, "rescore_candidate_budget_min_top_score", 0.0))
+                and budget_score_gap >= float(getattr(self.hparams, "rescore_candidate_budget_min_score_gap", 0.0))
+            )
+            if budget_high_confidence:
+                gen_nbest_cap = max(
+                    gen_nbest_cap,
+                    int(getattr(self.hparams, "rescore_high_confidence_max_candidates", 16)),
+                )
+        gen_nbest = min(max(nbest * 3, nbest), gen_nbest_cap) if do_rescore else 1
         num_beams = max(5, gen_nbest) if do_rescore else 5
         num_return_sequences = gen_nbest if do_rescore else 1
         # generate transcript candidates
@@ -2124,6 +2159,11 @@ class CBWhisper(pl.LightningModule):
                 prompt_weight_concentration=float(self._prompt_weight_concentration(prompt_weights)),
                 prompt_keywords_preview=prompt_keywords[:5],
                 prompt_active=bool(len(prompt_keywords) > 0),
+                generation_nbest=int(gen_nbest),
+                generation_nbest_cap=int(gen_nbest_cap),
+                candidate_budget_high_confidence=bool(budget_high_confidence),
+                candidate_budget_top_score=float(budget_top_score),
+                candidate_budget_score_gap=float(budget_score_gap),
             )
 
         # decode prediction / select best candidate

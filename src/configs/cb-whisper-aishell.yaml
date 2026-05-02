@@ -108,6 +108,10 @@ model:
     # Calibrated n-best rerank: scores are scaled inside each candidate pool in current code.
     enable_phonetic_rescore: true
     rescore_nbest: 8
+    enable_confidence_gated_candidate_budget: true
+    rescore_high_confidence_max_candidates: 24
+    rescore_candidate_budget_min_top_score: 0.90
+    rescore_candidate_budget_min_score_gap: 0.03
     rescore_use_asr_score: true
     rescore_asr_weight: 1.0
     rescore_keyword_weight: 1.8
