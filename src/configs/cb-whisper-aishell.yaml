@@ -100,9 +100,9 @@ model:
     prompt_score_threshold: 0.55
     prompt_relative_threshold: 0.80
     enable_nested_keyword_promotion: true
-    nested_keyword_promotion_score_ratio: 0.95
+    nested_keyword_promotion_score_ratio: 0.90
     nested_keyword_promotion_min_long_chars: 3
-    nested_keyword_promotion_max_extra: 2
+    nested_keyword_promotion_max_extra: 3
     keyword_perturb_prob: 0.0
 
     # Calibrated n-best rerank: scores are scaled inside each candidate pool in current code.
