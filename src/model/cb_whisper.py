@@ -131,6 +131,8 @@ class CBWhisper(pl.LightningModule):
         rescore_keyword_weight: float = 2.0,
         rescore_phonetic_weight: float = 1.0,
         rescore_prefix_penalty_weight: float = 1.0,
+        rescore_extra_candidate_rank_penalty: float = 0.0,
+        rescore_extra_candidate_rank_start: int = 16,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
         enable_phonetic_surface_repair: bool = False,
@@ -1200,6 +1202,7 @@ class CBWhisper(pl.LightningModule):
                 {
                     "candidate": str(candidate),
                     "rescore_candidate": str(rescore_candidate),
+                    "generation_rank": int(idx + 1),
                     "asr_score": float(asr_score),
                     "exact_score": float(exact_stats["score"]),
                     "exact_weighted_score": float(exact_stats.get("weighted_coverage", 0.0)),
@@ -1227,6 +1230,8 @@ class CBWhisper(pl.LightningModule):
         use_asr_score = bool(getattr(self.hparams, "rescore_use_asr_score", True))
         asr_weight = float(getattr(self.hparams, "rescore_asr_weight", 1.0)) if use_asr_score else 0.0
         prefix_penalty_weight = float(getattr(self.hparams, "rescore_prefix_penalty_weight", 1.0))
+        extra_rank_penalty_weight = max(0.0, float(getattr(self.hparams, "rescore_extra_candidate_rank_penalty", 0.0)))
+        extra_rank_start = max(1, int(getattr(self.hparams, "rescore_extra_candidate_rank_start", 16)))
         consensus_enabled = bool(getattr(self.hparams, "enable_consensus_rerank", False))
         consensus_weight = float(getattr(self.hparams, "consensus_rerank_weight", 0.35)) if consensus_enabled else 0.0
         consensus_min_support = max(1, int(getattr(self.hparams, "consensus_rerank_min_support", 2)))
@@ -1281,6 +1286,9 @@ class CBWhisper(pl.LightningModule):
             prefix_stats = self._prefix_pollution_stats(str(stats.get("candidate", "")))
             prefix_penalty = float(prefix_stats.get("penalty", 0.0))
             prefix_penalty_score = prefix_penalty_weight * prefix_penalty
+            generation_rank = max(1, int(stats.get("generation_rank", stats_idx + 1)))
+            extra_rank_penalty = max(0, generation_rank - extra_rank_start)
+            extra_rank_penalty_score = extra_rank_penalty_weight * float(extra_rank_penalty)
             consensus_score, consensus_support, consensus_keywords = _candidate_consensus_score(stats)
             consensus_score_used = consensus_weight * consensus_score
             total_score = (
@@ -1289,6 +1297,7 @@ class CBWhisper(pl.LightningModule):
                 + float(phonetic_weight) * phonetic_score_scaled
                 + float(consensus_score_used)
                 - float(prefix_penalty_score)
+                - float(extra_rank_penalty_score)
             )
             scored_candidates.append(
                 {
@@ -1300,6 +1309,7 @@ class CBWhisper(pl.LightningModule):
                     "prefix_penalty": float(prefix_penalty),
                     "prefix_penalty_score": float(prefix_penalty_score),
                     "prefix_stats": prefix_stats,
+                    "extra_rank_penalty_score": float(extra_rank_penalty_score),
                     "phonetic_score_used": float(phonetic_score),
                     "phonetic_score_scaled": float(phonetic_score_scaled),
                     "consensus_score": float(consensus_score),
@@ -2164,6 +2174,7 @@ class CBWhisper(pl.LightningModule):
                         "hotword_score": float(item.get("hotword_score", 0.0)),
                         "asr_score": float(item.get("asr_score", 0.0)),
                         "asr_score_scaled": float(item.get("asr_score_scaled", 0.0)),
+                        "generation_rank": int(item.get("generation_rank", rank + 1)),
                         "exact_score": float(item.get("exact_score", 0.0)),
                         "exact_weighted_score": float(item.get("exact_weighted_score", 0.0)),
                         "exact_score_scaled": float(item.get("exact_score_scaled", 0.0)),
@@ -2176,6 +2187,7 @@ class CBWhisper(pl.LightningModule):
                         "consensus_support": int(item.get("consensus_support", 0)),
                         "consensus_keywords": list(item.get("consensus_keywords", [])),
                         "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
+                        "extra_rank_penalty_score": float(item.get("extra_rank_penalty_score", 0.0)),
                     }
                     for rank, item in enumerate(scored_candidates)
                 ]

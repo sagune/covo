@@ -114,6 +114,8 @@ model:
     rescore_keyword_weight: 1.8
     rescore_phonetic_weight: 0.7
     rescore_prefix_penalty_weight: 1.0
+    rescore_extra_candidate_rank_penalty: 0.08
+    rescore_extra_candidate_rank_start: 16
     shortform_no_repeat_ngram_size: 3
     rescore_max_keywords: 12
     enable_phonetic_surface_repair: true
