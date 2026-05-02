@@ -120,6 +120,7 @@ model:
     surface_repair_ambiguity_gap: 0.05
     surface_repair_max_keywords: 8
     surface_repair_max_edits: 2
+    surface_repair_max_changed_ratio: 0.67
     surface_repair_min_keyword_chars: 2
     surface_repair_max_keyword_chars: 6
     enable_phonetic_consensus_repair: true
