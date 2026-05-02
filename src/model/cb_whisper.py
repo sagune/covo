@@ -125,6 +125,7 @@ class CBWhisper(pl.LightningModule):
         nested_keyword_promotion_max_extra: int = 2,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
+        rescore_generation_max_candidates: int = 16,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -2081,7 +2082,8 @@ class CBWhisper(pl.LightningModule):
 
         do_rescore = bool(is_shortform and getattr(self.hparams, "enable_phonetic_rescore", False))
         nbest = max(1, int(getattr(self.hparams, "rescore_nbest", 5)))
-        gen_nbest = min(max(nbest * 3, nbest), 16) if do_rescore else 1
+        gen_nbest_cap = max(nbest, int(getattr(self.hparams, "rescore_generation_max_candidates", 16)))
+        gen_nbest = min(max(nbest * 3, nbest), gen_nbest_cap) if do_rescore else 1
         num_beams = max(5, gen_nbest) if do_rescore else 5
         num_return_sequences = gen_nbest if do_rescore else 1
         # generate transcript candidates
