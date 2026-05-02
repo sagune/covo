@@ -139,6 +139,9 @@ class CBWhisper(pl.LightningModule):
         surface_repair_max_edits: int = 2,
         surface_repair_min_keyword_chars: int = 2,
         surface_repair_max_keyword_chars: int = 6,
+        enable_candidate_exact_repair: bool = False,
+        candidate_exact_repair_max_edits: int = 2,
+        candidate_exact_repair_max_keywords: int = 12,
         enable_phonetic_consensus_repair: bool = False,
         consensus_repair_score_threshold: float = 0.90,
         consensus_repair_min_support: int = 2,
@@ -620,6 +623,83 @@ class CBWhisper(pl.LightningModule):
             "changed": bool(repaired_text != text),
             "repairs": repairs,
         }
+
+    def _candidate_exact_surface_repair(
+        self,
+        pred_text: str,
+        keywords: List[str],
+        kw_scores: dict,
+        candidate_texts: Optional[List[str]] = None,
+    ) -> Tuple[str, dict]:
+        if not bool(getattr(self.hparams, "enable_candidate_exact_repair", False)):
+            return pred_text, {"changed": False, "repairs": []}
+        if not isinstance(candidate_texts, list) or len(candidate_texts) <= 1:
+            return pred_text, {"changed": False, "repairs": []}
+        max_edits = max(0, int(getattr(self.hparams, "candidate_exact_repair_max_edits", 2)))
+        max_keywords = max(1, int(getattr(self.hparams, "candidate_exact_repair_max_keywords", 12)))
+        if max_edits <= 0:
+            return pred_text, {"changed": False, "repairs": []}
+
+        text = unicodedata.normalize("NFKC", str(pred_text))
+        chars = list(text)
+        normalized_text = self._normalize_text_for_rescore(text)
+        normalized_candidates = [self._normalize_text_for_rescore(str(c)) for c in candidate_texts]
+        ranked_keywords = self._sort_keywords_by_score(keywords, kw_scores)[:max_keywords]
+        repairs = []
+
+        for raw_kw in ranked_keywords:
+            norm_kw = self._normalize_text_for_rescore(str(raw_kw))
+            if norm_kw == "" or norm_kw in normalized_text:
+                continue
+            kw_chars = list(norm_kw)
+            if len(kw_chars) < 2 or len(kw_chars) > int(getattr(self.hparams, "surface_repair_max_keyword_chars", 6)):
+                continue
+            kw_units = self._to_phonetic_units(norm_kw)
+            if len(kw_units) != len(kw_chars):
+                continue
+            exact_candidate_support = sum(1 for norm_cand in normalized_candidates if norm_kw in norm_cand)
+            if exact_candidate_support <= 0:
+                continue
+
+            windows = []
+            win_len = len(kw_chars)
+            for start in range(0, len(chars) - win_len + 1):
+                end = start + win_len
+                window_text = "".join(chars[start:end])
+                if not any(self._looks_like_cjk(ch) for ch in window_text):
+                    continue
+                norm_window = self._normalize_text_for_rescore(window_text)
+                if len(norm_window) != win_len or norm_window == norm_kw:
+                    continue
+                if self._to_phonetic_units(norm_window) != kw_units:
+                    continue
+                changed_chars = sum(1 for a, b in zip(norm_window, norm_kw) if a != b)
+                if changed_chars <= 0:
+                    continue
+                windows.append((start, end, norm_window, changed_chars))
+            if len(windows) != 1:
+                continue
+
+            start, end, norm_window, changed_chars = windows[0]
+            chars[start:end] = kw_chars
+            repairs.append(
+                {
+                    "keyword": norm_kw,
+                    "score": float(kw_scores.get(str(raw_kw), 0.0)),
+                    "start": int(start),
+                    "end": int(end),
+                    "from": norm_window,
+                    "to": norm_kw,
+                    "changed_chars": int(changed_chars),
+                    "exact_candidate_support": int(exact_candidate_support),
+                }
+            )
+            normalized_text = self._normalize_text_for_rescore("".join(chars))
+            if len(repairs) >= max_edits:
+                break
+
+        repaired_text = "".join(chars)
+        return repaired_text, {"changed": bool(repaired_text != text), "repairs": repairs}
 
     def _best_phonetic_window_match(self, pred_units: List[str], kw_units: List[str]) -> Dict[str, Any]:
         if len(pred_units) == 0 or len(kw_units) == 0:
@@ -2276,6 +2356,15 @@ class CBWhisper(pl.LightningModule):
                 kw_scores=repair_score_map,
                 candidate_texts=surface_candidate_texts,
             )
+            candidate_repair_info = {"changed": False, "repairs": []}
+            if not bool(repair_info.get("changed", False)):
+                pred, candidate_repair_info = self._candidate_exact_surface_repair(
+                    pred_text=pred_before_repair,
+                    keywords=repair_keywords,
+                    kw_scores=repair_score_map,
+                    candidate_texts=surface_candidate_texts,
+                )
+                repair_info = candidate_repair_info
             if bool(repair_info.get("changed", False)):
                 if len(self._latest_forward_candidates) > 0:
                     self._latest_forward_candidates[0]["text_before_surface_repair"] = pred_before_repair
@@ -2288,6 +2377,7 @@ class CBWhisper(pl.LightningModule):
                         before=pred_before_repair[:160],
                         after=str(pred)[:160],
                         repairs=list(repair_info.get("repairs", [])),
+                        repair_type="candidate_exact" if bool(candidate_repair_info.get("changed", False)) else "phonetic_surface",
                     )
 
         if self._debug_should_log_idx(dbg_idx):

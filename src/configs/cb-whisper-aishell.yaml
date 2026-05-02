@@ -122,6 +122,9 @@ model:
     surface_repair_max_edits: 2
     surface_repair_min_keyword_chars: 2
     surface_repair_max_keyword_chars: 6
+    enable_candidate_exact_repair: true
+    candidate_exact_repair_max_edits: 2
+    candidate_exact_repair_max_keywords: 12
     enable_phonetic_consensus_repair: true
     consensus_repair_score_threshold: 0.90
     consensus_repair_min_support: 2
