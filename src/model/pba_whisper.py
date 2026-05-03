@@ -230,9 +230,13 @@ class PBAWhisper(WhisperForConditionalGeneration):
             tokens.append(int(lang_to_id[lang_token]))
 
         task_key = str(task or "transcribe").strip().lower()
-        task_token = task_key if task_key.startswith("<|") else f"<|{task_key}|>"
-        if task_token in task_to_id:
-            tokens.append(int(task_to_id[task_token]))
+        task_candidates = [task_key]
+        if not (task_key.startswith("<|") and task_key.endswith("|>")):
+            task_candidates.append(f"<|{task_key}|>")
+        for task_token in task_candidates:
+            if task_token in task_to_id:
+                tokens.append(int(task_to_id[task_token]))
+                break
 
         no_timestamps_token_id = getattr(generation_config, "no_timestamps_token_id", None)
         if no_timestamps and no_timestamps_token_id is not None:
