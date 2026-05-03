@@ -1,5 +1,4 @@
 import re
-import math
 from typing import List, Union, Optional, Tuple, Dict, Any
 import os
 import json
@@ -133,8 +132,6 @@ class CBWhisper(pl.LightningModule):
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
-        enable_rescore_softmax_keyword_priors: bool = False,
-        rescore_keyword_prior_temperature: float = 0.05,
         enable_phonetic_surface_repair: bool = False,
         surface_repair_score_threshold: float = 0.95,
         surface_repair_ambiguity_gap: float = 0.05,
@@ -968,19 +965,6 @@ class CBWhisper(pl.LightningModule):
             score = float(kw_scores.get(raw_kw, kw_scores.get(norm_kw, 1.0)))
             if norm_kw not in norm_scores or score > float(norm_scores[norm_kw]):
                 norm_scores[norm_kw] = score
-        if bool(getattr(self.hparams, "enable_rescore_softmax_keyword_priors", False)) and len(norm_scores) > 0:
-            temperature = max(1e-4, float(getattr(self.hparams, "rescore_keyword_prior_temperature", 0.05)))
-            max_score = max(float(v) for v in norm_scores.values())
-            exp_scores = {
-                kw: float(math.exp((float(score) - max_score) / temperature))
-                for kw, score in norm_scores.items()
-            }
-            total = float(sum(exp_scores.values()))
-            if total > 0.0:
-                norm_scores = {
-                    kw: float(score / total)
-                    for kw, score in exp_scores.items()
-                }
         return list(norm_scores.keys()), norm_scores
 
     @staticmethod
