@@ -693,6 +693,18 @@ class PBAWhisper(WhisperForConditionalGeneration):
                 ).unsqueeze(0)
                 kwargs["decoder_input_ids"] = torch.cat([prompt_tensor, init_decoder_input_ids], dim=-1)
                 kwargs["decoder_attention_mask"] = kwargs["decoder_input_ids"] != generation_config.pad_token_id
+            elif bool(force_decoder_prompt_ids):
+                init_tokens = self._explicit_decoder_prompt_tokens(
+                    generation_config=generation_config,
+                    language=language,
+                    task=task,
+                    no_timestamps=not bool(return_timestamps),
+                )
+                one_tensor = torch.ones(
+                    (input_features.size(0), 1), device=input_features.device, dtype=torch.long
+                )
+                kwargs["decoder_input_ids"] = torch.cat([t * one_tensor for t in init_tokens], dim=-1)
+                kwargs["decoder_attention_mask"] = kwargs["decoder_input_ids"] != generation_config.pad_token_id
 
             logits_processor_run = LogitsProcessorList(list(logits_processor_base))
             outputs = super(WhisperGenerationMixin, self).generate(
