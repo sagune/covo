@@ -132,6 +132,9 @@ class CBWhisper(pl.LightningModule):
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
+        enable_rescore_keyword_filtering: bool = False,
+        rescore_keyword_score_threshold: float = 0.0,
+        rescore_keyword_relative_threshold: float = 0.0,
         enable_phonetic_surface_repair: bool = False,
         surface_repair_score_threshold: float = 0.95,
         surface_repair_ambiguity_gap: float = 0.05,
@@ -953,7 +956,19 @@ class CBWhisper(pl.LightningModule):
         max_k = max(1, int(getattr(self.hparams, "rescore_max_keywords", 12)))
         uniq = list(dict.fromkeys([str(k) for k in keywords if str(k).strip() != ""]))
         uniq.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
-        return self._promote_nested_phonetic_keywords(uniq, uniq[:max_k], kw_scores, max_k)
+        selected = uniq[:max_k]
+        if bool(getattr(self.hparams, "enable_rescore_keyword_filtering", False)) and len(uniq) > 0:
+            abs_threshold = float(getattr(self.hparams, "rescore_keyword_score_threshold", 0.0))
+            rel_threshold = float(getattr(self.hparams, "rescore_keyword_relative_threshold", 0.0))
+            top_score = float(kw_scores.get(uniq[0], 0.0))
+            keep_threshold = max(abs_threshold, top_score * rel_threshold)
+            selected = [
+                kw for kw in uniq
+                if float(kw_scores.get(kw, 0.0)) >= keep_threshold
+            ][:max_k]
+            if len(selected) == 0:
+                selected = uniq[:1]
+        return self._promote_nested_phonetic_keywords(uniq, selected, kw_scores, max_k)
 
     def _normalize_rescore_keyword_inputs(self, keywords: List[str], kw_scores: dict) -> Tuple[List[str], dict]:
         norm_scores = {}

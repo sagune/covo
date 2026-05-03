@@ -115,6 +115,9 @@ model:
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
     rescore_max_keywords: 12
+    enable_rescore_keyword_filtering: true
+    rescore_keyword_score_threshold: 0.85
+    rescore_keyword_relative_threshold: 0.95
     enable_phonetic_surface_repair: true
     surface_repair_score_threshold: 0.95
     surface_repair_ambiguity_gap: 0.05
