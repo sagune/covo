@@ -131,8 +131,6 @@ class CBWhisper(pl.LightningModule):
         rescore_phonetic_weight: float = 1.0,
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
-        shortform_num_beam_groups: int = 1,
-        shortform_diversity_penalty: float = 0.0,
         rescore_max_keywords: int = 12,
         enable_phonetic_surface_repair: bool = False,
         surface_repair_score_threshold: float = 0.95,
@@ -1596,8 +1594,6 @@ class CBWhisper(pl.LightningModule):
             do_sample=False,
             temperature=0,
             no_repeat_ngram_size=no_repeat_ngram_size,
-            num_beam_groups=max(1, int(getattr(self.hparams, "shortform_num_beam_groups", 1))),
-            diversity_penalty=max(0.0, float(getattr(self.hparams, "shortform_diversity_penalty", 0.0))),
             keyword_spotting=self.keyword_spotting,
         )
 
