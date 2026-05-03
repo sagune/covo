@@ -131,9 +131,6 @@ class CBWhisper(pl.LightningModule):
         rescore_keyword_weight: float = 2.0,
         rescore_phonetic_weight: float = 1.0,
         rescore_prefix_penalty_weight: float = 1.0,
-        enable_dynamic_candidate_expansion: bool = False,
-        dynamic_candidate_expansion_cap: int = 24,
-        dynamic_candidate_min_kws_score: float = 0.75,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
         enable_phonetic_surface_repair: bool = False,
@@ -2150,56 +2147,6 @@ class CBWhisper(pl.LightningModule):
                     keywords=kws,
                     keyword_scores=kws_score_map,
                 )
-                dynamic_expanded = False
-                max_exact_evidence = max(
-                    [float(item.get("exact_score", 0.0)) for item in candidate_stats],
-                    default=0.0,
-                )
-                top_kws_score = max([float(kws_score_map.get(kw, 0.0)) for kw in kws], default=0.0)
-                expansion_cap = max(gen_nbest, int(getattr(self.hparams, "dynamic_candidate_expansion_cap", 24)))
-                should_expand = (
-                    bool(getattr(self.hparams, "enable_dynamic_candidate_expansion", False))
-                    and is_shortform
-                    and do_rescore
-                    and expansion_cap > gen_nbest
-                    and max_exact_evidence <= 0.0
-                    and top_kws_score >= float(getattr(self.hparams, "dynamic_candidate_min_kws_score", 0.75))
-                )
-                if should_expand:
-                    expanded_pred = self._generate_shortform_candidates(
-                        input_features=input_features,
-                        attention_mask=attention_mask,
-                        num_beams=max(5, expansion_cap),
-                        num_return_sequences=expansion_cap,
-                        no_repeat_ngram_size=max(0, int(getattr(self.hparams, "shortform_no_repeat_ngram_size", 3))),
-                    )
-                    expanded_pred = self._dedup_shortform_predictions(
-                        expanded_pred,
-                        desired_num_return_sequences=expansion_cap,
-                    )
-                    if isinstance(expanded_pred, torch.Tensor) and expanded_pred.dim() == 2:
-                        expanded_candidates = self.processor_whisper.tokenizer.batch_decode(
-                            expanded_pred,
-                            skip_special_tokens=True,
-                        )
-                        expanded_stats = self._build_shortform_candidate_stats(
-                            candidates=expanded_candidates,
-                            pred_sequences=expanded_pred,
-                            input_features=input_features,
-                            attention_mask=attention_mask,
-                            keywords=kws,
-                            keyword_scores=kws_score_map,
-                        )
-                        expanded_max_exact = max(
-                            [float(item.get("exact_score", 0.0)) for item in expanded_stats],
-                            default=0.0,
-                        )
-                        if expanded_max_exact > max_exact_evidence:
-                            pred = expanded_pred
-                            candidates = expanded_candidates
-                            surface_candidate_texts = list(expanded_candidates)
-                            candidate_stats = expanded_stats
-                            dynamic_expanded = True
                 scored_candidates, baseline_idx, baseline_raw_phon = self._score_shortform_candidates(
                     candidate_stats=candidate_stats,
                     keyword_weight=effective_keyword_weight,
@@ -2292,7 +2239,6 @@ class CBWhisper(pl.LightningModule):
                         effective_keyword_weight=float(effective_keyword_weight),
                         keywords_preview=kws[:8],
                         candidate_pool_summary=candidate_pool_summary,
-                        dynamic_candidate_expanded=bool(dynamic_expanded),
                         rerank_summary={
                             "baseline_text": baseline_text_full[:160],
                             "final_text": final_text_full[:160],
