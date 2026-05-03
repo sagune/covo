@@ -143,6 +143,8 @@ The current Aishell CB-Whisper config enables KWS-based prompting, short-form n-
 * `logs/oracle_nbest_detail_aishell.csv`: per-candidate n-best diagnostic table.
 * `logs/oracle_nbest_summary_aishell.csv`: per-sample top1-vs-oracle diagnostic summary.
 
+Large-v3 adaptation: `configs/cb-whisper-aishell-v3.yaml` switches only the Whisper ASR generator/processor checkpoint to `openai/whisper-large-v3` and writes oracle diagnostics to separate `*_v3.csv` files. The fixed KWS checkpoint and KWS encoder path remain unchanged for controlled comparison against the large-v2 baseline.
+
 KWS checkpoint policy: keep the KWS model fixed unless the experiment is explicitly about KWS retraining or KWS ablation. The current best KWS checkpoint is:
 
 ```text

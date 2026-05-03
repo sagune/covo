@@ -26,6 +26,14 @@ The main experiment config is:
 src/configs/cb-whisper-aishell.yaml
 ```
 
+The Whisper large-v3 adaptation config is:
+
+```text
+src/configs/cb-whisper-aishell-v3.yaml
+```
+
+Use the v3 config for a separate v2-vs-v3 comparison. Do not overwrite the v2 config, because the accepted nested long-hotword promotion result is currently tied to the large-v2 baseline.
+
 Typical test command shape:
 
 ```bash
@@ -47,6 +55,8 @@ Keep this KWS checkpoint fixed unless the experiment is explicitly about KWS mod
 ```
 
 This checkpoint is currently considered the best available KWS model from prior local experiments. It already improves over the original CB-Whisper KWS setup, so changing it would confound CB-Whisper-side experiments.
+
+For large-v3 experiments, keep this KWS checkpoint and the KWS encoder setting fixed. The v3 adaptation should initially change only the ASR generator/processor checkpoint from `openai/whisper-large-v2` to `openai/whisper-large-v3`.
 
 ## Research Constraints
 
