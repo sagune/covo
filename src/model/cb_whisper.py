@@ -146,6 +146,8 @@ class CBWhisper(pl.LightningModule):
         enable_consensus_rerank: bool = False,
         consensus_rerank_weight: float = 0.35,
         consensus_rerank_min_support: int = 2,
+        enable_asr_consistency_rerank: bool = False,
+        asr_consistency_weight: float = 0.0,
         oracle_nbest_diagnostic: bool = False,
         oracle_nbest_detail_path: str = "logs/oracle_nbest_detail.csv",
         oracle_nbest_summary_path: str = "logs/oracle_nbest_summary.csv",
@@ -1230,6 +1232,13 @@ class CBWhisper(pl.LightningModule):
         consensus_enabled = bool(getattr(self.hparams, "enable_consensus_rerank", False))
         consensus_weight = float(getattr(self.hparams, "consensus_rerank_weight", 0.35)) if consensus_enabled else 0.0
         consensus_min_support = max(1, int(getattr(self.hparams, "consensus_rerank_min_support", 2)))
+        consistency_enabled = bool(getattr(self.hparams, "enable_asr_consistency_rerank", False))
+        consistency_weight = (
+            max(0.0, float(getattr(self.hparams, "asr_consistency_weight", 0.0)))
+            if consistency_enabled
+            else 0.0
+        )
+        baseline_norm = str(candidate_stats[baseline_idx].get("rescore_candidate", ""))
         exact_raw_scores = [
             float((item.get("exact_stats", {}) or {}).get("weighted_coverage", 0.0))
             for item in candidate_stats
@@ -1283,12 +1292,19 @@ class CBWhisper(pl.LightningModule):
             prefix_penalty_score = prefix_penalty_weight * prefix_penalty
             consensus_score, consensus_support, consensus_keywords = _candidate_consensus_score(stats)
             consensus_score_used = consensus_weight * consensus_score
+            cand_norm = str(stats.get("rescore_candidate", ""))
+            consistency_penalty = 0.0
+            if consistency_weight > 0.0 and cand_norm != baseline_norm:
+                denom = max(len(cand_norm), len(baseline_norm), 1)
+                consistency_penalty = float(self._edit_distance(list(cand_norm), list(baseline_norm)) / denom)
+            consistency_penalty_score = consistency_weight * consistency_penalty
             total_score = (
                 asr_weight * asr_score_scaled
                 + float(keyword_weight) * exact_score_scaled
                 + float(phonetic_weight) * phonetic_score_scaled
                 + float(consensus_score_used)
                 - float(prefix_penalty_score)
+                - float(consistency_penalty_score)
             )
             scored_candidates.append(
                 {
@@ -1306,6 +1322,8 @@ class CBWhisper(pl.LightningModule):
                     "consensus_score_used": float(consensus_score_used),
                     "consensus_support": int(consensus_support),
                     "consensus_keywords": list(consensus_keywords),
+                    "asr_consistency_penalty": float(consistency_penalty),
+                    "asr_consistency_penalty_score": float(consistency_penalty_score),
                     "total_score": float(total_score),
                     "phon_gain_vs_baseline": float(stats["phonetic_score"] - baseline_phonetic_score),
                 }
@@ -1341,6 +1359,8 @@ class CBWhisper(pl.LightningModule):
                     "consensus_used": float(item.get("consensus_score_used", 0.0)),
                     "consensus_support": int(item.get("consensus_support", 0)),
                     "consensus_keywords": list(item.get("consensus_keywords", [])),
+                    "asr_consistency_penalty": float(item.get("asr_consistency_penalty", 0.0)),
+                    "asr_consistency_penalty_score": float(item.get("asr_consistency_penalty_score", 0.0)),
                     "phon_gain_vs_baseline": float(item.get("phon_gain_vs_baseline", 0.0)),
                     "prefix_penalty": float(item.get("prefix_penalty", 0.0)),
                     "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
