@@ -1,4 +1,5 @@
 import re
+import math
 from typing import List, Union, Optional, Tuple, Dict, Any
 import os
 import json
@@ -119,6 +120,7 @@ class CBWhisper(pl.LightningModule):
         prompt_max_injected_keywords: int = 4,
         prompt_score_threshold: float = 0.55,
         prompt_relative_threshold: float = 0.8,
+        keyword_selection_length_bonus: float = 0.0,
         enable_nested_keyword_promotion: bool = False,
         nested_keyword_promotion_score_ratio: float = 0.95,
         nested_keyword_promotion_min_long_chars: int = 3,
@@ -820,7 +822,14 @@ class CBWhisper(pl.LightningModule):
 
     def _sort_keywords_by_score(self, keywords: List[str], kw_scores: dict) -> List[str]:
         uniq = list(dict.fromkeys([str(k) for k in keywords if str(k).strip() != ""]))
-        uniq.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
+        length_bonus = max(0.0, float(getattr(self.hparams, "keyword_selection_length_bonus", 0.0)))
+        uniq.sort(
+            key=lambda k: (
+                float(kw_scores.get(k, 0.0)) * (1.0 + length_bonus * math.log1p(len(self._normalize_text_for_rescore(k)))),
+                float(kw_scores.get(k, 0.0)),
+            ),
+            reverse=True,
+        )
         return uniq
 
     def _promote_nested_phonetic_keywords(

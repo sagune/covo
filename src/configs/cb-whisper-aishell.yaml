@@ -99,6 +99,7 @@ model:
     prompt_max_injected_keywords: 4
     prompt_score_threshold: 0.55
     prompt_relative_threshold: 0.80
+    keyword_selection_length_bonus: 0.06
     enable_nested_keyword_promotion: true
     nested_keyword_promotion_score_ratio: 0.95
     nested_keyword_promotion_min_long_chars: 3
