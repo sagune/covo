@@ -129,6 +129,9 @@ class CBWhisper(pl.LightningModule):
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
         rescore_phonetic_weight: float = 1.0,
+        enable_phonetic_only_rescore: bool = False,
+        phonetic_only_rescore_min_sim: float = 1.0,
+        phonetic_only_rescore_min_margin: float = 0.2,
         rescore_prefix_penalty_weight: float = 1.0,
         shortform_no_repeat_ngram_size: int = 3,
         rescore_max_keywords: int = 12,
@@ -1235,10 +1238,24 @@ class CBWhisper(pl.LightningModule):
         ]
         max_exact_score = max(exact_raw_scores) if len(exact_raw_scores) > 0 else 0.0
         has_exact_evidence = max_exact_score > 0.0
-        phonetic_raw_scores = [
-            float(item["phonetic_score"]) if (has_exact_evidence and float(item.get("exact_score", 0.0)) > 0.0) else 0.0
-            for item in candidate_stats
-        ]
+        phonetic_only_enabled = bool(getattr(self.hparams, "enable_phonetic_only_rescore", False))
+        phonetic_only_min_sim = float(getattr(self.hparams, "phonetic_only_rescore_min_sim", 1.0))
+        phonetic_only_min_margin = float(getattr(self.hparams, "phonetic_only_rescore_min_margin", 0.2))
+        phonetic_raw_scores = []
+        for item in candidate_stats:
+            exact_positive = float(item.get("exact_score", 0.0)) > 0.0
+            phon_stats = item.get("phonetic_stats", {}) or {}
+            top_sim = float(phon_stats.get("top_sim", 0.0))
+            runner_up_sim = float(phon_stats.get("runner_up_sim", 0.0))
+            strong_phonetic_evidence = bool(
+                phonetic_only_enabled
+                and top_sim >= phonetic_only_min_sim
+                and (top_sim - runner_up_sim) >= phonetic_only_min_margin
+            )
+            if has_exact_evidence and (exact_positive or strong_phonetic_evidence):
+                phonetic_raw_scores.append(float(item["phonetic_score"]))
+            else:
+                phonetic_raw_scores.append(0.0)
         asr_scaled_scores = self._scale_scores_within_candidates(
             [float(item["asr_score"]) for item in candidate_stats],
             neutral_if_flat=True,

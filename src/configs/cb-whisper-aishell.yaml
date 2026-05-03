@@ -112,6 +112,9 @@ model:
     rescore_asr_weight: 1.0
     rescore_keyword_weight: 1.8
     rescore_phonetic_weight: 0.7
+    enable_phonetic_only_rescore: true
+    phonetic_only_rescore_min_sim: 1.0
+    phonetic_only_rescore_min_margin: 0.2
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
     rescore_max_keywords: 12
