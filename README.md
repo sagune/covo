@@ -143,6 +143,8 @@ The current Aishell CB-Whisper config enables KWS-based prompting, short-form n-
 * `logs/oracle_nbest_detail_aishell.csv`: per-candidate n-best diagnostic table.
 * `logs/oracle_nbest_summary_aishell.csv`: per-sample top1-vs-oracle diagnostic summary.
 
+Log cleanup policy: keep the current accepted-run metrics/probe/oracle diagnostics in `logs/` and use this README table as the durable experiment ledger. Rejected or exploratory run logs can be deleted after their metrics and comparison have been recorded here.
+
 Large-v3 adaptation: `configs/cb-whisper-aishell-v3.yaml` switches only the Whisper ASR generator/processor checkpoint to `openai/whisper-large-v3` and writes oracle diagnostics to separate `*_v3.csv` files. The fixed KWS checkpoint and KWS encoder path remain unchanged for controlled comparison against the large-v2 baseline.
 
 KWS checkpoint policy: keep the KWS model fixed unless the experiment is explicitly about KWS retraining or KWS ablation. The current best KWS checkpoint is:
@@ -189,6 +191,7 @@ Experiment bookkeeping rule: after each code change, commit to git; after each e
 | 2026-05-03 | `configs/cb-whisper-aishell-v3.yaml` | same fixed KWS checkpoint | 20-batch smoke test after explicitly forcing decoder prefix tokens `<\|zh\|>`, `<\|transcribe\|>`, and `<\|notimestamps\|>` in the custom PBAWhisper generation path | 0.5000 | 0.0767 | 0.2361 | 0.5500 | Smoke test only; not directly comparable with full-set metrics. The main failure mode from the direct v3 swap is fixed: predictions are now Chinese transcriptions instead of English translations. A full v3 fixed-baseline run is required before accepting or rejecting large-v3. |
 | 2026-05-03 | `configs/cb-whisper-aishell-v3.yaml` | same fixed KWS checkpoint | Full large-v3 run after explicit decoder prefix forcing; oracle diagnostics written to `*_v3_fixed.csv` | 0.4796 | 0.1180 | 0.2994 | 0.7067 | Not accepted. Compared with the accepted large-v2 nested-promotion run, recall drops by 0.3691, CER worsens by 0.0360, Hotword Only CER worsens by 0.1914, and WER worsens by 0.1918. Oracle n-best top1 recall is 0.4867 and oracle recall is only 0.6665, so the large-v3 candidate pool itself is much weaker under the current custom generation/prompting path. |
 | 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Chinese natural-language contextual prompt format: `以下关键词可能出现：kw1，kw2。` | 0.8320 | 0.0786 | 0.1185 | 0.5136 | Reverted/not accepted. This prompt form improves CER by 0.0034 versus accepted nested promotion, but recall drops by 0.0166 and Hotword Only CER worsens by 0.0105. Oracle recall also drops to 0.8486, so natural-language prompt wording weakens the hotword candidate pool despite better generic transcription. |
+| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Individual bracketed keyword prompt format: `(kw1) (kw2) (kw3)` | 0.8453 | 0.0864 | 0.1223 | 0.5173 | Not accepted. Compared with accepted nested promotion, recall drops by 0.0033 and CER worsens by 0.0044. Oracle recall is 0.8572, below the accepted 0.8663 oracle recall, so separating keywords into independent bracketed chunks does not improve candidate generation. |
 
 ## License
 

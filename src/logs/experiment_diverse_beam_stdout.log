@@ -1,58 +1,0 @@
-Seed set to 123
-Loading weights:   0%|          | 0/1259 [00:00<?, ?it/s]Loading weights:  50%|█████     | 630/1259 [00:00<00:00, 6282.38it/s]Loading weights: 100%|██████████| 1259/1259 [00:00<00:00, 5278.53it/s]Loading weights: 100%|██████████| 1259/1259 [00:00<00:00, 5397.40it/s]
-DEBUG kws_kwargs = {'backbone': 'tcresnet', 'tcresnet_channels': 96, 'tcresnet_blocks': 8, 'tcresnet_dropout': 0.15, 'subsequence_aux': True, 'subsequence_aux_weight': 0.02, 'subsequence_aux_temperature': 0.5, 'adversarial_training': False, 'num_domains': 2}
-DEBUG kws backbone = tcresnet tcresnet
-Loading weights:   0%|          | 0/947 [00:00<?, ?it/s]Loading weights:  70%|███████   | 664/947 [00:00<00:00, 6578.96it/s]Loading weights: 100%|██████████| 947/947 [00:00<00:00, 6284.94it/s]
-GPU available: True (cuda), used: True
-TPU available: False, using: 0 TPU cores
-/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/connectors/logger_connector/logger_connector.py:76: Starting from v1.9.0, `tensorboardX` has been removed as a dependency of the `pytorch_lightning` package, due to potential conflicts with other packages in the ML ecosystem. For this reason, `logger=True` will use `CSVLogger` as the default logger, unless the `tensorboard` or `tensorboardX` packages are found. Please `pip install lightning[extra]` or one of them to enable TensorBoard support by default
-💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
-💡 Tip: For seamless cloud uploads and versioning, try installing [litmodels](https://pypi.org/project/litmodels/) to enable LitModelCheckpoint, which syncs automatically with the Lightning model registry.
-You are using a CUDA device ('NVIDIA GeForce RTX 5090') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
-LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
-/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
-Testing                                       0/808 0:00:00 • -:--:-- 0.00it/s 
-Traceback (most recent call last):
-  File "/root/autodl-tmp/src/cb-whisper.py", line 14, in <module>
-    cli_main()
-  File "/root/autodl-tmp/src/cb-whisper.py", line 7, in cli_main
-    cli = LightningCLI(
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/cli.py", line 421, in __init__
-    self._run_subcommand(self.subcommand)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/cli.py", line 759, in _run_subcommand
-    fn(**fn_kwargs)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 821, in test
-    return call._call_and_handle_interrupt(
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 49, in _call_and_handle_interrupt
-    return trainer_fn(*args, **kwargs)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 864, in _test_impl
-    results = self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1079, in _run
-    results = self._run_stage()
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/trainer.py", line 1116, in _run_stage
-    return self._evaluation_loop.run()
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/loops/utilities.py", line 179, in _decorator
-    return loop_run(self, *args, **kwargs)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 146, in run
-    self._evaluation_step(batch, batch_idx, dataloader_idx, dataloader_iter)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/loops/evaluation_loop.py", line 441, in _evaluation_step
-    output = call._call_strategy_hook(trainer, hook_name, *step_args)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/trainer/call.py", line 329, in _call_strategy_hook
-    output = fn(*args, **kwargs)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/pytorch_lightning/strategies/strategy.py", line 425, in test_step
-    return self.lightning_module.test_step(*args, **kwargs)
-  File "/root/autodl-tmp/src/model/cb_whisper.py", line 2363, in test_step
-    preds = self.forward(
-  File "/root/autodl-tmp/src/model/cb_whisper.py", line 2093, in forward
-    pred = self._generate_shortform_candidates(
-  File "/root/autodl-tmp/src/model/cb_whisper.py", line 1586, in _generate_shortform_candidates
-    return self.whisper.generate(
-  File "/root/autodl-tmp/src/model/pba_whisper.py", line 648, in generate
-    outputs = super(WhisperGenerationMixin, self).generate(
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
-    return func(*args, **kwargs)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/generation/utils.py", line 2330, in generate
-    deprecated_mode_repo = self._get_deprecated_gen_repo(generation_mode, trust_remote_code, custom_generate)
-  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/generation/utils.py", line 2069, in _get_deprecated_gen_repo
-    raise ValueError(
-ValueError: Group Beam Search requires `trust_remote_code=True` in your `generate` call, since it loads https://hf.co/transformers-community/group-beam-search.
