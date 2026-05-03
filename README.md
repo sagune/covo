@@ -163,6 +163,8 @@ Experiment goal: push KWS/keyword-related recall toward at least 0.90 while keep
 
 Experiment bookkeeping rule: after each code change, commit to git; after each experiment, append the result here and compare against the previous run or best known run.
 
+KWS top-k diagnostic on the Aishell test set with the fixed KWS checkpoint: 808 samples, 942 true hotword mentions. Global KWS coverage is high: micro Recall@1 0.8036, Recall@3 0.9522, Recall@6 0.9692, Recall@12 0.9862. Under the current CB-Whisper selection logic, the KWS candidate pool/rescore set covers 0.9607 of true hotwords, and the prompt set covers 0.9321. This means the current 0.85-range CB-Whisper entity recall is not primarily capped by KWS top-k retrieval; most true hotwords already reach the prompt/rescore interface. The main bottleneck remains Whisper candidate generation/decoding and how hotword evidence is realized in ASR hypotheses.
+
 | Date | Config | Checkpoint | Key settings | Entity Recall | CER | Hotword Only CER | WER | Notes |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 | 2026-04-27 | `configs/cb-whisper-aishell.yaml` | `src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt` | KWS prompt, n-best=8, pinyin rescore, surface/consensus repair, consensus rerank | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Current baseline. Oracle n-best top1 recall is 0.8455, oracle recall is 0.8650, leaving about +0.0194 recall headroom in the candidate pool. |
