@@ -128,6 +128,11 @@ model:
     enable_consensus_rerank: true
     consensus_rerank_weight: 0.35
     consensus_rerank_min_support: 2
+    enable_phonetic_consensus_rerank: true
+    phonetic_consensus_rerank_weight: 0.25
+    phonetic_consensus_rerank_min_support: 2
+    phonetic_consensus_rerank_min_sim: 1.0
+    phonetic_consensus_rerank_min_margin: 0.2
 
     oracle_nbest_diagnostic: true
     oracle_nbest_detail_path: logs/oracle_nbest_detail_aishell.csv

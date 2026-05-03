@@ -145,6 +145,11 @@ class CBWhisper(pl.LightningModule):
         enable_consensus_rerank: bool = False,
         consensus_rerank_weight: float = 0.35,
         consensus_rerank_min_support: int = 2,
+        enable_phonetic_consensus_rerank: bool = False,
+        phonetic_consensus_rerank_weight: float = 0.25,
+        phonetic_consensus_rerank_min_support: int = 2,
+        phonetic_consensus_rerank_min_sim: float = 1.0,
+        phonetic_consensus_rerank_min_margin: float = 0.2,
         oracle_nbest_diagnostic: bool = False,
         oracle_nbest_detail_path: str = "logs/oracle_nbest_detail.csv",
         oracle_nbest_summary_path: str = "logs/oracle_nbest_summary.csv",
@@ -1229,6 +1234,14 @@ class CBWhisper(pl.LightningModule):
         consensus_enabled = bool(getattr(self.hparams, "enable_consensus_rerank", False))
         consensus_weight = float(getattr(self.hparams, "consensus_rerank_weight", 0.35)) if consensus_enabled else 0.0
         consensus_min_support = max(1, int(getattr(self.hparams, "consensus_rerank_min_support", 2)))
+        phon_consensus_enabled = bool(getattr(self.hparams, "enable_phonetic_consensus_rerank", False))
+        phon_consensus_weight = (
+            float(getattr(self.hparams, "phonetic_consensus_rerank_weight", 0.25))
+            if phon_consensus_enabled else 0.0
+        )
+        phon_consensus_min_support = max(1, int(getattr(self.hparams, "phonetic_consensus_rerank_min_support", 2)))
+        phon_consensus_min_sim = float(getattr(self.hparams, "phonetic_consensus_rerank_min_sim", 1.0))
+        phon_consensus_min_margin = float(getattr(self.hparams, "phonetic_consensus_rerank_min_margin", 0.2))
         exact_raw_scores = [
             float((item.get("exact_stats", {}) or {}).get("weighted_coverage", 0.0))
             for item in candidate_stats
@@ -1247,11 +1260,22 @@ class CBWhisper(pl.LightningModule):
         phonetic_scaled_scores = self._scale_scores_within_candidates(phonetic_raw_scores, neutral_if_flat=False)
 
         exact_keyword_support = {}
+        phonetic_keyword_support = {}
         for stats in candidate_stats:
             exact_stats = stats.get("exact_stats", {}) or {}
             matched_keywords = list(exact_stats.get("matched_keywords", []) or [])
             for kw in set(str(k) for k in matched_keywords if str(k).strip() != ""):
                 exact_keyword_support[kw] = exact_keyword_support.get(kw, 0) + 1
+            phon_stats = stats.get("phonetic_stats", {}) or {}
+            phon_kw = str(phon_stats.get("best_keyword", "")).strip()
+            phon_top = float(phon_stats.get("top_sim", 0.0))
+            phon_runner_up = float(phon_stats.get("runner_up_sim", 0.0))
+            if (
+                phon_kw
+                and phon_top >= phon_consensus_min_sim
+                and (phon_top - phon_runner_up) >= phon_consensus_min_margin
+            ):
+                phonetic_keyword_support[phon_kw] = phonetic_keyword_support.get(phon_kw, 0) + 1
 
         def _candidate_consensus_score(stats: dict) -> Tuple[float, int, List[str]]:
             if not consensus_enabled or len(candidate_stats) <= 1:
@@ -1269,6 +1293,22 @@ class CBWhisper(pl.LightningModule):
             score = float((max_support - 1) / denom)
             return score, max_support, supported[:5]
 
+        def _candidate_phonetic_consensus_score(stats: dict) -> Tuple[float, int, List[str]]:
+            if not phon_consensus_enabled or len(candidate_stats) <= 1:
+                return 0.0, 0, []
+            exact_stats = stats.get("exact_stats", {}) or {}
+            matched_keywords = [str(k) for k in list(exact_stats.get("matched_keywords", []) or []) if str(k).strip() != ""]
+            supported = [
+                kw for kw in matched_keywords
+                if int(phonetic_keyword_support.get(kw, 0)) >= phon_consensus_min_support
+            ]
+            if len(supported) == 0:
+                return 0.0, 0, []
+            max_support = max(int(phonetic_keyword_support.get(kw, 0)) for kw in supported)
+            denom = max(len(candidate_stats), 1)
+            score = float(max_support / denom)
+            return score, max_support, supported[:5]
+
         scored_candidates = []
         for stats_idx, stats in enumerate(candidate_stats):
             exact_score = float(stats["exact_score"])
@@ -1282,11 +1322,14 @@ class CBWhisper(pl.LightningModule):
             prefix_penalty_score = prefix_penalty_weight * prefix_penalty
             consensus_score, consensus_support, consensus_keywords = _candidate_consensus_score(stats)
             consensus_score_used = consensus_weight * consensus_score
+            phon_consensus_score, phon_consensus_support, phon_consensus_keywords = _candidate_phonetic_consensus_score(stats)
+            phon_consensus_score_used = phon_consensus_weight * phon_consensus_score
             total_score = (
                 asr_weight * asr_score_scaled
                 + float(keyword_weight) * exact_score_scaled
                 + float(phonetic_weight) * phonetic_score_scaled
                 + float(consensus_score_used)
+                + float(phon_consensus_score_used)
                 - float(prefix_penalty_score)
             )
             scored_candidates.append(
@@ -1305,6 +1348,10 @@ class CBWhisper(pl.LightningModule):
                     "consensus_score_used": float(consensus_score_used),
                     "consensus_support": int(consensus_support),
                     "consensus_keywords": list(consensus_keywords),
+                    "phonetic_consensus_score": float(phon_consensus_score),
+                    "phonetic_consensus_score_used": float(phon_consensus_score_used),
+                    "phonetic_consensus_support": int(phon_consensus_support),
+                    "phonetic_consensus_keywords": list(phon_consensus_keywords),
                     "total_score": float(total_score),
                     "phon_gain_vs_baseline": float(stats["phonetic_score"] - baseline_phonetic_score),
                 }
@@ -1340,6 +1387,10 @@ class CBWhisper(pl.LightningModule):
                     "consensus_used": float(item.get("consensus_score_used", 0.0)),
                     "consensus_support": int(item.get("consensus_support", 0)),
                     "consensus_keywords": list(item.get("consensus_keywords", [])),
+                    "phonetic_consensus": float(item.get("phonetic_consensus_score", 0.0)),
+                    "phonetic_consensus_used": float(item.get("phonetic_consensus_score_used", 0.0)),
+                    "phonetic_consensus_support": int(item.get("phonetic_consensus_support", 0)),
+                    "phonetic_consensus_keywords": list(item.get("phonetic_consensus_keywords", [])),
                     "phon_gain_vs_baseline": float(item.get("phon_gain_vs_baseline", 0.0)),
                     "prefix_penalty": float(item.get("prefix_penalty", 0.0)),
                     "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
@@ -2173,6 +2224,10 @@ class CBWhisper(pl.LightningModule):
                         "consensus_score_used": float(item.get("consensus_score_used", 0.0)),
                         "consensus_support": int(item.get("consensus_support", 0)),
                         "consensus_keywords": list(item.get("consensus_keywords", [])),
+                        "phonetic_consensus_score": float(item.get("phonetic_consensus_score", 0.0)),
+                        "phonetic_consensus_score_used": float(item.get("phonetic_consensus_score_used", 0.0)),
+                        "phonetic_consensus_support": int(item.get("phonetic_consensus_support", 0)),
+                        "phonetic_consensus_keywords": list(item.get("phonetic_consensus_keywords", [])),
                         "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
                     }
                     for rank, item in enumerate(scored_candidates)
