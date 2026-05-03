@@ -103,6 +103,7 @@ class CBWhisper(pl.LightningModule):
         whisper_ckpt: str,
         kws_ckpt: str,
         language: str,
+        force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
         oracle: Union[bool, str] = 'kws',
         kws_features_size: Optional[Tuple[int, int]] = (150, 750),
@@ -1595,6 +1596,7 @@ class CBWhisper(pl.LightningModule):
             temperature=0,
             no_repeat_ngram_size=no_repeat_ngram_size,
             keyword_spotting=self.keyword_spotting,
+            force_decoder_prompt_ids=bool(getattr(self.hparams, "force_decoder_prompt_ids", False)),
         )
 
     def _dedup_shortform_predictions(
@@ -2110,6 +2112,7 @@ class CBWhisper(pl.LightningModule):
                 temperature = 0,
                 no_repeat_ngram_size = 0,
                 keyword_spotting = self.keyword_spotting,
+                force_decoder_prompt_ids=bool(getattr(self.hparams, "force_decoder_prompt_ids", False)),
             )
 
         if self._debug_should_log_idx(dbg_idx):

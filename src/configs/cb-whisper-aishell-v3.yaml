@@ -85,6 +85,7 @@ model:
     whisper_ckpt: openai/whisper-large-v3
     kws_ckpt: /root/autodl-tmp/src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt
     language: chinese
+    force_decoder_prompt_ids: true
 
     prompt: true
     oracle: kws

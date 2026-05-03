@@ -198,6 +198,47 @@ class PBAWhisper(WhisperForConditionalGeneration):
                 break
         return init_tokens
 
+    def _explicit_decoder_prompt_tokens(
+        self,
+        generation_config: GenerationConfig,
+        language: Optional[str] = None,
+        task: Optional[str] = None,
+        no_timestamps: bool = True,
+    ) -> List[int]:
+        decoder_start_token_id = getattr(generation_config, "decoder_start_token_id", None)
+        if decoder_start_token_id is None:
+            decoder_start_token_id = getattr(self.config, "decoder_start_token_id", None)
+        if decoder_start_token_id is None:
+            raise ValueError("PBAWhisper: failed to retrieve decoder start token id.")
+
+        tokens = [int(decoder_start_token_id)]
+        lang_to_id = getattr(generation_config, "lang_to_id", {}) or {}
+        task_to_id = getattr(generation_config, "task_to_id", {}) or {}
+
+        lang_key = str(language or "").strip().lower()
+        language_aliases = {
+            "chinese": "<|zh|>",
+            "zh": "<|zh|>",
+            "mandarin": "<|zh|>",
+            "english": "<|en|>",
+            "en": "<|en|>",
+        }
+        lang_token = language_aliases.get(lang_key, lang_key)
+        if lang_token and not (lang_token.startswith("<|") and lang_token.endswith("|>")):
+            lang_token = f"<|{lang_token}|>"
+        if lang_token in lang_to_id:
+            tokens.append(int(lang_to_id[lang_token]))
+
+        task_key = str(task or "transcribe").strip().lower()
+        task_token = task_key if task_key.startswith("<|") else f"<|{task_key}|>"
+        if task_token in task_to_id:
+            tokens.append(int(task_to_id[task_token]))
+
+        no_timestamps_token_id = getattr(generation_config, "no_timestamps_token_id", None)
+        if no_timestamps and no_timestamps_token_id is not None:
+            tokens.append(int(no_timestamps_token_id))
+        return tokens
+
     def generate(
         self,
         input_features: Optional[torch.Tensor] = None,
@@ -209,6 +250,7 @@ class PBAWhisper(WhisperForConditionalGeneration):
         return_timestamps: Optional[bool] = None,
         task: Optional[str] = None,
         language: Optional[str] = None,
+        force_decoder_prompt_ids: bool = False,
         is_multilingual: Optional[bool] = None,
         prompt_ids: Optional[torch.Tensor] = None,
         condition_on_prev_tokens: Optional[bool] = None,
@@ -625,15 +667,23 @@ class PBAWhisper(WhisperForConditionalGeneration):
             if (
                 prompt_ids is not None
                 and len(prompt_ids) > 0
-                and kwargs.get("decoder_input_ids", None) is None
+                and (kwargs.get("decoder_input_ids", None) is None or bool(force_decoder_prompt_ids))
             ):
-                init_tokens = self._retrieve_init_tokens_compat(
-                    generation_config=generation_config,
-                    input_features=input_features,
-                    batch_size=input_features.size(0),
-                    num_segment_frames=num_segment_frames,
-                    kwargs=kwargs,
-                )
+                if bool(force_decoder_prompt_ids):
+                    init_tokens = self._explicit_decoder_prompt_tokens(
+                        generation_config=generation_config,
+                        language=language,
+                        task=task,
+                        no_timestamps=not bool(return_timestamps),
+                    )
+                else:
+                    init_tokens = self._retrieve_init_tokens_compat(
+                        generation_config=generation_config,
+                        input_features=input_features,
+                        batch_size=input_features.size(0),
+                        num_segment_frames=num_segment_frames,
+                        kwargs=kwargs,
+                    )
                 one_tensor = torch.ones(
                     (input_features.size(0), 1), device=input_features.device, dtype=torch.long
                 )
