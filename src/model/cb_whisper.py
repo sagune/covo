@@ -120,7 +120,6 @@ class CBWhisper(pl.LightningModule):
         prompt_max_injected_keywords: int = 4,
         prompt_score_threshold: float = 0.55,
         prompt_relative_threshold: float = 0.8,
-        prompt_high_score_near_decoder: bool = False,
         enable_nested_keyword_promotion: bool = False,
         nested_keyword_promotion_score_ratio: float = 0.95,
         nested_keyword_promotion_min_long_chars: int = 3,
@@ -898,10 +897,7 @@ class CBWhisper(pl.LightningModule):
         ]
         if len(selected) == 0:
             selected = [ranked[0]]
-        selected = self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
-        if bool(getattr(self.hparams, "prompt_high_score_near_decoder", False)):
-            selected = list(reversed(selected))
-        return selected
+        return self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
 
     @staticmethod
     def _normalize_prompt_weights(keywords: List[str], kw_scores: dict) -> List[float]:
