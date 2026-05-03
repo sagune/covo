@@ -114,6 +114,8 @@ model:
     rescore_phonetic_weight: 0.7
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
+    shortform_num_beam_groups: 4
+    shortform_diversity_penalty: 0.2
     rescore_max_keywords: 12
     enable_phonetic_surface_repair: true
     surface_repair_score_threshold: 0.95
