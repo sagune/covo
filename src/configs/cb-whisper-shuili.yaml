@@ -91,9 +91,10 @@ model:
     keyword_separator: " "
     keywords_per_group: 100
 
-    kws_positive_threshold: 0.30
-    kws_topk_per_group: 6
-    kws_max_prompt_keywords: 28
+    # Shuili KWS scores are less calibrated than Aishell; keep a broader pool for reranking.
+    kws_positive_threshold: 0.05
+    kws_topk_per_group: 25
+    kws_max_prompt_keywords: 100
     kws_infer_chunk_size: 16
     prompt_max_injected_keywords: 4
     prompt_score_threshold: 0.55
@@ -112,7 +113,7 @@ model:
     rescore_phonetic_weight: 0.7
     rescore_prefix_penalty_weight: 1.0
     shortform_no_repeat_ngram_size: 3
-    rescore_max_keywords: 12
+    rescore_max_keywords: 50
     enable_phonetic_surface_repair: true
     surface_repair_score_threshold: 0.95
     surface_repair_ambiguity_gap: 0.05
