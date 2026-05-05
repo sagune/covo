@@ -72,7 +72,7 @@ class KWSDataMod(LightningDataModule):
         assert not set([ds.name for ds in self.val_info]) - set(['aishell', 'acl']), f'at least one of the validation datasets you asked for is not supported' 
         assert all(os.path.isdir(ds.root) for ds in self.val_info), f'at least one of the validation dataset directories could not be found'
         # and testing data
-        assert self.test_info.name in ['aishell', 'acl'], f'at least one of the test datasets you asked for is not supported' 
+        assert self.test_info.name in ['aishell', 'acl', 'shuili'], f'at least one of the test datasets you asked for is not supported' 
         assert os.path.isdir(self.test_info.root), f'at least one of the test dataset directories could not be found'
 
         # instantiate a KWSDataCollator object
@@ -200,6 +200,18 @@ class KWSDataMod(LightningDataModule):
                     keywords_per_group = self.hotwords_per_group,
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
+                )
+            elif self.test_info.name == 'shuili':
+                self.test_dataset = AishellHotwordDataset(
+                    root = self.test_info.root,
+                    split = self.test_split,
+                    size = self.features_size,
+                    r1_only = False,
+                    hotwords_per_group = self.hotwords_per_group,
+                    kw_type = self.test_info.kw_type,
+                    load_audio = True,
+                    wav_folder = self.test_info.root,
                     feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
                 )
 
