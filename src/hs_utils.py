@@ -11,7 +11,10 @@ def quantize_hidden_states(hidden_states: torch.Tensor) -> dict:
 
 def dequantize_hidden_states(payload) -> torch.Tensor:
     if isinstance(payload, dict) and payload.get('quantized', False):
-        return payload['values'].to(torch.float32) / 127.0
+        values = payload['values']
+        if torch.is_floating_point(values):
+            return values.to(torch.float32)
+        return values.to(torch.float32) / 127.0
     if isinstance(payload, torch.Tensor):
         return payload.detach().to(torch.float32)
     raise TypeError(f'unsupported hidden states payload type: {type(payload)}')

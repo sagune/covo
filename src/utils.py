@@ -3,13 +3,20 @@ from glob import glob
 import argparse
 from typing import Optional
 from tqdm import tqdm
-from pydub import AudioSegment
 import torch
 import torchaudio
 from transformers import WhisperFeatureExtractor, WhisperModel
 from math import ceil
 import xml.etree.ElementTree as ET
 from hs_utils import quantize_hidden_states
+
+
+def _load_audio_segment_class():
+    try:
+        from pydub import AudioSegment
+    except ImportError as exc:
+        raise ImportError("pydub is required for TTS validation or audio cutting, but not for hidden-state extraction") from exc
+    return AudioSegment
 
 
 ZH_LEGACY_VOICE_TO_SPK_ID = {
@@ -132,6 +139,7 @@ def _is_valid_tts_audio(
     mos_threshold: Optional[float] = None,
     min_duration_ms: int = 250
 ):
+    AudioSegment = _load_audio_segment_class()
     if not os.path.exists(output_file) or os.path.getsize(output_file) == 0:
         return False, None
 
@@ -308,6 +316,7 @@ def get_keywords_audios(
     keywords: str,
     keywords_audios: str
 ):    
+    AudioSegment = _load_audio_segment_class()
     # check if dataset folder exists
     assert os.path.isdir(wav), f'the directory for the audios could not be found, got {wav}'
 
@@ -399,8 +408,7 @@ def extract_hidden_states(
             continue
         try:
             # load utterance audio and preprocess it
-            t_waveform, _ = torchaudio.load(audio_file)
-            t_sample_rate = torchaudio.info(audio_file).sample_rate
+            t_waveform, t_sample_rate = torchaudio.load(audio_file)
             if t_waveform.size(dim=0) > 1:
                 t_waveform = torch.mean(torchaudio.functional.resample(t_waveform, t_sample_rate, 16000), dim=0, keepdim=True)
             else:
@@ -433,6 +441,7 @@ def cut_audios(
     segments: str,
     segments_audios: str
 ):    
+    AudioSegment = _load_audio_segment_class()
     # check if dataset folder exists
     assert os.path.isdir(wav), f'the directory for the audios could not be found, got {wav}'
     # check if xml segments file exists
