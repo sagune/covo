@@ -120,7 +120,6 @@ class CBWhisper(pl.LightningModule):
         prompt_max_injected_keywords: int = 4,
         prompt_score_threshold: float = 0.55,
         prompt_relative_threshold: float = 0.8,
-        prompt_keyword_order: str = "score",
         enable_nested_keyword_promotion: bool = False,
         nested_keyword_promotion_score_ratio: float = 0.95,
         nested_keyword_promotion_min_long_chars: int = 3,
@@ -883,24 +882,6 @@ class CBWhisper(pl.LightningModule):
         selected.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
         return selected[:max_k]
 
-    def _order_prompt_keywords(self, keywords: List[str], kw_scores: dict) -> List[str]:
-        order = str(getattr(self.hparams, "prompt_keyword_order", "score")).strip().lower()
-        if order in {"score", ""}:
-            return self._sort_keywords_by_score(keywords, kw_scores)
-        if order in {"specificity", "length"}:
-            uniq = list(dict.fromkeys([str(k) for k in keywords if str(k).strip() != ""]))
-            uniq.sort(
-                key=lambda k: (
-                    len(self._normalize_text_for_rescore(k)),
-                    float(kw_scores.get(k, 0.0)),
-                ),
-                reverse=True,
-            )
-            return uniq
-        raise ValueError(
-            f"unsupported prompt_keyword_order `{order}`, expected one of: score|specificity"
-        )
-
     def _select_prompt_keywords(self, keywords: List[str], kw_scores: dict) -> List[str]:
         ranked = self._sort_keywords_by_score(keywords, kw_scores)
         if len(ranked) == 0:
@@ -916,8 +897,7 @@ class CBWhisper(pl.LightningModule):
         ]
         if len(selected) == 0:
             selected = [ranked[0]]
-        selected = self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
-        return self._order_prompt_keywords(selected, kw_scores)[:max_prompt_k]
+        return self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
 
     @staticmethod
     def _normalize_prompt_weights(keywords: List[str], kw_scores: dict) -> List[float]:
