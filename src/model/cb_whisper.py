@@ -120,6 +120,8 @@ class CBWhisper(pl.LightningModule):
         prompt_max_injected_keywords: int = 4,
         prompt_score_threshold: float = 0.55,
         prompt_relative_threshold: float = 0.8,
+        prompt_prefer_nested_keywords: bool = False,
+        prompt_prefer_nested_score_ratio: float = 0.75,
         enable_nested_keyword_promotion: bool = False,
         nested_keyword_promotion_score_ratio: float = 0.95,
         nested_keyword_promotion_min_long_chars: int = 3,
@@ -882,6 +884,54 @@ class CBWhisper(pl.LightningModule):
         selected.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
         return selected[:max_k]
 
+    def _prefer_nested_prompt_keywords(
+        self,
+        ranked_keywords: List[str],
+        selected_keywords: List[str],
+        kw_scores: dict,
+    ) -> List[str]:
+        if not bool(getattr(self.hparams, "prompt_prefer_nested_keywords", False)):
+            return selected_keywords
+        if len(ranked_keywords) == 0 or len(selected_keywords) == 0:
+            return selected_keywords
+
+        ratio = max(0.0, float(getattr(self.hparams, "prompt_prefer_nested_score_ratio", 0.75)))
+        normalized = {kw: self._normalize_text_for_rescore(kw) for kw in ranked_keywords}
+        units = {kw: self._to_phonetic_units(normalized[kw]) for kw in ranked_keywords}
+        replacements = []
+        for kw in selected_keywords:
+            kw_norm = normalized.get(kw, self._normalize_text_for_rescore(kw))
+            kw_units = units.get(kw, self._to_phonetic_units(kw_norm))
+            kw_score = float(kw_scores.get(kw, 0.0))
+            best = kw
+            best_key = (
+                len(kw_norm),
+                kw_score,
+            )
+            for candidate in ranked_keywords:
+                cand_norm = normalized.get(candidate, "")
+                cand_units = units.get(candidate, [])
+                if candidate == kw or len(cand_norm) <= len(kw_norm):
+                    continue
+                cand_score = float(kw_scores.get(candidate, 0.0))
+                if cand_score + 1e-9 < kw_score * ratio:
+                    continue
+                text_nested = kw_norm != "" and kw_norm in cand_norm
+                phon_prefix = len(kw_units) > 0 and cand_units[: len(kw_units)] == kw_units
+                if not (text_nested or phon_prefix):
+                    continue
+                cand_key = (
+                    len(cand_norm),
+                    cand_score,
+                )
+                if cand_key > best_key:
+                    best = candidate
+                    best_key = cand_key
+            replacements.append(best)
+        replacements = list(dict.fromkeys(replacements))
+        replacements.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
+        return replacements
+
     def _select_prompt_keywords(self, keywords: List[str], kw_scores: dict) -> List[str]:
         ranked = self._sort_keywords_by_score(keywords, kw_scores)
         if len(ranked) == 0:
@@ -897,7 +947,19 @@ class CBWhisper(pl.LightningModule):
         ]
         if len(selected) == 0:
             selected = [ranked[0]]
-        return self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
+        selected = self._promote_nested_phonetic_keywords(ranked, selected, kw_scores, max_prompt_k)
+        selected = self._prefer_nested_prompt_keywords(ranked, selected, kw_scores)
+        if len(selected) < min(max_prompt_k, len(ranked)):
+            selected_set = set(selected)
+            for kw in ranked:
+                if kw in selected_set:
+                    continue
+                selected.append(kw)
+                selected_set.add(kw)
+                if len(selected) >= max_prompt_k:
+                    break
+        selected.sort(key=lambda k: float(kw_scores.get(k, 0.0)), reverse=True)
+        return selected[:max_prompt_k]
 
     @staticmethod
     def _normalize_prompt_weights(keywords: List[str], kw_scores: dict) -> List[float]:
