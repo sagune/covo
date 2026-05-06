@@ -1,7 +1,8 @@
 import os
+import json
 from glob import glob
 import argparse
-from typing import Optional
+from typing import List, Optional, Tuple
 from tqdm import tqdm
 import torch
 import torchaudio
@@ -27,6 +28,171 @@ ZH_LEGACY_VOICE_TO_SPK_ID = {
     'zh-CN-YunxiNeural': 4,
     'zh-CN-YunyangNeural': 5
 }
+
+
+def _normalize_whisper_style(style: str) -> str:
+    style = str(style or 'auto').strip().lower().replace('_', '-')
+    aliases = {
+        'v2': 'large-v2',
+        'largev2': 'large-v2',
+        'v3': 'large-v3',
+        'largev3': 'large-v3',
+    }
+    return aliases.get(style, style)
+
+
+def _resolve_whisper_ckpt(whisper_ckpt: str, whisper_style: str) -> Tuple[str, str]:
+    style = _normalize_whisper_style(whisper_style)
+    if style not in {'auto', 'medium', 'large-v2', 'large-v3'}:
+        raise ValueError('unsupported whisper_style `{}`, expected auto|medium|large-v2|large-v3'.format(whisper_style))
+
+    ckpt = str(whisper_ckpt or '').strip()
+    if ckpt == '':
+        if style == 'medium':
+            ckpt = 'openai/whisper-medium'
+        elif style == 'large-v2':
+            ckpt = 'openai/whisper-large-v2'
+        elif style == 'large-v3':
+            ckpt = 'openai/whisper-large-v3'
+        else:
+            raise ValueError('please provide --whisper or set --whisper_style to medium|large-v2|large-v3')
+
+    if style == 'auto':
+        ckpt_l = ckpt.lower()
+        if 'large-v3' in ckpt_l or 'largev3' in ckpt_l:
+            style = 'large-v3'
+        elif 'large-v2' in ckpt_l or 'largev2' in ckpt_l:
+            style = 'large-v2'
+        elif 'medium' in ckpt_l:
+            style = 'medium'
+
+    return ckpt, style
+
+
+def _parse_layer_groups(spec: str) -> List[Tuple[int, int]]:
+    groups = []
+    if spec is None or str(spec).strip() == '':
+        return groups
+    for token in str(spec).split(','):
+        token = token.strip()
+        if token == '':
+            continue
+        if '-' in token:
+            start, end = token.split('-', 1)
+            start = int(start.strip())
+            end = int(end.strip())
+        else:
+            start = int(token)
+            end = int(token)
+        if end < start:
+            start, end = end, start
+        groups.append((start, end))
+    return groups
+
+
+def _parse_group_weights(spec: str, n_groups: int) -> List[float]:
+    if n_groups <= 0:
+        return []
+    if spec is None or str(spec).strip() == '':
+        return [1.0 / n_groups for _ in range(n_groups)]
+    weights = [float(x.strip()) for x in str(spec).split(',') if x.strip() != '']
+    if len(weights) != n_groups:
+        raise ValueError('group weights count ({}) does not match groups count ({})'.format(len(weights), n_groups))
+    total = sum(weights)
+    if total <= 0:
+        return [1.0 / n_groups for _ in range(n_groups)]
+    return [w / total for w in weights]
+
+
+def _prepare_hidden_state_fuse(
+    hs_fuse: str,
+    hs_layer_start: int,
+    hs_layer_end: int,
+    hs_groups: str,
+    hs_group_weights: str,
+    max_layer_idx: int
+):
+    hs_fuse = str(hs_fuse or 'last').strip().lower()
+    if hs_fuse not in {'last', 'range_mean', 'grouped_mean'}:
+        raise ValueError('unsupported hs_fuse `{}`, expected last|range_mean|grouped_mean'.format(hs_fuse))
+
+    start = max(0, min(int(hs_layer_start), max_layer_idx))
+    end = max(0, min(int(hs_layer_end), max_layer_idx))
+    if end < start:
+        start, end = end, start
+
+    groups = _parse_layer_groups(hs_groups)
+    if hs_fuse == 'grouped_mean' and len(groups) == 0:
+        groups = [(10, 13), (14, 17), (18, min(22, max_layer_idx))]
+    clipped_groups = []
+    for g_start, g_end in groups:
+        g_start = max(0, min(int(g_start), max_layer_idx))
+        g_end = max(0, min(int(g_end), max_layer_idx))
+        if g_end < g_start:
+            g_start, g_end = g_end, g_start
+        clipped_groups.append((g_start, g_end))
+
+    weights = _parse_group_weights(hs_group_weights, len(clipped_groups)) if hs_fuse == 'grouped_mean' else []
+    return hs_fuse, start, end, clipped_groups, weights
+
+
+def _select_hidden_states(
+    hidden_states,
+    t_len: int,
+    hs_fuse: str,
+    layer_start: int,
+    layer_end: int,
+    hs_groups: List[Tuple[int, int]],
+    hs_weights: List[float]
+) -> torch.Tensor:
+    if hs_fuse == 'last':
+        selected = hidden_states[-1]
+    elif hs_fuse == 'range_mean':
+        selected = torch.stack(hidden_states[layer_start:layer_end + 1], dim=0).mean(dim=0)
+    else:
+        selected = None
+        for weight, (g_start, g_end) in zip(hs_weights, hs_groups):
+            group_state = torch.stack(hidden_states[g_start:g_end + 1], dim=0).mean(dim=0)
+            selected = float(weight) * group_state if selected is None else selected + float(weight) * group_state
+    return selected[:, :t_len, :]
+
+
+def _write_hidden_state_manifest(
+    target: str,
+    manifest_name: str,
+    whisper_ckpt: str,
+    whisper_style: str,
+    feature_extractor: WhisperFeatureExtractor,
+    encoder: torch.nn.Module,
+    hs_fuse: str,
+    layer_start: int,
+    layer_end: int,
+    hs_groups: List[Tuple[int, int]],
+    hs_weights: List[float],
+    device: str
+):
+    if manifest_name is None or str(manifest_name).strip() == '':
+        return
+    config = getattr(encoder, 'config', None)
+    manifest = {
+        'format_version': 1,
+        'whisper_ckpt': whisper_ckpt,
+        'whisper_style': whisper_style,
+        'feature_size': int(getattr(feature_extractor, 'feature_size', 0)),
+        'num_mel_bins': int(getattr(config, 'num_mel_bins', 0)) if config is not None else None,
+        'd_model': int(getattr(config, 'd_model', 0)) if config is not None else None,
+        'encoder_layers': int(getattr(config, 'encoder_layers', 0)) if config is not None else None,
+        'hs_fuse': hs_fuse,
+        'hs_layer_start': int(layer_start),
+        'hs_layer_end': int(layer_end),
+        'hs_groups': [[int(s), int(e)] for s, e in hs_groups],
+        'hs_group_weights': [float(w) for w in hs_weights],
+        'normalized': True,
+        'quantized': 'int8_symmetric_127',
+        'device': device,
+    }
+    with open(os.path.join(target, manifest_name), 'w', encoding='utf-8') as f:
+        json.dump(manifest, f, ensure_ascii=False, indent=2)
 
 
 def _infer_tts_language(locale: str, acoustic_model: str = None) -> str:
@@ -363,7 +529,14 @@ def extract_hidden_states(
     audios: str,
     whisper_ckpt: str,
     target: str,
-    codes: str = None
+    codes: str = None,
+    whisper_style: str = 'auto',
+    hs_fuse: str = 'last',
+    hs_layer_start: int = 10,
+    hs_layer_end: int = 22,
+    hs_groups: str = '',
+    hs_group_weights: str = '',
+    manifest_name: str = '_hs_manifest.json'
 ):
     # check if audio and target folders exist
     assert os.path.isdir(audios), f'the directory for the audios could not be found, got {audios}'
@@ -375,11 +548,54 @@ def extract_hidden_states(
     else:
         device = 'cpu'
 
+    whisper_ckpt, whisper_style = _resolve_whisper_ckpt(
+        whisper_ckpt=whisper_ckpt,
+        whisper_style=whisper_style
+    )
+
     # instantiate WhisperProcessor object
     feature_extractor = WhisperFeatureExtractor.from_pretrained(whisper_ckpt)
 
     # instantiate WhisperModel object and get encoder
     encoder = WhisperModel.from_pretrained(whisper_ckpt).encoder.to(device)
+    encoder.eval()
+
+    feature_size = int(getattr(feature_extractor, 'feature_size', 0))
+    encoder_config = getattr(encoder, 'config', None)
+    num_mel_bins = int(getattr(encoder_config, 'num_mel_bins', 0)) if encoder_config is not None else feature_size
+    if whisper_style == 'large-v3' and feature_size != 128:
+        raise ValueError('large-v3 hidden-state extraction expects 128 mel bins, got {}'.format(feature_size))
+    if whisper_style in {'medium', 'large-v2'} and feature_size != 80:
+        raise ValueError('{} hidden-state extraction expects 80 mel bins, got {}'.format(whisper_style, feature_size))
+
+    max_layer_idx = int(getattr(encoder_config, 'encoder_layers', 0)) if encoder_config is not None else 0
+    if max_layer_idx <= 0:
+        # hidden_states includes the embedding output at index 0, so the last layer index equals encoder_layers.
+        max_layer_idx = 32 if whisper_style in {'large-v2', 'large-v3'} else 24
+    if str(hs_fuse or '').strip().lower() == 'grouped_mean' and str(hs_groups or '').strip() == '' and whisper_style == 'large-v3':
+        hs_groups = '20-23,24-27,28-32'
+    hs_fuse, layer_start, layer_end, hs_groups, hs_weights = _prepare_hidden_state_fuse(
+        hs_fuse=hs_fuse,
+        hs_layer_start=hs_layer_start,
+        hs_layer_end=hs_layer_end,
+        hs_groups=hs_groups,
+        hs_group_weights=hs_group_weights,
+        max_layer_idx=max_layer_idx
+    )
+    _write_hidden_state_manifest(
+        target=target,
+        manifest_name=manifest_name,
+        whisper_ckpt=whisper_ckpt,
+        whisper_style=whisper_style,
+        feature_extractor=feature_extractor,
+        encoder=encoder,
+        hs_fuse=hs_fuse,
+        layer_start=layer_start,
+        layer_end=layer_end,
+        hs_groups=hs_groups,
+        hs_weights=hs_weights,
+        device=device
+    )
 
     # get codes if necessary
     if codes != None:
@@ -416,14 +632,24 @@ def extract_hidden_states(
             # extract features and hidden states
             t_features = feature_extractor(t_waveform[0], sampling_rate=16000, return_tensors='pt').input_features
             t_len = ceil(feature_extractor(t_waveform[0], sampling_rate=16000, return_tensors='pt', padding=True).input_features.size(dim=2) / 2.)
-            t_hidden_states = encoder(
-                input_features = t_features.to(device), 
-                output_hidden_states = True, 
-                return_dict = True
-            )['hidden_states'][-1][:, :t_len, :]
+            with torch.inference_mode():
+                hidden_states = encoder(
+                    input_features = t_features.to(device),
+                    output_hidden_states = True,
+                    return_dict = True
+                )['hidden_states']
+            t_hidden_states = _select_hidden_states(
+                hidden_states=hidden_states,
+                t_len=t_len,
+                hs_fuse=hs_fuse,
+                layer_start=layer_start,
+                layer_end=layer_end,
+                hs_groups=hs_groups,
+                hs_weights=hs_weights
+            )
 
             # normalize hidden states
-            t_hidden_states = t_hidden_states / torch.linalg.norm(t_hidden_states, dim=-1, keepdim=True)
+            t_hidden_states = t_hidden_states / torch.linalg.norm(t_hidden_states, dim=-1, keepdim=True).clamp_min(1e-8)
 
             # target file name
             f_name = os.path.join(target, os.path.splitext(os.path.basename(audio_file))[0] + '.bin') if 'audio-' not in os.path.splitext(os.path.basename(audio_file))[0] else os.path.join(target, os.path.splitext(os.path.basename(audio_file))[0][6:] + '.bin')
@@ -500,6 +726,13 @@ def main():
     parser.add_argument('-l', '--locale', dest='locale', type=str, help='locale input used to infer the PaddleSpeech language')
     parser.add_argument('-v', '--voice', dest='voice', type=str, default='', help='optional PaddleSpeech acoustic model, such as `fastspeech2_csmsc`')
     parser.add_argument('-w', '--whisper', dest='whisper', type=str, help='whisper version')
+    parser.add_argument('--whisper_style', dest='whisper_style', type=str, default='auto', help='hidden-state extraction profile: auto|medium|large-v2|large-v3')
+    parser.add_argument('--hs_fuse', dest='hs_fuse', type=str, default='last', help='hidden states fusion mode: last|range_mean|grouped_mean')
+    parser.add_argument('--hs_layer_start', dest='hs_layer_start', type=int, default=10, help='start layer index for range_mean/grouped_mean')
+    parser.add_argument('--hs_layer_end', dest='hs_layer_end', type=int, default=22, help='end layer index for range_mean/grouped_mean')
+    parser.add_argument('--hs_groups', dest='hs_groups', type=str, default='', help='group spec for grouped_mean, e.g. "10-13,14-17,18-22"')
+    parser.add_argument('--hs_group_weights', dest='hs_group_weights', type=str, default='', help='weights for grouped_mean groups, e.g. "0.2,0.3,0.5"')
+    parser.add_argument('--manifest_name', dest='manifest_name', type=str, default='_hs_manifest.json', help='metadata file written in the hidden-state target folder; empty disables it')
     parser.add_argument('--tts_device', dest='tts_device', type=str, default='auto', help='tts device: auto|cpu|gpu')
     parser.add_argument('--mos_threshold', dest='mos_threshold', type=float, default=3.5, help='MOS threshold for validating synthesized speech')
     parser.add_argument('--tts_retries', dest='tts_retries', type=int, default=3, help='number of retries when synthesized speech is invalid (minimum 3 attempts)')
@@ -540,7 +773,14 @@ def main():
             audios = args.audios,
             whisper_ckpt = args.whisper,
             target = args.target,
-            codes = args.utterances if args.utterances != '' else None
+            codes = args.utterances if args.utterances != '' else None,
+            whisper_style = args.whisper_style,
+            hs_fuse = args.hs_fuse,
+            hs_layer_start = args.hs_layer_start,
+            hs_layer_end = args.hs_layer_end,
+            hs_groups = args.hs_groups,
+            hs_group_weights = args.hs_group_weights,
+            manifest_name = args.manifest_name
         )
 
 
