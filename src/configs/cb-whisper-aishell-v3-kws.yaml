@@ -77,7 +77,9 @@ model:
     split: test
     root: ../datasets/aishell/data_aishell/hotword
     kw_type: tts
-    encoder_ckpt: openai/whisper-large-v3
+    # The provided large-v3-style KWS archive stores 1024-dim hidden states,
+    # so the online KWS encoder must stay in the same representation space.
+    encoder_ckpt: openai/whisper-medium
     whisper_ckpt: openai/whisper-large-v3
     kws_ckpt: /root/autodl-tmp/src/outputs/aishell_large_v3_kws_reproduce/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt
     language: chinese
