@@ -184,6 +184,17 @@ class CBWhisper(pl.LightningModule):
         self.encoder = WhisperModel.from_pretrained(self.hparams.encoder_ckpt).encoder
         self.encoder.eval()
         self.encoder.requires_grad_(False)
+        encoder_dim = int(getattr(getattr(self.encoder, "config", None), "d_model", 0))
+        database_dim = self.kw_database.hidden_dim()
+        if encoder_dim > 0 and database_dim is not None and int(database_dim) != encoder_dim:
+            raise ValueError(
+                "KWS encoder/database hidden-state dimension mismatch: "
+                f"encoder_ckpt={self.hparams.encoder_ckpt} has d_model={encoder_dim}, "
+                f"but keyword database under root={self.hparams.root}, split={self.hparams.split}, "
+                f"kw_type={self.hparams.kw_type} has dim={database_dim}. "
+                "Use the same Whisper encoder/profile to extract hotword keyword hidden states "
+                "and to run online KWS encoding."
+            )
 
         # check if oracle is valid
         if isinstance(self.hparams.oracle, bool):
@@ -2056,6 +2067,14 @@ class CBWhisper(pl.LightningModule):
         attention_mask: torch.Tensor,
         oracle: List[str] = []
     ):
+        expected_mels = int(getattr(self.processor_whisper.feature_extractor, "feature_size", 0))
+        if expected_mels > 0 and int(input_features.size(1)) != expected_mels:
+            raise ValueError(
+                "ASR feature dimension mismatch: "
+                f"model whisper_ckpt={self.hparams.whisper_ckpt} expects {expected_mels} mel bins, "
+                f"but dataloader provided {int(input_features.size(1))}. "
+                "Set data.init_args.whisper_ckpt to the same Whisper family as model.init_args.whisper_ckpt."
+            )
         dbg_idx = self._debug_counters["forward"]
         self._debug_counters["forward"] += 1
 
@@ -2313,6 +2332,14 @@ class CBWhisper(pl.LightningModule):
             return []
         num_segments = utt_hs.size(dim=0)
         num_keywords = len(kwd_hs)
+        for kw_idx, kwd_hs_ in enumerate(kwd_hs):
+            if int(kwd_hs_.size(-1)) != int(utt_hs.size(-1)):
+                raise ValueError(
+                    "KWS hidden-state dimension mismatch before cosine similarity: "
+                    f"keyword_idx={kw_idx} dim={int(kwd_hs_.size(-1))}, "
+                    f"utterance dim={int(utt_hs.size(-1))}. "
+                    "Re-extract utterance and keyword hidden states with the same Whisper encoder/profile."
+                )
         # compute similarity matrices
         # simple inner product because vectors are normalized
         cossim_matrices = [matrices for matrices in [torch.matmul(kwd_hs_, utt_hs.transpose(2, 3)) if utt_hs != None else None for kwd_hs_ in kwd_hs]]
@@ -2573,6 +2600,13 @@ class DatabaseLite:
 
         # set number of keywords
         self.num_keywords = sum([len(group['keywords']) for group in self.database])
+
+    def hidden_dim(self) -> Optional[int]:
+        for group in self.database:
+            for hs in group.get('hidden_states', []):
+                if hs is not None:
+                    return int(hs.size(-1))
+        return None
         
     def __len__(
         self

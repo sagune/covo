@@ -13,6 +13,17 @@ from whisper.audio import SAMPLE_RATE, N_SAMPLES
 from hs_utils import load_hidden_states
 
 
+def _assert_hidden_state_dim_match(left: torch.Tensor, right: torch.Tensor, context: str):
+    if left is None or right is None:
+        return
+    if int(left.size(-1)) != int(right.size(-1)):
+        raise ValueError(
+            f'hidden-state dimension mismatch in {context}: '
+            f'left dim={int(left.size(-1))}, right dim={int(right.size(-1))}. '
+            'Re-extract utterance and keyword hidden states with the same Whisper encoder/profile.'
+        )
+
+
 class ConcatDataset(Dataset):
     def __init__(self, datasets):
         self.datasets = datasets
@@ -93,6 +104,7 @@ class AishellKWSDataset(Dataset):
                 kwd = load_hidden_states(f)
         else:
             kwd = torch.zeros(utt.size(dim=0), 1, utt.size(dim=2)).type_as(utt)
+        _assert_hidden_state_dim_match(kwd, utt, f'aishell kws code={data["code"]} kw_type={self.kw_type} keyword_idx={keyword_idx}')
         # compute similarity matrices
         # simple inner product because vectors are normalized
         item.update([('features', torch.matmul(kwd, utt.transpose(1, 2)))])   
@@ -191,6 +203,7 @@ class MLSKWSDataset(Dataset):
                 kwd = load_hidden_states(f)
         else:
             kwd = torch.zeros(utt.size(dim=0), 1, utt.size(dim=2)).type_as(utt)
+        _assert_hidden_state_dim_match(kwd, utt, f'mls kws language={submetadata["language"]} code={data["code"]} kw_type={self.kw_type} keyword_idx={keyword_idx}')
         # compute similarity matrices
         # simple inner product because vectors are normalized
         item.update([('features', torch.matmul(kwd, utt.transpose(1, 2)))])   
@@ -309,6 +322,13 @@ class AishellHotwordDataset(Dataset):
 
         # compute similarity matrices
         # simple inner product because vectors are normalized
+        for group_idx, group in enumerate(self.database):
+            for kw_idx, hs in enumerate(group['hidden_states']):
+                _assert_hidden_state_dim_match(
+                    hs,
+                    hidden_states,
+                    f'aishell hotword utterance={item["utterance"]["hidden_states"]} group={group_idx} keyword={kw_idx}'
+                )
         item.update([('features', [[torch.matmul(hs, hidden_states.transpose(1, 2)) for hs in group['hidden_states']] for group in self.database])])
         if not self.size is None:
             # resize both edges
@@ -461,6 +481,13 @@ class ACL6060KeywordDataset(Dataset):
 
         # compute similarity matrices
         # simple inner product because vectors are normalized
+        for group_idx, group in enumerate(self.database):
+            for kw_idx, hs in enumerate(group['hidden_states']):
+                _assert_hidden_state_dim_match(
+                    hs,
+                    hidden_states,
+                    f'acl hotword utterance={item["utterance"]["hidden_states"]} group={group_idx} keyword={kw_idx}'
+                )
         item.update([('features', [[torch.matmul(hs, hidden_states.transpose(1, 2)) for hs in group['hidden_states']] for group in self.database])])
         if not self.size is None:
             # resize both edges

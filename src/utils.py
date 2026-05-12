@@ -536,7 +536,9 @@ def extract_hidden_states(
     hs_layer_end: int = 22,
     hs_groups: str = '',
     hs_group_weights: str = '',
-    manifest_name: str = '_hs_manifest.json'
+    manifest_name: str = '_hs_manifest.json',
+    skip_existing: bool = False,
+    fail_on_extract_error: bool = False
 ):
     # check if audio and target folders exist
     assert os.path.isdir(audios), f'the directory for the audios could not be found, got {audios}'
@@ -563,10 +565,13 @@ def extract_hidden_states(
     feature_size = int(getattr(feature_extractor, 'feature_size', 0))
     encoder_config = getattr(encoder, 'config', None)
     num_mel_bins = int(getattr(encoder_config, 'num_mel_bins', 0)) if encoder_config is not None else feature_size
+    expected_d_model = int(getattr(encoder_config, 'd_model', 0)) if encoder_config is not None else 0
     if whisper_style == 'large-v3' and feature_size != 128:
         raise ValueError('large-v3 hidden-state extraction expects 128 mel bins, got {}'.format(feature_size))
     if whisper_style in {'medium', 'large-v2'} and feature_size != 80:
         raise ValueError('{} hidden-state extraction expects 80 mel bins, got {}'.format(whisper_style, feature_size))
+    if expected_d_model <= 0:
+        raise ValueError('could not infer encoder d_model for {}'.format(whisper_ckpt))
 
     max_layer_idx = int(getattr(encoder_config, 'encoder_layers', 0)) if encoder_config is not None else 0
     if max_layer_idx <= 0:
@@ -596,11 +601,27 @@ def extract_hidden_states(
         hs_weights=hs_weights,
         device=device
     )
+    print(
+        '[extract_hs] ckpt={} style={} feature_size={} d_model={} fuse={} overwrite={} target={}'.format(
+            whisper_ckpt,
+            whisper_style,
+            feature_size,
+            expected_d_model,
+            hs_fuse,
+            not skip_existing,
+            target
+        ),
+        flush=True
+    )
 
     # get codes if necessary
     if codes != None:
-        with open(codes, 'r') as f:
-            codes = [line.split('\t')[0].strip().split(' ')[0].strip() for line in f.readlines()]
+        with open(codes, 'r', encoding='utf-8-sig') as f:
+            codes = {
+                line.split('\t')[0].strip().split(' ')[0].strip()
+                for line in f.readlines()
+                if line.strip() != ''
+            }
 
     # get all audio files
     # assumes the wav folder is either composed of only files
@@ -617,10 +638,19 @@ def extract_hidden_states(
         os.path.splitext(os.path.basename(f_name))[0] : f_name
     for f_name in audio_files}
 
-    # and extract hidden states for each one
-    # if code is present in list of codes, if it exists
+    # and extract hidden states for each one, if code is present in list of codes
+    written = 0
+    skipped = 0
+    failed = []
     for code, audio_file in tqdm(audio_files.items()):
-        if codes != None and not any([c_ in code for c_ in codes]):
+        if codes != None and code not in codes and not (code.startswith('audio-') and code[6:] in codes):
+            continue
+        out_code = os.path.splitext(os.path.basename(audio_file))[0]
+        if out_code.startswith('audio-'):
+            out_code = out_code[6:]
+        f_name = os.path.join(target, out_code + '.bin')
+        if skip_existing and os.path.exists(f_name):
+            skipped += 1
             continue
         try:
             # load utterance audio and preprocess it
@@ -647,19 +677,41 @@ def extract_hidden_states(
                 hs_groups=hs_groups,
                 hs_weights=hs_weights
             )
+            if int(t_hidden_states.size(-1)) != expected_d_model:
+                raise ValueError(
+                    'hidden-state dim mismatch for {}: got {}, expected {}'.format(
+                        code,
+                        int(t_hidden_states.size(-1)),
+                        expected_d_model
+                    )
+                )
 
             # normalize hidden states
             t_hidden_states = t_hidden_states / torch.linalg.norm(t_hidden_states, dim=-1, keepdim=True).clamp_min(1e-8)
 
-            # target file name
-            f_name = os.path.join(target, os.path.splitext(os.path.basename(audio_file))[0] + '.bin') if 'audio-' not in os.path.splitext(os.path.basename(audio_file))[0] else os.path.join(target, os.path.splitext(os.path.basename(audio_file))[0][6:] + '.bin')
             # and dump hidden_states
             with open(f_name, 'wb') as f:
                 torch.save(quantize_hidden_states(t_hidden_states.clone()), f)
+            written += 1
 
         except Exception as e:
-            print(e)
-            continue
+            failed.append((code, audio_file, str(e)))
+            print('[extract_hs][warn] {} {}: {}'.format(code, audio_file, e), flush=True)
+            if fail_on_extract_error:
+                raise
+
+    print(
+        '[extract_hs] done written={} skipped={} failed={}'.format(
+            written,
+            skipped,
+            len(failed)
+        ),
+        flush=True
+    )
+    if failed:
+        print('[extract_hs] first failures: {}'.format(failed[:5]), flush=True)
+        if fail_on_extract_error:
+            raise RuntimeError('hidden-state extraction failed for {} files'.format(len(failed)))
 
 
 def cut_audios(
@@ -733,6 +785,8 @@ def main():
     parser.add_argument('--hs_groups', dest='hs_groups', type=str, default='', help='group spec for grouped_mean, e.g. "10-13,14-17,18-22"')
     parser.add_argument('--hs_group_weights', dest='hs_group_weights', type=str, default='', help='weights for grouped_mean groups, e.g. "0.2,0.3,0.5"')
     parser.add_argument('--manifest_name', dest='manifest_name', type=str, default='_hs_manifest.json', help='metadata file written in the hidden-state target folder; empty disables it')
+    parser.add_argument('--skip_existing', dest='skip_existing', action='store_true', help='skip existing hidden-state .bin files; by default extraction overwrites them')
+    parser.add_argument('--fail_on_extract_error', dest='fail_on_extract_error', action='store_true', help='abort hidden-state extraction on the first failed audio file')
     parser.add_argument('--tts_device', dest='tts_device', type=str, default='auto', help='tts device: auto|cpu|gpu')
     parser.add_argument('--mos_threshold', dest='mos_threshold', type=float, default=3.5, help='MOS threshold for validating synthesized speech')
     parser.add_argument('--tts_retries', dest='tts_retries', type=int, default=3, help='number of retries when synthesized speech is invalid (minimum 3 attempts)')
@@ -780,7 +834,9 @@ def main():
             hs_layer_end = args.hs_layer_end,
             hs_groups = args.hs_groups,
             hs_group_weights = args.hs_group_weights,
-            manifest_name = args.manifest_name
+            manifest_name = args.manifest_name,
+            skip_existing = args.skip_existing,
+            fail_on_extract_error = args.fail_on_extract_error
         )
 
 
