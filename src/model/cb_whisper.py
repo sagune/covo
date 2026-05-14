@@ -211,6 +211,7 @@ class CBWhisper(pl.LightningModule):
         self._latest_prompt_weights = []
         self._latest_full_prompt_ids = []
         self._keyword_spotting_cache = {}
+        self._active_kws_attention_mask = None
         self._debug_log_path = os.getenv("CBW_DEBUG_LOG", "logs/runtime_probe.jsonl")
         if self._debug_log_path.lower() in {"", "none", "off", "0"}:
             self._debug_log_path = ""
@@ -1473,6 +1474,7 @@ class CBWhisper(pl.LightningModule):
                         return_dict=True,
                     )["hidden_states"][-1].unsqueeze(dim=1)
                 utt_hs = utt_hs.float()
+                utt_hs = self._trim_online_hidden_states_to_audio(utt_hs)
                 utt_hs = utt_hs / torch.linalg.norm(utt_hs, dim=-1, keepdim=True)
             except Exception:
                 utt_hs = None
@@ -1522,6 +1524,25 @@ class CBWhisper(pl.LightningModule):
                 for i in range(len(keywords))
             ]
         return keywords, keyword_scores
+
+    def _trim_online_hidden_states_to_audio(self, utt_hs: torch.Tensor) -> torch.Tensor:
+        attention_mask = self._active_kws_attention_mask
+        if not isinstance(attention_mask, torch.Tensor):
+            return utt_hs
+        if not isinstance(utt_hs, torch.Tensor) or utt_hs.dim() < 4:
+            return utt_hs
+        if int(attention_mask.size(0)) != int(utt_hs.size(0)):
+            return utt_hs
+        try:
+            valid_frames = attention_mask.to(device=utt_hs.device, dtype=torch.float32).sum(dim=-1)
+            valid_hidden = torch.ceil(valid_frames / 2.0).to(dtype=torch.long)
+            valid_hidden = valid_hidden.clamp(min=1, max=int(utt_hs.size(2)))
+            if int(utt_hs.size(0)) == 1:
+                return utt_hs[:, :, : int(valid_hidden[0].item()), :]
+            max_valid = int(valid_hidden.max().item())
+            return utt_hs[:, :, :max_valid, :]
+        except Exception:
+            return utt_hs
 
     def _oracle_keywords_from_buffer(self, num_segments: int) -> Tuple[List[List[str]], List[dict]]:
         keywords = [list(self.oracle_buffer) for _ in range(num_segments)]
@@ -2081,6 +2102,7 @@ class CBWhisper(pl.LightningModule):
 
         # set buffer of the oracle
         self.oracle_buffer = oracle           
+        self._active_kws_attention_mask = attention_mask
         # Only reuse keyword spotting results within the current forward pass.
         # Cross-sample reuse is unsafe because tensor storage pointers can be
         # recycled across batches.
