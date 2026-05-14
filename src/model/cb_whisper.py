@@ -1472,6 +1472,7 @@ class CBWhisper(pl.LightningModule):
                         output_hidden_states=True,
                         return_dict=True,
                     )["hidden_states"][-1].unsqueeze(dim=1)
+                utt_hs = utt_hs.float()
                 utt_hs = utt_hs / torch.linalg.norm(utt_hs, dim=-1, keepdim=True)
             except Exception:
                 utt_hs = None
@@ -2340,6 +2341,10 @@ class CBWhisper(pl.LightningModule):
                     f"utterance dim={int(utt_hs.size(-1))}. "
                     "Re-extract utterance and keyword hidden states with the same Whisper encoder/profile."
                 )
+        kwd_hs = [
+            kwd_hs_.to(device=utt_hs.device, dtype=utt_hs.dtype)
+            for kwd_hs_ in kwd_hs
+        ]
         # compute similarity matrices
         # simple inner product because vectors are normalized
         cossim_matrices = [matrices for matrices in [torch.matmul(kwd_hs_, utt_hs.transpose(2, 3)) if utt_hs != None else None for kwd_hs_ in kwd_hs]]

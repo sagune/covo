@@ -22,6 +22,9 @@ class KWSLightningCLI(LightningCLI):
 
     def before_instantiate_classes(self):
 
+        if not hasattr(self.config, "fit"):
+            return
+
         if self.config.fit.model.init_args.adversarial_training:
             del self.config.fit.trainer.accumulate_grad_batches
 
