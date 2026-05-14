@@ -10,6 +10,7 @@ from transformers.models.whisper.generation_whisper import _pad_to_max_length, _
 import copy
 from transformers.generation.configuration_utils import GenerationConfig
 from transformers.generation.logits_process import (
+    LogitsProcessor,
     LogitsProcessorList,
     SuppressTokensLogitsProcessor,
 )
@@ -17,6 +18,35 @@ from transformers.generation.stopping_criteria import StoppingCriteriaList
 
 
 class PBAWhisper(WhisperForConditionalGeneration):  
+    class _PromptAwareNoRepeatNGramLogitsProcessor(LogitsProcessor):
+        def __init__(self, ngram_size: int, prompt_ignore_len: int = 0):
+            if not isinstance(ngram_size, int) or ngram_size <= 0:
+                raise ValueError(f"`ngram_size` must be a strictly positive integer, got {ngram_size}")
+            self.ngram_size = int(ngram_size)
+            self.prompt_ignore_len = max(0, int(prompt_ignore_len))
+
+        def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+            if self.prompt_ignore_len <= 0:
+                effective_ids = input_ids
+            else:
+                effective_ids = input_ids[:, min(self.prompt_ignore_len, input_ids.size(-1)):]
+            cur_len = int(effective_ids.size(-1))
+            if cur_len + 1 < self.ngram_size:
+                return scores
+
+            scores_processed = scores.clone()
+            for batch_idx in range(effective_ids.size(0)):
+                tokens = [int(t) for t in effective_ids[batch_idx].tolist()]
+                prefix = tuple(tokens[-(self.ngram_size - 1):]) if self.ngram_size > 1 else tuple()
+                banned = []
+                for start in range(0, max(0, len(tokens) - self.ngram_size + 1)):
+                    ngram = tuple(tokens[start:start + self.ngram_size])
+                    if self.ngram_size == 1 or ngram[:-1] == prefix:
+                        banned.append(int(ngram[-1]))
+                if len(banned) > 0:
+                    scores_processed[batch_idx, banned] = -float("inf")
+            return scores_processed
+
     @staticmethod
     def _has_prompt_ids(prompt_ids) -> bool:
         if prompt_ids is None:
@@ -634,6 +664,12 @@ class PBAWhisper(WhisperForConditionalGeneration):
             prompt_condition_type=kwargs.pop("prompt_condition_type", None),
         )
 
+        no_repeat_ngram_size = int(
+            kwargs.pop("no_repeat_ngram_size", getattr(generation_config, "no_repeat_ngram_size", 0) or 0) or 0
+        )
+        if hasattr(generation_config, "no_repeat_ngram_size"):
+            generation_config.no_repeat_ngram_size = 0
+
         # 4. Retrieve logits processors
         logits_processor_base = self._call_with_supported_kwargs(
             self._retrieve_logit_processors,
@@ -647,6 +683,14 @@ class PBAWhisper(WhisperForConditionalGeneration):
         )
         if logits_processor_base is None:
             logits_processor_base = LogitsProcessorList()
+        if no_repeat_ngram_size > 0:
+            prompt_ignore_len = len(prompt_ids) if (is_shortform and prompt_ids is not None) else 0
+            logits_processor_base.append(
+                self._PromptAwareNoRepeatNGramLogitsProcessor(
+                    ngram_size=no_repeat_ngram_size,
+                    prompt_ignore_len=prompt_ignore_len,
+                )
+            )
         # Keep the newer generate() interface for compatibility with the local
         # evaluation stack, but restore the original CB-Whisper behavior here:
         # keyword prompting is the only active injection path during decoding.
