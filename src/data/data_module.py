@@ -203,15 +203,17 @@ class KWSDataMod(LightningDataModule):
                     feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
                 )
             elif self.test_info.name == 'shuili':
+                hotword_root = os.path.join(self.test_info.root, 'hotword') if os.path.isdir(os.path.join(self.test_info.root, 'hotword')) else self.test_info.root
+                wav_root = os.path.join(self.test_info.root, 'wav') if os.path.isdir(os.path.join(self.test_info.root, 'wav')) else self.test_info.root
                 self.test_dataset = AishellHotwordDataset(
-                    root = self.test_info.root,
+                    root = hotword_root,
                     split = self.test_split,
                     size = self.features_size,
                     r1_only = False,
                     hotwords_per_group = self.hotwords_per_group,
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
-                    wav_folder = self.test_info.root,
+                    wav_folder = wav_root,
                     feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
                 )
 
