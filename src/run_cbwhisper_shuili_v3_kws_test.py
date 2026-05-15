@@ -1,7 +1,9 @@
 import os
+import sys
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), "data"))
 
 import pytorch_lightning as pl
 
