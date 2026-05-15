@@ -42,6 +42,24 @@ trainer:
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: ./outputs/cb_whisper_shuili_large_v3_kws
 
+f1_checkpoint:
+  dirpath: ./outputs/cb_whisper_shuili_large_v3_kws/checkpoints/f1
+  filename: f1-{epoch}-{step}
+  monitor: Entity Recall
+  mode: max
+f1_generalization_checkpoint:
+  dirpath: ./outputs/cb_whisper_shuili_large_v3_kws/checkpoints/f1G
+  filename: f1G-{epoch}-{step}
+  monitor: Entity Recall
+  mode: max
+checkpoint_final:
+  dirpath: ./outputs/cb_whisper_shuili_large_v3_kws/checkpoints/final
+  filename: final-{epoch}-{step}
+early_stopping:
+  monitor: Entity Recall
+  patience: 5
+  mode: max
+
 data:
   class_path: data.data_module.KWSDataMod
   init_args:
