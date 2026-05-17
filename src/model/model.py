@@ -26,6 +26,7 @@ class KWSModel(pl.LightningModule):
         subsequence_aux_temperature: float = 0.5,
         decision_threshold_mode: str = 'max_fbeta',
         decision_threshold_fixed: float = 0.5,
+        decision_threshold_override: float = None,
         decision_threshold_fbeta: float = 0.5,
         decision_threshold_min_recall: float = 0.0,
         decision_threshold_min_precision: float = 0.0,
@@ -87,6 +88,8 @@ class KWSModel(pl.LightningModule):
             self.hparams.decision_threshold_mode = decision_threshold_mode
         if not hasattr(self.hparams, 'decision_threshold_fixed'):
             self.hparams.decision_threshold_fixed = decision_threshold_fixed
+        if not hasattr(self.hparams, 'decision_threshold_override'):
+            self.hparams.decision_threshold_override = decision_threshold_override
         if not hasattr(self.hparams, 'decision_threshold_fbeta'):
             self.hparams.decision_threshold_fbeta = decision_threshold_fbeta
         if not hasattr(self.hparams, 'decision_threshold_min_recall'):
@@ -511,7 +514,12 @@ class KWSModel(pl.LightningModule):
         })
 
     def on_test_epoch_end(self):
-        threshold = float(getattr(self, '_eval_threshold', self.hparams.decision_threshold_fixed))
+        threshold_override = getattr(self.hparams, 'decision_threshold_override', None)
+        threshold = (
+            float(threshold_override)
+            if threshold_override is not None
+            else float(getattr(self, '_eval_threshold', self.hparams.decision_threshold_fixed))
+        )
 
         def f_precision(labels, samples, samples2=None):
             precision, _ = self._metrics_at_threshold(labels=labels, samples=samples, threshold=threshold)
