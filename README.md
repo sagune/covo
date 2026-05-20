@@ -80,3 +80,19 @@ pip install -r requirements-train.txt
 PYTHONPATH=src python scripts/train_lora_sft.py --help
 PYTHONPATH=src python scripts/infer_lora_edits.py --help
 ```
+
+数据切分、统计和纠错分析：
+
+```bash
+PYTHONPATH=src python scripts/split_jsonl.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl \
+  --output-dir outputs/splits \
+  --mode field
+
+PYTHONPATH=src python scripts/dataset_stats.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl
+
+PYTHONPATH=src python scripts/analyze_corrections.py \
+  --input outputs/sample_applied.jsonl \
+  --output-dir outputs/analysis
+```
