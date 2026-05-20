@@ -1,0 +1,46 @@
+{
+  "name": "sample_prepare_chinesehp",
+  "log_file": "outputs/logs/sample_prepare_chinesehp.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "prepare_sft_sample",
+      "script": "scripts/prepare_chinesehp_sft.py",
+      "args": {
+        "input": "../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl",
+        "output": "outputs/pipeline/chinesehp_sample_sft.jsonl",
+        "nbest_size": 5,
+        "output_mode": "edits",
+        "limit": 20
+      }
+    },
+    {
+      "name": "filter_sft_sample",
+      "script": "scripts/filter_sft_jsonl.py",
+      "args": {
+        "input": "outputs/pipeline/chinesehp_sample_sft.jsonl",
+        "output": "outputs/pipeline/chinesehp_sample_sft.clean.jsonl",
+        "max_baseline_cer": 0.8,
+        "max_total_changed_chars": 24
+      }
+    },
+    {
+      "name": "export_qwen_messages",
+      "script": "scripts/export_sft_format.py",
+      "args": {
+        "input": "outputs/pipeline/chinesehp_sample_sft.clean.jsonl",
+        "output": "outputs/pipeline/chinesehp_sample_qwen_messages.jsonl",
+        "format": "qwen-messages"
+      }
+    },
+    {
+      "name": "dataset_stats",
+      "script": "scripts/dataset_stats.py",
+      "args": {
+        "input": "outputs/pipeline/chinesehp_sample_sft.clean.jsonl"
+      }
+    }
+  ]
+}

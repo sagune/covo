@@ -1,0 +1,34 @@
+{
+  "name": "deepseek_teacher_sample",
+  "log_file": "outputs/logs/deepseek_teacher_sample.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "generate_teacher_edits",
+      "script": "scripts/generate_teacher_edits_deepseek.py",
+      "args": {
+        "input": "examples/chinesehp_aishell1_sft_sample.jsonl",
+        "output": "outputs/deepseek_teacher_sample.jsonl",
+        "limit": 5,
+        "request_delay": 0
+      }
+    },
+    {
+      "name": "apply_teacher_edits",
+      "script": "scripts/apply_edits_jsonl.py",
+      "args": {
+        "input": "outputs/deepseek_teacher_sample.jsonl",
+        "output": "outputs/deepseek_teacher_sample.applied.jsonl"
+      }
+    },
+    {
+      "name": "evaluate_teacher_edits",
+      "script": "scripts/evaluate_correction_jsonl.py",
+      "args": {
+        "input": "outputs/deepseek_teacher_sample.applied.jsonl"
+      }
+    }
+  ]
+}

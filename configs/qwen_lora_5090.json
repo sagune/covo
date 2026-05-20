@@ -1,0 +1,25 @@
+{
+  "name": "qwen_lora_5090",
+  "log_file": "outputs/logs/qwen_lora_5090.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "train_qwen_lora",
+      "script": "scripts/train_lora_sft.py",
+      "args": {
+        "train_file": "data/processed/chinesehp_aishell1_qwen_messages.jsonl",
+        "output_dir": "outputs/qwen_asr_corrector_lora",
+        "model_name_or_path": "Qwen/Qwen3-4B",
+        "input_format": "qwen-messages",
+        "qlora": true,
+        "bf16": true,
+        "gradient_checkpointing": true,
+        "per_device_train_batch_size": 1,
+        "gradient_accumulation_steps": 16,
+        "epochs": 1
+      }
+    }
+  ]
+}

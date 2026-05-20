@@ -13,6 +13,33 @@ CB-Whisper 后纠错实验计划与流程文档。
 - [CB-Whisper 受约束后纠错计划](docs/cbwhisper_correction_plan.md)
 - [LoRA 训练快速开始](docs/training_quickstart.md)
 - [Evidence JSONL 字段规范](docs/evidence_schema.md)
+- [实验日志](docs/experiment_log.md)
+
+## 配置化运行
+
+常用流程已经放在 `configs/` 里，统一用 `scripts/run_pipeline.py` 调起。每个配置可以写入 `log_file`，默认落到 `outputs/logs/`，记录每一步命令、开始/结束时间、耗时和返回码。
+
+先检查命令：
+
+```bash
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/sample_prepare_chinesehp.json \
+  --dry-run
+```
+
+实际跑一个 20 条样本的准备流程：
+
+```bash
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/sample_prepare_chinesehp.json
+```
+
+当前配置：
+
+- `configs/sample_prepare_chinesehp.json`：ChineseHP 样本准备、过滤、导出 Qwen messages、统计。
+- `configs/whisper_v3_decode.json`：Whisper large-v3 生成 N-best，需音频和 Whisper 依赖。
+- `configs/deepseek_teacher_sample.json`：DeepSeek teacher 生成 edits、应用、评测，需环境变量 `DEEPSEEK_API_KEY`。
+- `configs/qwen_lora_5090.json`：5090/GPU 环境上的 Qwen LoRA/QLoRA 训练入口。
 
 ## 当前可用工具
 
