@@ -51,24 +51,31 @@ def _resolve_device(device: str) -> str:
     return device
 
 
+def _model_device(model) -> str:
+    try:
+        return str(next(model.parameters()).device)
+    except Exception:
+        return "cpu"
+
+
 def main() -> int:
     args = parse_args()
 
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    device = _resolve_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         trust_remote_code=True,
-        torch_dtype=torch.bfloat16 if torch.cuda.is_available() else None,
+        torch_dtype=torch.bfloat16 if device.startswith("cuda") else None,
         device_map="auto" if args.device == "auto" else None,
     )
     if args.adapter_path:
         from peft import PeftModel
 
         model = PeftModel.from_pretrained(model, args.adapter_path)
-    device = _resolve_device(args.device)
     if args.device != "auto":
         model.to(device)
     model.eval()
@@ -78,15 +85,19 @@ def main() -> int:
         for record in read_jsonl(args.input):
             messages = _messages_for_record(record, args.input_format)
             prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+            inputs = tokenizer(prompt, return_tensors="pt").to(_model_device(model))
+            generation_kwargs = {
+                "max_new_tokens": int(args.max_new_tokens),
+                "do_sample": float(args.temperature) > 0,
+                "pad_token_id": tokenizer.eos_token_id,
+            }
+            if generation_kwargs["do_sample"]:
+                generation_kwargs["temperature"] = float(args.temperature)
+                generation_kwargs["top_p"] = float(args.top_p)
             with torch.inference_mode():
                 generated = model.generate(
                     **inputs,
-                    max_new_tokens=int(args.max_new_tokens),
-                    do_sample=float(args.temperature) > 0,
-                    temperature=max(float(args.temperature), 1e-6),
-                    top_p=float(args.top_p),
-                    pad_token_id=tokenizer.eos_token_id,
+                    **generation_kwargs,
                 )
             new_tokens = generated[0, inputs["input_ids"].shape[-1] :]
             model_output = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()

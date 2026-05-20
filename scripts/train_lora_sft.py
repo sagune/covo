@@ -79,8 +79,28 @@ def _load_texts(path: str, tokenizer: Any, input_format: str, max_length: int) -
     return rows
 
 
+class _SimpleChatTemplateTokenizer:
+    """Fallback tokenizer-like object for dependency-light dry runs."""
+
+    @staticmethod
+    def apply_chat_template(messages, tokenize=False, add_generation_prompt=False):
+        lines = []
+        for message in messages:
+            lines.append(f"<{message.get('role', 'user')}>\n{message.get('content', '')}")
+        if add_generation_prompt:
+            lines.append("<assistant>\n")
+        return "\n".join(lines)
+
+
 def main() -> int:
     args = parse_args()
+
+    if args.dry_run and args.model_name_or_path.lower() in {"none", "dummy", "dry-run"}:
+        tokenizer = _SimpleChatTemplateTokenizer()
+        train_rows = _load_texts(args.train_file, tokenizer, args.input_format, args.max_length)
+        eval_rows = _load_texts(args.eval_file, tokenizer, args.input_format, args.max_length) if args.eval_file else []
+        print(json.dumps({"train_rows": len(train_rows), "eval_rows": len(eval_rows), "sample": train_rows[:1]}, ensure_ascii=False, indent=2))
+        return 0
 
     from datasets import Dataset
     import torch
@@ -148,7 +168,7 @@ def main() -> int:
     train_dataset = Dataset.from_list(train_rows).map(tokenize, batched=True, remove_columns=["text"])
     eval_dataset = Dataset.from_list(eval_rows).map(tokenize, batched=True, remove_columns=["text"]) if eval_rows else None
 
-    training_args = TrainingArguments(
+    training_kwargs = dict(
         output_dir=args.output_dir,
         num_train_epochs=float(args.epochs),
         learning_rate=float(args.learning_rate),
@@ -159,12 +179,21 @@ def main() -> int:
         logging_steps=int(args.logging_steps),
         save_steps=int(args.save_steps),
         eval_steps=int(args.eval_steps),
-        eval_strategy="steps" if eval_dataset is not None else "no",
         save_strategy="steps",
         bf16=bool(args.bf16),
         fp16=bool(args.fp16),
         report_to="none",
     )
+    try:
+        training_args = TrainingArguments(
+            **training_kwargs,
+            eval_strategy="steps" if eval_dataset is not None else "no",
+        )
+    except TypeError:
+        training_args = TrainingArguments(
+            **training_kwargs,
+            evaluation_strategy="steps" if eval_dataset is not None else "no",
+        )
     trainer = Trainer(
         model=model,
         args=training_args,

@@ -15,6 +15,14 @@ class ModelOutputParserTest(unittest.TestCase):
         self.assertEqual(parsed["edits"], [])
         self.assertIn("no_valid_json_edits", parsed["parse_warnings"])
 
+    def test_parse_single_edit_object(self):
+        parsed = parse_model_edits_json('{"from":"中界","to":"中介"}')
+        self.assertEqual(parsed["edits"], [{"from": "中界", "to": "中介", "reason": ""}])
+
+    def test_parse_list(self):
+        parsed = parse_model_edits_json('[{"from":"中界","to":"中介"}]')
+        self.assertEqual(len(parsed["edits"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

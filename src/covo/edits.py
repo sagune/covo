@@ -25,7 +25,12 @@ class Edit:
 def parse_edits(value: Any) -> List[Edit]:
     """Parse model output shaped as either a list or {"edits": [...]}."""
     if isinstance(value, dict):
-        value = value.get("edits", [])
+        if "edits" in value:
+            value = value.get("edits", [])
+        elif "from" in value and "to" in value:
+            value = [value]
+        else:
+            value = []
     if value is None:
         return []
     if not isinstance(value, list):
