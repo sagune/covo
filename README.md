@@ -37,9 +37,28 @@ PYTHONPATH=src python scripts/run_pipeline.py \
 当前配置：
 
 - `configs/sample_prepare_chinesehp.json`：ChineseHP 样本准备、过滤、导出 Qwen messages、统计。
+- `configs/prepare_chinesehp_full.json`：ChineseHP 全量准备、过滤、按原始 split 切分、导出 train/dev/test。
+- `configs/baselines_chinesehp_test.json`：在 test 集上评测 no-correction、oracle N-best 和 rule baseline。
 - `configs/whisper_v3_decode.json`：Whisper large-v3 生成 N-best，需音频和 Whisper 依赖。
 - `configs/deepseek_teacher_sample.json`：DeepSeek teacher 生成 edits、应用、评测，需环境变量 `DEEPSEEK_API_KEY`。
-- `configs/qwen_lora_5090.json`：5090/GPU 环境上的 Qwen LoRA/QLoRA 训练入口。
+- `configs/qwen_lora_5090.json`：5090/GPU 环境上的 Qwen LoRA/QLoRA 训练入口，使用 train/dev。
+- `configs/evaluate_qwen_lora_test.json`：加载 LoRA adapter，在 test 集推理、应用 edits、评测和分析。
+
+服务器上的推荐顺序：
+
+```bash
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/prepare_chinesehp_full.json
+
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/baselines_chinesehp_test.json
+
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/qwen_lora_5090.json
+
+PYTHONPATH=src python scripts/run_pipeline.py \
+  --config configs/evaluate_qwen_lora_test.json
+```
 
 ## 当前可用工具
 
@@ -136,6 +155,9 @@ PYTHONPATH=src python scripts/build_manifest.py \
 PYTHONPATH=src python scripts/rule_correct_jsonl.py \
   --input examples/chinesehp_aishell1_sft_sample.jsonl \
   --output outputs/rule_corrected.jsonl
+
+PYTHONPATH=src python scripts/evaluate_baselines_jsonl.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl
 
 DEEPSEEK_API_KEY=... PYTHONPATH=src python scripts/generate_teacher_edits_deepseek.py \
   --input examples/chinesehp_aishell1_sft_sample.jsonl \

@@ -1,0 +1,73 @@
+{
+  "name": "prepare_chinesehp_full",
+  "log_file": "outputs/logs/prepare_chinesehp_full.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "prepare_internal_sft",
+      "script": "scripts/prepare_chinesehp_sft.py",
+      "args": {
+        "input": "../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl",
+        "output": "data/processed/chinesehp_aishell1_sft.jsonl",
+        "nbest_size": 10,
+        "output_mode": "edits"
+      }
+    },
+    {
+      "name": "filter_internal_sft",
+      "script": "scripts/filter_sft_jsonl.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1_sft.jsonl",
+        "output": "data/processed/chinesehp_aishell1_sft.clean.jsonl",
+        "max_baseline_cer": 0.8,
+        "max_total_changed_chars": 24
+      }
+    },
+    {
+      "name": "split_by_original_field",
+      "script": "scripts/split_jsonl.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1_sft.clean.jsonl",
+        "output_dir": "data/processed/chinesehp_aishell1",
+        "mode": "field",
+        "field": "split"
+      }
+    },
+    {
+      "name": "export_train_qwen_messages",
+      "script": "scripts/export_sft_format.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/train.jsonl",
+        "output": "data/processed/chinesehp_aishell1/train.qwen_messages.jsonl",
+        "format": "qwen-messages"
+      }
+    },
+    {
+      "name": "export_dev_qwen_messages",
+      "script": "scripts/export_sft_format.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/dev.jsonl",
+        "output": "data/processed/chinesehp_aishell1/dev.qwen_messages.jsonl",
+        "format": "qwen-messages"
+      }
+    },
+    {
+      "name": "export_test_qwen_messages",
+      "script": "scripts/export_sft_format.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/test.jsonl",
+        "output": "data/processed/chinesehp_aishell1/test.qwen_messages.jsonl",
+        "format": "qwen-messages"
+      }
+    },
+    {
+      "name": "dataset_stats",
+      "script": "scripts/dataset_stats.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1_sft.clean.jsonl"
+      }
+    }
+  ]
+}

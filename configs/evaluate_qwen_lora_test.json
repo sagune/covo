@@ -1,0 +1,47 @@
+{
+  "name": "evaluate_qwen_lora_test",
+  "log_file": "outputs/logs/evaluate_qwen_lora_test.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "infer_test_edits",
+      "script": "scripts/infer_lora_edits.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/test.jsonl",
+        "output": "outputs/qwen_asr_corrector_lora/test_predicted_edits.jsonl",
+        "model_name_or_path": "Qwen/Qwen3-4B",
+        "adapter_path": "outputs/qwen_asr_corrector_lora",
+        "input_format": "internal",
+        "max_new_tokens": 192,
+        "temperature": 0,
+        "device": "auto"
+      }
+    },
+    {
+      "name": "apply_test_edits",
+      "script": "scripts/apply_edits_jsonl.py",
+      "args": {
+        "input": "outputs/qwen_asr_corrector_lora/test_predicted_edits.jsonl",
+        "output": "outputs/qwen_asr_corrector_lora/test_applied.jsonl",
+        "max_total_changed_chars": 12
+      }
+    },
+    {
+      "name": "evaluate_test_cer",
+      "script": "scripts/evaluate_correction_jsonl.py",
+      "args": {
+        "input": "outputs/qwen_asr_corrector_lora/test_applied.jsonl"
+      }
+    },
+    {
+      "name": "analyze_test_corrections",
+      "script": "scripts/analyze_corrections.py",
+      "args": {
+        "input": "outputs/qwen_asr_corrector_lora/test_applied.jsonl",
+        "output_dir": "outputs/qwen_asr_corrector_lora/analysis_test"
+      }
+    }
+  ]
+}

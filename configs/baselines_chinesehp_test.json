@@ -1,0 +1,33 @@
+{
+  "name": "baselines_chinesehp_test",
+  "log_file": "outputs/logs/baselines_chinesehp_test.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "evaluate_no_correction_and_oracle",
+      "script": "scripts/evaluate_baselines_jsonl.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/test.jsonl",
+        "oracle_top_k": 0,
+        "output": "outputs/baselines/chinesehp_test_oracle_predictions.jsonl"
+      }
+    },
+    {
+      "name": "rule_correction",
+      "script": "scripts/rule_correct_jsonl.py",
+      "args": {
+        "input": "data/processed/chinesehp_aishell1/test.jsonl",
+        "output": "outputs/baselines/chinesehp_test_rule_corrected.jsonl"
+      }
+    },
+    {
+      "name": "evaluate_rule_correction",
+      "script": "scripts/evaluate_correction_jsonl.py",
+      "args": {
+        "input": "outputs/baselines/chinesehp_test_rule_corrected.jsonl"
+      }
+    }
+  ]
+}

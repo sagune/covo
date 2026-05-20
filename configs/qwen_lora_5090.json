@@ -9,7 +9,8 @@
       "name": "train_qwen_lora",
       "script": "scripts/train_lora_sft.py",
       "args": {
-        "train_file": "data/processed/chinesehp_aishell1_qwen_messages.jsonl",
+        "train_file": "data/processed/chinesehp_aishell1/train.qwen_messages.jsonl",
+        "eval_file": "data/processed/chinesehp_aishell1/dev.qwen_messages.jsonl",
         "output_dir": "outputs/qwen_asr_corrector_lora",
         "model_name_or_path": "Qwen/Qwen3-4B",
         "input_format": "qwen-messages",
@@ -17,7 +18,11 @@
         "bf16": true,
         "gradient_checkpointing": true,
         "per_device_train_batch_size": 1,
+        "per_device_eval_batch_size": 1,
         "gradient_accumulation_steps": 16,
+        "logging_steps": 20,
+        "eval_steps": 500,
+        "save_steps": 500,
         "epochs": 1
       }
     }
