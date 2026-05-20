@@ -4,6 +4,12 @@
 
 在现有 `cbwhisper` 工作基础上，做一个可以作为论文第二个创新点的后端模块：
 
+相关仓库：
+
+```text
+https://github.com/sagune/cbwhisper
+```
+
 ```text
 CB-Whisper 输出
 + N-best 候选
