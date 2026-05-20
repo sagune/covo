@@ -12,6 +12,7 @@ CB-Whisper 后纠错实验计划与流程文档。
 
 - [CB-Whisper 受约束后纠错计划](docs/cbwhisper_correction_plan.md)
 - [LoRA 训练快速开始](docs/training_quickstart.md)
+- [服务器运行手册](docs/server_runbook.md)
 - [Evidence JSONL 字段规范](docs/evidence_schema.md)
 - [实验日志](docs/experiment_log.md)
 
