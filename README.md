@@ -52,3 +52,22 @@ PYTHONPATH=src python scripts/transcribe_whisper_v3.py \
   --manifest data/manifests/aishell_sample.jsonl \
   --output data/processed/whisper_v3_aishell_sample.jsonl
 ```
+
+导出 Qwen chat SFT 格式、过滤训练数据、解析模型输出：
+
+```bash
+PYTHONPATH=src python scripts/filter_sft_jsonl.py \
+  --input data/processed/chinesehp_aishell1_sft.jsonl \
+  --output data/processed/chinesehp_aishell1_sft.clean.jsonl \
+  --max-baseline-cer 0.8 \
+  --max-total-changed-chars 24
+
+PYTHONPATH=src python scripts/export_sft_format.py \
+  --input data/processed/chinesehp_aishell1_sft.clean.jsonl \
+  --output data/processed/chinesehp_aishell1_qwen_messages.jsonl \
+  --format qwen-messages
+
+PYTHONPATH=src python scripts/parse_model_edits_jsonl.py \
+  --input outputs/model_raw_outputs.jsonl \
+  --output outputs/model_parsed_edits.jsonl
+```
