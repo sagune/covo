@@ -60,6 +60,15 @@ PYTHONPATH=src python scripts/run_pipeline.py \
   --config configs/evaluate_qwen_lora_test.json
 ```
 
+训练完成后会保存 LoRA adapter、tokenizer 文件和训练元信息：
+
+```text
+outputs/qwen_asr_corrector_lora/
+outputs/qwen_asr_corrector_lora/training_metadata.json
+```
+
+评测配置默认从 `outputs/qwen_asr_corrector_lora` 加载 adapter，base model 仍使用配置里的 `Qwen/Qwen3-4B`。
+
 ## 当前可用工具
 
 ```bash

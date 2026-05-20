@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -77,6 +78,46 @@ def _load_texts(path: str, tokenizer: Any, input_format: str, max_length: int) -
         # Char cap avoids accidental huge rows before tokenization.
         rows.append({"text": text[: max(1, int(max_length) * 8)]})
     return rows
+
+
+def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_rows: int) -> None:
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "model_name_or_path": args.model_name_or_path,
+        "train_file": args.train_file,
+        "eval_file": args.eval_file,
+        "input_format": args.input_format,
+        "train_rows": int(train_rows),
+        "eval_rows": int(eval_rows),
+        "max_length": int(args.max_length),
+        "epochs": float(args.epochs),
+        "learning_rate": float(args.learning_rate),
+        "per_device_train_batch_size": int(args.per_device_train_batch_size),
+        "per_device_eval_batch_size": int(args.per_device_eval_batch_size),
+        "gradient_accumulation_steps": int(args.gradient_accumulation_steps),
+        "warmup_ratio": float(args.warmup_ratio),
+        "logging_steps": int(args.logging_steps),
+        "save_steps": int(args.save_steps),
+        "eval_steps": int(args.eval_steps),
+        "lora": {
+            "r": int(args.lora_r),
+            "alpha": int(args.lora_alpha),
+            "dropout": float(args.lora_dropout),
+            "target_modules": [item.strip() for item in args.target_modules.split(",") if item.strip()],
+            "qlora": bool(args.qlora),
+        },
+        "precision": {
+            "bf16": bool(args.bf16),
+            "fp16": bool(args.fp16),
+        },
+        "gradient_checkpointing": bool(args.gradient_checkpointing),
+    }
+    (output_dir / "training_metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 class _SimpleChatTemplateTokenizer:
@@ -204,6 +245,8 @@ def main() -> int:
     trainer.train()
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
+    _write_training_metadata(args, len(train_rows), len(eval_rows))
+    print(json.dumps({"output_dir": args.output_dir, "saved": True, "metadata": str(Path(args.output_dir) / "training_metadata.json")}, ensure_ascii=False, indent=2))
     return 0
 
 
