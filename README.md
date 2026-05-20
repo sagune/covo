@@ -32,3 +32,23 @@ python scripts/prepare_chinesehp_sft.py \
 PYTHONPATH=src python -m unittest discover -s tests
 PYTHONPATH=src python -m compileall src scripts tests
 ```
+
+应用 edits 并评测：
+
+```bash
+PYTHONPATH=src python scripts/apply_edits_jsonl.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl \
+  --output outputs/sample_applied.jsonl
+
+PYTHONPATH=src python scripts/evaluate_correction_jsonl.py \
+  --input outputs/sample_applied.jsonl
+```
+
+Whisper large-v3 N-best 生成脚本已经预留，需在有 GPU 和音频文件的环境中安装额外依赖：
+
+```bash
+pip install -r requirements-whisper.txt
+PYTHONPATH=src python scripts/transcribe_whisper_v3.py \
+  --manifest data/manifests/aishell_sample.jsonl \
+  --output data/processed/whisper_v3_aishell_sample.jsonl
+```
