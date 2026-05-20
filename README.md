@@ -12,6 +12,7 @@ CB-Whisper 后纠错实验计划与流程文档。
 
 - [CB-Whisper 受约束后纠错计划](docs/cbwhisper_correction_plan.md)
 - [LoRA 训练快速开始](docs/training_quickstart.md)
+- [Evidence JSONL 字段规范](docs/evidence_schema.md)
 
 ## 当前可用工具
 
@@ -95,4 +96,22 @@ PYTHONPATH=src python scripts/dataset_stats.py \
 PYTHONPATH=src python scripts/analyze_corrections.py \
   --input outputs/sample_applied.jsonl \
   --output-dir outputs/analysis
+```
+
+Manifest、规则 baseline 和 DeepSeek teacher：
+
+```bash
+PYTHONPATH=src python scripts/build_manifest.py \
+  --text data/local/text \
+  --audio-dir data/local/wav \
+  --output data/manifests/local.jsonl
+
+PYTHONPATH=src python scripts/rule_correct_jsonl.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl \
+  --output outputs/rule_corrected.jsonl
+
+DEEPSEEK_API_KEY=... PYTHONPATH=src python scripts/generate_teacher_edits_deepseek.py \
+  --input examples/chinesehp_aishell1_sft_sample.jsonl \
+  --output outputs/deepseek_teacher.jsonl \
+  --limit 5
 ```
