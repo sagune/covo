@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Local data and model outputs.
+data/processed/
+outputs/
+runs/
+checkpoints/
+
+# Keep tiny examples, avoid committing large generated datasets.
+!examples/
+!examples/*.jsonl
