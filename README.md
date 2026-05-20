@@ -11,6 +11,7 @@ CB-Whisper 后纠错实验计划与流程文档。
 当前入口：
 
 - [CB-Whisper 受约束后纠错计划](docs/cbwhisper_correction_plan.md)
+- [LoRA 训练快速开始](docs/training_quickstart.md)
 
 ## 当前可用工具
 
@@ -70,4 +71,12 @@ PYTHONPATH=src python scripts/export_sft_format.py \
 PYTHONPATH=src python scripts/parse_model_edits_jsonl.py \
   --input outputs/model_raw_outputs.jsonl \
   --output outputs/model_parsed_edits.jsonl
+```
+
+LoRA/QLoRA 训练脚本已预留，需在 5090/GPU 环境安装训练依赖：
+
+```bash
+pip install -r requirements-train.txt
+PYTHONPATH=src python scripts/train_lora_sft.py --help
+PYTHONPATH=src python scripts/infer_lora_edits.py --help
 ```
