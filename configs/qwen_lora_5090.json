@@ -12,18 +12,20 @@
         "train_file": "data/processed/chinesehp_aishell1/train.qwen_messages.jsonl",
         "eval_file": "data/processed/chinesehp_aishell1/dev.qwen_messages.jsonl",
         "output_dir": "outputs/qwen_asr_corrector_lora",
-        "model_name_or_path": "Qwen/Qwen3-4B",
+        "model_name_or_path": "/root/autodl-tmp/models/Qwen3-4B",
         "input_format": "qwen-messages",
         "qlora": true,
         "bf16": true,
-        "gradient_checkpointing": true,
-        "per_device_train_batch_size": 1,
-        "per_device_eval_batch_size": 1,
-        "gradient_accumulation_steps": 16,
+        "per_device_train_batch_size": 4,
+        "per_device_eval_batch_size": 4,
+        "gradient_accumulation_steps": 4,
+        "preprocessing_num_workers": 16,
+        "dataloader_num_workers": 8,
+        "dataloader_prefetch_factor": 4,
         "logging_steps": 20,
-        "eval_steps": 500,
-        "save_steps": 500,
-        "epochs": 1
+        "eval_steps": 1000,
+        "save_steps": 1000,
+        "epochs": 3
       }
     }
   ]

@@ -9,7 +9,7 @@
       "name": "prepare_sft_sample",
       "script": "scripts/prepare_chinesehp_sft.py",
       "args": {
-        "input": "../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl",
+        "input": "data/raw/chinesehp_aishell1.jsonl",
         "output": "outputs/pipeline/chinesehp_sample_sft.jsonl",
         "nbest_size": 5,
         "output_mode": "edits",

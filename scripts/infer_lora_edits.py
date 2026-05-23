@@ -31,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-p", type=float, default=1.0)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--progress-every", type=int, default=100)
     return parser.parse_args()
 
 
@@ -58,6 +60,17 @@ def _model_device(model) -> str:
         return "cpu"
 
 
+def _batched(items, batch_size: int):
+    batch = []
+    for item in items:
+        batch.append(item)
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
 def main() -> int:
     args = parse_args()
 
@@ -66,6 +79,9 @@ def main() -> int:
 
     device = _resolve_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
     model = AutoModelForCausalLM.from_pretrained(
         args.model_name_or_path,
         trust_remote_code=True,
@@ -80,12 +96,27 @@ def main() -> int:
         model.to(device)
     model.eval()
 
-    def records():
+    def input_records():
         count = 0
         for record in read_jsonl(args.input):
-            messages = _messages_for_record(record, args.input_format)
-            prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-            inputs = tokenizer(prompt, return_tensors="pt").to(_model_device(model))
+            yield record
+            count += 1
+            if args.limit and count >= args.limit:
+                break
+
+    def records():
+        count = 0
+        batch_size = max(1, int(args.batch_size))
+        for batch in _batched(input_records(), batch_size):
+            prompts = [
+                tokenizer.apply_chat_template(
+                    _messages_for_record(record, args.input_format),
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                for record in batch
+            ]
+            inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(_model_device(model))
             generation_kwargs = {
                 "max_new_tokens": int(args.max_new_tokens),
                 "do_sample": float(args.temperature) > 0,
@@ -99,18 +130,20 @@ def main() -> int:
                     **inputs,
                     **generation_kwargs,
                 )
-            new_tokens = generated[0, inputs["input_ids"].shape[-1] :]
-            model_output = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
-            parsed = parse_model_edits_json(model_output)
-            yield {
-                **record,
-                "model_output": model_output,
-                "predicted_edits": {"edits": parsed["edits"]},
-                "parse_warnings": parsed["parse_warnings"],
-            }
-            count += 1
-            if args.limit and count >= args.limit:
-                break
+            prompt_width = inputs["input_ids"].shape[-1]
+            for record, sequence in zip(batch, generated):
+                new_tokens = sequence[prompt_width:]
+                model_output = tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+                parsed = parse_model_edits_json(model_output)
+                yield {
+                    **record,
+                    "model_output": model_output,
+                    "predicted_edits": {"edits": parsed["edits"]},
+                    "parse_warnings": parsed["parse_warnings"],
+                }
+                count += 1
+            if args.progress_every and count % int(args.progress_every) == 0:
+                print(json.dumps({"written": count}, ensure_ascii=False), flush=True)
 
     written = write_jsonl(args.output, records())
     print(json.dumps({"input": args.input, "output": args.output, "written": written}, indent=2))

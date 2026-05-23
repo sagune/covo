@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-format", choices=["qwen-messages", "internal"], default="qwen-messages")
     parser.add_argument("--max-length", type=int, default=2048)
     parser.add_argument("--epochs", type=float, default=1.0)
+    parser.add_argument("--max-steps", type=int, default=-1, help="Override epochs for short benchmark or capped training runs")
     parser.add_argument("--learning-rate", type=float, default=2e-4)
     parser.add_argument("--per-device-train-batch-size", type=int, default=1)
     parser.add_argument("--per-device-eval-batch-size", type=int, default=1)
@@ -44,6 +45,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--logging-steps", type=int, default=10)
     parser.add_argument("--save-steps", type=int, default=500)
     parser.add_argument("--eval-steps", type=int, default=500)
+    parser.add_argument("--preprocessing-num-workers", type=int, default=1)
+    parser.add_argument("--dataloader-num-workers", type=int, default=0)
+    parser.add_argument("--dataloader-prefetch-factor", type=int, default=2)
     parser.add_argument("--lora-r", type=int, default=16)
     parser.add_argument("--lora-alpha", type=int, default=32)
     parser.add_argument("--lora-dropout", type=float, default=0.05)
@@ -93,6 +97,7 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
         "eval_rows": int(eval_rows),
         "max_length": int(args.max_length),
         "epochs": float(args.epochs),
+        "max_steps": int(args.max_steps),
         "learning_rate": float(args.learning_rate),
         "per_device_train_batch_size": int(args.per_device_train_batch_size),
         "per_device_eval_batch_size": int(args.per_device_eval_batch_size),
@@ -101,6 +106,9 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
         "logging_steps": int(args.logging_steps),
         "save_steps": int(args.save_steps),
         "eval_steps": int(args.eval_steps),
+        "preprocessing_num_workers": int(args.preprocessing_num_workers),
+        "dataloader_num_workers": int(args.dataloader_num_workers),
+        "dataloader_prefetch_factor": int(args.dataloader_prefetch_factor),
         "lora": {
             "r": int(args.lora_r),
             "alpha": int(args.lora_alpha),
@@ -206,12 +214,19 @@ def main() -> int:
             padding=False,
         )
 
-    train_dataset = Dataset.from_list(train_rows).map(tokenize, batched=True, remove_columns=["text"])
-    eval_dataset = Dataset.from_list(eval_rows).map(tokenize, batched=True, remove_columns=["text"]) if eval_rows else None
+    map_num_proc = max(1, int(args.preprocessing_num_workers))
+    map_kwargs = {
+        "batched": True,
+        "remove_columns": ["text"],
+        "num_proc": map_num_proc if map_num_proc > 1 else None,
+    }
+    train_dataset = Dataset.from_list(train_rows).map(tokenize, **map_kwargs)
+    eval_dataset = Dataset.from_list(eval_rows).map(tokenize, **map_kwargs) if eval_rows else None
 
     training_kwargs = dict(
         output_dir=args.output_dir,
         num_train_epochs=float(args.epochs),
+        max_steps=int(args.max_steps),
         learning_rate=float(args.learning_rate),
         per_device_train_batch_size=int(args.per_device_train_batch_size),
         per_device_eval_batch_size=int(args.per_device_eval_batch_size),
@@ -221,6 +236,8 @@ def main() -> int:
         save_steps=int(args.save_steps),
         eval_steps=int(args.eval_steps),
         save_strategy="steps",
+        dataloader_num_workers=max(0, int(args.dataloader_num_workers)),
+        dataloader_prefetch_factor=max(1, int(args.dataloader_prefetch_factor)) if int(args.dataloader_num_workers) > 0 else None,
         bf16=bool(args.bf16),
         fp16=bool(args.fp16),
         report_to="none",

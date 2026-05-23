@@ -11,7 +11,7 @@
       "args": {
         "input": "data/processed/chinesehp_aishell1/test.jsonl",
         "output": "outputs/qwen_asr_corrector_lora/test_predicted_edits.jsonl",
-        "model_name_or_path": "Qwen/Qwen3-4B",
+        "model_name_or_path": "/root/autodl-tmp/models/Qwen3-4B",
         "adapter_path": "outputs/qwen_asr_corrector_lora",
         "input_format": "internal",
         "max_new_tokens": 192,
