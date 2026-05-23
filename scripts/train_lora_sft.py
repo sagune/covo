@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--eval-file", default="")
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--model-name-or-path", required=True)
+    parser.add_argument("--adapter-path", default="", help="Optional existing LoRA adapter to continue training")
     parser.add_argument("--input-format", choices=["qwen-messages", "internal"], default="qwen-messages")
     parser.add_argument("--max-length", type=int, default=2048)
     parser.add_argument("--epochs", type=float, default=1.0)
@@ -90,6 +91,7 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
     metadata = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "model_name_or_path": args.model_name_or_path,
+        "adapter_path": args.adapter_path,
         "train_file": args.train_file,
         "eval_file": args.eval_file,
         "input_format": args.input_format,
@@ -153,7 +155,7 @@ def main() -> int:
 
     from datasets import Dataset
     import torch
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
     from transformers import (
         AutoModelForCausalLM,
         AutoTokenizer,
@@ -195,15 +197,18 @@ def main() -> int:
     if args.qlora:
         model = prepare_model_for_kbit_training(model)
 
-    peft_config = LoraConfig(
-        r=int(args.lora_r),
-        lora_alpha=int(args.lora_alpha),
-        lora_dropout=float(args.lora_dropout),
-        bias="none",
-        task_type="CAUSAL_LM",
-        target_modules=[item.strip() for item in args.target_modules.split(",") if item.strip()],
-    )
-    model = get_peft_model(model, peft_config)
+    if args.adapter_path:
+        model = PeftModel.from_pretrained(model, args.adapter_path, is_trainable=True)
+    else:
+        peft_config = LoraConfig(
+            r=int(args.lora_r),
+            lora_alpha=int(args.lora_alpha),
+            lora_dropout=float(args.lora_dropout),
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=[item.strip() for item in args.target_modules.split(",") if item.strip()],
+        )
+        model = get_peft_model(model, peft_config)
     model.print_trainable_parameters()
 
     def tokenize(batch):
