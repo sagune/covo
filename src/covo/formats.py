@@ -24,6 +24,17 @@ def format_input_block(input_block: Dict[str, Any]) -> str:
         for idx, item in enumerate(pinyin[: len(nbest) or len(pinyin)], 1):
             lines.append(f"{idx}. {item}")
 
+    phonetic_evidence = input_block.get("phonetic_evidence")
+    if isinstance(phonetic_evidence, dict) and phonetic_evidence:
+        lines.append("Phonetic evidence:")
+        for key in sorted(phonetic_evidence):
+            value = phonetic_evidence[key]
+            if value in (None, "", [], {}):
+                continue
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            lines.append(f"- {key}: {value}")
+
     hotwords = list(input_block.get("hotwords", []) or [])
     if hotwords:
         lines.append("Hotwords:")
