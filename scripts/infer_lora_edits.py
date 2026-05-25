@@ -33,16 +33,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--progress-every", type=int, default=100)
+    parser.add_argument("--disable-thinking", action="store_true")
+    parser.add_argument("--strict-json-system", action="store_true")
     return parser.parse_args()
 
 
-def _messages_for_record(record: Dict[str, Any], input_format: str) -> List[Dict[str, str]]:
+def _messages_for_record(record: Dict[str, Any], input_format: str, strict_json_system: bool = False) -> List[Dict[str, str]]:
     if input_format == "qwen-messages":
         messages = list(record.get("messages", []) or [])
         if messages and messages[-1].get("role") == "assistant":
             messages = messages[:-1]
-        return messages
-    return to_qwen_messages(record)["messages"][:-1]
+    else:
+        messages = to_qwen_messages(record)["messages"][:-1]
+    if strict_json_system and messages and messages[0].get("role") == "system":
+        messages[0] = {
+            "role": "system",
+            "content": (
+                "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
+                "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
+                "不要输出推理过程、解释、Markdown 或示例占位符。"
+            ),
+        }
+    return messages
 
 
 def _resolve_device(device: str) -> str:
@@ -108,14 +120,26 @@ def main() -> int:
         count = 0
         batch_size = max(1, int(args.batch_size))
         for batch in _batched(input_records(), batch_size):
-            prompts = [
-                tokenizer.apply_chat_template(
-                    _messages_for_record(record, args.input_format),
-                    tokenize=False,
-                    add_generation_prompt=True,
-                )
-                for record in batch
-            ]
+            prompts = []
+            for record in batch:
+                template_kwargs = {
+                    "tokenize": False,
+                    "add_generation_prompt": True,
+                }
+                if args.disable_thinking:
+                    template_kwargs["enable_thinking"] = False
+                try:
+                    prompt = tokenizer.apply_chat_template(
+                        _messages_for_record(record, args.input_format, args.strict_json_system),
+                        **template_kwargs,
+                    )
+                except TypeError:
+                    template_kwargs.pop("enable_thinking", None)
+                    prompt = tokenizer.apply_chat_template(
+                        _messages_for_record(record, args.input_format, args.strict_json_system),
+                        **template_kwargs,
+                    )
+                prompts.append(prompt)
             inputs = tokenizer(prompts, return_tensors="pt", padding=True).to(_model_device(model))
             generation_kwargs = {
                 "max_new_tokens": int(args.max_new_tokens),
