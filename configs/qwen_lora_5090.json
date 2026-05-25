@@ -23,8 +23,8 @@
         "dataloader_num_workers": 8,
         "dataloader_prefetch_factor": 4,
         "logging_steps": 20,
-        "eval_steps": 1000,
-        "save_steps": 1000,
+        "eval_steps": 3000,
+        "save_steps": 3000,
         "epochs": 3
       }
     }
