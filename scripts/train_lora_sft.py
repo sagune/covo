@@ -59,6 +59,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--strict-json-system", action="store_true")
+    parser.add_argument("--edits-only-output", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Validate formatting and print a sample")
     return parser.parse_args()
 
@@ -77,7 +78,20 @@ def _stricten_system_message(messages_record: Dict[str, Any]) -> Dict[str, Any]:
     return {**messages_record, "messages": messages}
 
 
-def _record_to_messages(record: Dict[str, Any], input_format: str, strict_json_system: bool = False) -> Dict[str, Any]:
+def _edits_only_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    output = record.get("output", {})
+    edits = output.get("edits", []) if isinstance(output, dict) else []
+    return {**record, "output": {"edits": edits or []}}
+
+
+def _record_to_messages(
+    record: Dict[str, Any],
+    input_format: str,
+    strict_json_system: bool = False,
+    edits_only_output: bool = False,
+) -> Dict[str, Any]:
+    if edits_only_output:
+        record = _edits_only_record(record)
     if input_format == "qwen-messages":
         if "messages" not in record:
             raise ValueError("qwen-messages input requires a messages field")
@@ -98,10 +112,11 @@ def _load_texts(
     max_length: int,
     disable_thinking: bool = False,
     strict_json_system: bool = False,
+    edits_only_output: bool = False,
 ) -> list[Dict[str, str]]:
     rows = []
     for record in read_jsonl(path):
-        messages_record = _record_to_messages(record, input_format, strict_json_system)
+        messages_record = _record_to_messages(record, input_format, strict_json_system, edits_only_output)
         template_kwargs = {
             "tokenize": False,
             "add_generation_prompt": False,
@@ -158,6 +173,7 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
         "gradient_checkpointing": bool(args.gradient_checkpointing),
         "disable_thinking": bool(args.disable_thinking),
         "strict_json_system": bool(args.strict_json_system),
+        "edits_only_output": bool(args.edits_only_output),
     }
     (output_dir / "training_metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
@@ -190,6 +206,7 @@ def main() -> int:
             args.max_length,
             args.disable_thinking,
             args.strict_json_system,
+            args.edits_only_output,
         )
         eval_rows = (
             _load_texts(
@@ -199,6 +216,7 @@ def main() -> int:
                 args.max_length,
                 args.disable_thinking,
                 args.strict_json_system,
+                args.edits_only_output,
             )
             if args.eval_file
             else []
@@ -229,6 +247,7 @@ def main() -> int:
         args.max_length,
         args.disable_thinking,
         args.strict_json_system,
+        args.edits_only_output,
     )
     eval_rows = (
         _load_texts(
@@ -238,6 +257,7 @@ def main() -> int:
             args.max_length,
             args.disable_thinking,
             args.strict_json_system,
+            args.edits_only_output,
         )
         if args.eval_file
         else []
