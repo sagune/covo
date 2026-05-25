@@ -57,29 +57,62 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--fp16", action="store_true")
     parser.add_argument("--gradient-checkpointing", action="store_true")
+    parser.add_argument("--disable-thinking", action="store_true")
+    parser.add_argument("--strict-json-system", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Validate formatting and print a sample")
     return parser.parse_args()
 
 
-def _record_to_messages(record: Dict[str, Any], input_format: str) -> Dict[str, Any]:
+def _stricten_system_message(messages_record: Dict[str, Any]) -> Dict[str, Any]:
+    messages = list(messages_record.get("messages", []) or [])
+    if messages and messages[0].get("role") == "system":
+        messages[0] = {
+            "role": "system",
+            "content": (
+                "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
+                "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
+                "不要输出推理过程、解释、Markdown 或示例占位符。"
+            ),
+        }
+    return {**messages_record, "messages": messages}
+
+
+def _record_to_messages(record: Dict[str, Any], input_format: str, strict_json_system: bool = False) -> Dict[str, Any]:
     if input_format == "qwen-messages":
         if "messages" not in record:
             raise ValueError("qwen-messages input requires a messages field")
-        return record
-    if input_format == "internal":
-        return to_qwen_messages(record)
-    raise ValueError(f"Unsupported input format: {input_format}")
+        messages_record = record
+    elif input_format == "internal":
+        messages_record = to_qwen_messages(record)
+    else:
+        raise ValueError(f"Unsupported input format: {input_format}")
+    if strict_json_system:
+        return _stricten_system_message(messages_record)
+    return messages_record
 
 
-def _load_texts(path: str, tokenizer: Any, input_format: str, max_length: int) -> list[Dict[str, str]]:
+def _load_texts(
+    path: str,
+    tokenizer: Any,
+    input_format: str,
+    max_length: int,
+    disable_thinking: bool = False,
+    strict_json_system: bool = False,
+) -> list[Dict[str, str]]:
     rows = []
     for record in read_jsonl(path):
-        messages_record = _record_to_messages(record, input_format)
-        text = tokenizer.apply_chat_template(
-            messages_record["messages"],
-            tokenize=False,
-            add_generation_prompt=False,
-        )
+        messages_record = _record_to_messages(record, input_format, strict_json_system)
+        template_kwargs = {
+            "tokenize": False,
+            "add_generation_prompt": False,
+        }
+        if disable_thinking:
+            template_kwargs["enable_thinking"] = False
+        try:
+            text = tokenizer.apply_chat_template(messages_record["messages"], **template_kwargs)
+        except TypeError:
+            template_kwargs.pop("enable_thinking", None)
+            text = tokenizer.apply_chat_template(messages_record["messages"], **template_kwargs)
         # Char cap avoids accidental huge rows before tokenization.
         rows.append({"text": text[: max(1, int(max_length) * 8)]})
     return rows
@@ -123,6 +156,8 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
             "fp16": bool(args.fp16),
         },
         "gradient_checkpointing": bool(args.gradient_checkpointing),
+        "disable_thinking": bool(args.disable_thinking),
+        "strict_json_system": bool(args.strict_json_system),
     }
     (output_dir / "training_metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
@@ -148,8 +183,26 @@ def main() -> int:
 
     if args.dry_run and args.model_name_or_path.lower() in {"none", "dummy", "dry-run"}:
         tokenizer = _SimpleChatTemplateTokenizer()
-        train_rows = _load_texts(args.train_file, tokenizer, args.input_format, args.max_length)
-        eval_rows = _load_texts(args.eval_file, tokenizer, args.input_format, args.max_length) if args.eval_file else []
+        train_rows = _load_texts(
+            args.train_file,
+            tokenizer,
+            args.input_format,
+            args.max_length,
+            args.disable_thinking,
+            args.strict_json_system,
+        )
+        eval_rows = (
+            _load_texts(
+                args.eval_file,
+                tokenizer,
+                args.input_format,
+                args.max_length,
+                args.disable_thinking,
+                args.strict_json_system,
+            )
+            if args.eval_file
+            else []
+        )
         print(json.dumps({"train_rows": len(train_rows), "eval_rows": len(eval_rows), "sample": train_rows[:1]}, ensure_ascii=False, indent=2))
         return 0
 
@@ -169,8 +222,26 @@ def main() -> int:
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    train_rows = _load_texts(args.train_file, tokenizer, args.input_format, args.max_length)
-    eval_rows = _load_texts(args.eval_file, tokenizer, args.input_format, args.max_length) if args.eval_file else []
+    train_rows = _load_texts(
+        args.train_file,
+        tokenizer,
+        args.input_format,
+        args.max_length,
+        args.disable_thinking,
+        args.strict_json_system,
+    )
+    eval_rows = (
+        _load_texts(
+            args.eval_file,
+            tokenizer,
+            args.input_format,
+            args.max_length,
+            args.disable_thinking,
+            args.strict_json_system,
+        )
+        if args.eval_file
+        else []
+    )
     if args.dry_run:
         print(json.dumps({"train_rows": len(train_rows), "eval_rows": len(eval_rows), "sample": train_rows[:1]}, ensure_ascii=False, indent=2))
         return 0
