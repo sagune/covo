@@ -59,21 +59,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--strict-json-system", action="store_true")
+    parser.add_argument("--position-aware-system", action="store_true")
     parser.add_argument("--edits-only-output", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Validate formatting and print a sample")
     return parser.parse_args()
 
 
-def _stricten_system_message(messages_record: Dict[str, Any]) -> Dict[str, Any]:
+def _stricten_system_message(messages_record: Dict[str, Any], position_aware: bool = False) -> Dict[str, Any]:
     messages = list(messages_record.get("messages", []) or [])
     if messages and messages[0].get("role") == "system":
-        messages[0] = {
-            "role": "system",
-            "content": (
+        if position_aware:
+            content = (
+                "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
+                "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
+                "每个 edit 必须包含 start、end、from、to。"
+                "start/end 是 ASR 字符位置，end 为开区间，且 from 必须等于 ASR[start:end]。"
+                "不要输出推理过程、解释、Markdown 或示例占位符；reason 只能为空或短标签。"
+            )
+        else:
+            content = (
                 "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
                 "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
                 "不要输出推理过程、解释、Markdown 或示例占位符。"
-            ),
+            )
+        messages[0] = {
+            "role": "system",
+            "content": content,
         }
     return {**messages_record, "messages": messages}
 
@@ -89,6 +100,7 @@ def _record_to_messages(
     input_format: str,
     strict_json_system: bool = False,
     edits_only_output: bool = False,
+    position_aware_system: bool = False,
 ) -> Dict[str, Any]:
     if edits_only_output:
         record = _edits_only_record(record)
@@ -100,8 +112,8 @@ def _record_to_messages(
         messages_record = to_qwen_messages(record)
     else:
         raise ValueError(f"Unsupported input format: {input_format}")
-    if strict_json_system:
-        return _stricten_system_message(messages_record)
+    if strict_json_system or position_aware_system:
+        return _stricten_system_message(messages_record, position_aware_system)
     return messages_record
 
 
@@ -113,10 +125,11 @@ def _load_texts(
     disable_thinking: bool = False,
     strict_json_system: bool = False,
     edits_only_output: bool = False,
+    position_aware_system: bool = False,
 ) -> list[Dict[str, str]]:
     rows = []
     for record in read_jsonl(path):
-        messages_record = _record_to_messages(record, input_format, strict_json_system, edits_only_output)
+        messages_record = _record_to_messages(record, input_format, strict_json_system, edits_only_output, position_aware_system)
         template_kwargs = {
             "tokenize": False,
             "add_generation_prompt": False,
@@ -173,6 +186,7 @@ def _write_training_metadata(args: argparse.Namespace, train_rows: int, eval_row
         "gradient_checkpointing": bool(args.gradient_checkpointing),
         "disable_thinking": bool(args.disable_thinking),
         "strict_json_system": bool(args.strict_json_system),
+        "position_aware_system": bool(args.position_aware_system),
         "edits_only_output": bool(args.edits_only_output),
     }
     (output_dir / "training_metadata.json").write_text(
@@ -207,6 +221,7 @@ def main() -> int:
             args.disable_thinking,
             args.strict_json_system,
             args.edits_only_output,
+            args.position_aware_system,
         )
         eval_rows = (
             _load_texts(
@@ -217,6 +232,7 @@ def main() -> int:
                 args.disable_thinking,
                 args.strict_json_system,
                 args.edits_only_output,
+                args.position_aware_system,
             )
             if args.eval_file
             else []
@@ -248,6 +264,7 @@ def main() -> int:
         args.disable_thinking,
         args.strict_json_system,
         args.edits_only_output,
+        args.position_aware_system,
     )
     eval_rows = (
         _load_texts(
@@ -258,6 +275,7 @@ def main() -> int:
             args.disable_thinking,
             args.strict_json_system,
             args.edits_only_output,
+            args.position_aware_system,
         )
         if args.eval_file
         else []

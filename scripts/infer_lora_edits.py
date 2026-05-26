@@ -35,24 +35,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--progress-every", type=int, default=100)
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--strict-json-system", action="store_true")
+    parser.add_argument("--position-aware-system", action="store_true")
     return parser.parse_args()
 
 
-def _messages_for_record(record: Dict[str, Any], input_format: str, strict_json_system: bool = False) -> List[Dict[str, str]]:
+def _messages_for_record(
+    record: Dict[str, Any],
+    input_format: str,
+    strict_json_system: bool = False,
+    position_aware_system: bool = False,
+) -> List[Dict[str, str]]:
     if input_format == "qwen-messages":
         messages = list(record.get("messages", []) or [])
         if messages and messages[-1].get("role") == "assistant":
             messages = messages[:-1]
     else:
         messages = to_qwen_messages(record)["messages"][:-1]
-    if strict_json_system and messages and messages[0].get("role") == "system":
-        messages[0] = {
-            "role": "system",
-            "content": (
+    if (strict_json_system or position_aware_system) and messages and messages[0].get("role") == "system":
+        if position_aware_system:
+            content = (
+                "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
+                "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
+                "每个 edit 必须包含 start、end、from、to。"
+                "start/end 是 ASR 字符位置，end 为开区间，且 from 必须等于 ASR[start:end]。"
+                "不要输出推理过程、解释、Markdown 或示例占位符；reason 只能为空或短标签。"
+            )
+        else:
+            content = (
                 "你是一个保守的中文 ASR 后纠错器。必须只输出一个合法 JSON 对象。"
                 "JSON 对象只能包含 edits 字段；无需修改时输出空列表。"
                 "不要输出推理过程、解释、Markdown 或示例占位符。"
-            ),
+            )
+        messages[0] = {
+            "role": "system",
+            "content": content,
         }
     return messages
 
@@ -130,13 +146,13 @@ def main() -> int:
                     template_kwargs["enable_thinking"] = False
                 try:
                     prompt = tokenizer.apply_chat_template(
-                        _messages_for_record(record, args.input_format, args.strict_json_system),
+                        _messages_for_record(record, args.input_format, args.strict_json_system, args.position_aware_system),
                         **template_kwargs,
                     )
                 except TypeError:
                     template_kwargs.pop("enable_thinking", None)
                     prompt = tokenizer.apply_chat_template(
-                        _messages_for_record(record, args.input_format, args.strict_json_system),
+                        _messages_for_record(record, args.input_format, args.strict_json_system, args.position_aware_system),
                         **template_kwargs,
                     )
                 prompts.append(prompt)

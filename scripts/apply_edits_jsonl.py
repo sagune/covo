@@ -14,7 +14,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from covo.edits import safe_apply_edits
+from covo.edits import safe_apply_edits, safe_apply_position_edits
 from covo.io import read_jsonl, write_jsonl
 
 
@@ -28,6 +28,7 @@ def parse_args() -> argparse.Namespace:
         help="Field containing edits. Falls back to output.edits when missing.",
     )
     parser.add_argument("--max-total-changed-chars", type=int, default=12)
+    parser.add_argument("--position-aware", action="store_true")
     return parser.parse_args()
 
 
@@ -45,16 +46,23 @@ def _get_edits_value(record: Dict[str, Any], field: str) -> Any:
     return {"edits": []}
 
 
-def convert_record(record: Dict[str, Any], edits_field: str, max_total_changed_chars: int) -> Dict[str, Any]:
+def convert_record(record: Dict[str, Any], edits_field: str, max_total_changed_chars: int, position_aware: bool) -> Dict[str, Any]:
     evidence = _get_input_block(record)
     asr_top1 = str(evidence.get("asr_top1", record.get("asr_top1", "")))
     edits_value = _get_edits_value(record, edits_field)
-    result = safe_apply_edits(
-        asr_top1,
-        edits_value,
-        evidence,
-        max_total_changed_chars=max_total_changed_chars,
-    )
+    if position_aware:
+        result = safe_apply_position_edits(
+            asr_top1,
+            edits_value,
+            max_total_changed_chars=max_total_changed_chars,
+        )
+    else:
+        result = safe_apply_edits(
+            asr_top1,
+            edits_value,
+            evidence,
+            max_total_changed_chars=max_total_changed_chars,
+        )
     return {
         **record,
         "correction_result": result,
@@ -67,7 +75,7 @@ def main() -> int:
 
     def records():
         for record in read_jsonl(args.input):
-            yield convert_record(record, args.edits_field, args.max_total_changed_chars)
+            yield convert_record(record, args.edits_field, args.max_total_changed_chars, args.position_aware)
 
     written = write_jsonl(args.output, records())
     print(json.dumps({"input": args.input, "output": args.output, "written": written}, indent=2))

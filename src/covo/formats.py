@@ -12,6 +12,10 @@ def format_input_block(input_block: Dict[str, Any]) -> str:
     if asr_top1:
         lines.append(f"ASR: {asr_top1}")
 
+    indexed_asr = str(input_block.get("indexed_asr", "")).strip()
+    if indexed_asr:
+        lines.append(f"Indexed ASR: {indexed_asr}")
+
     nbest = list(input_block.get("nbest", []) or [])
     if nbest:
         lines.append("N-best:")

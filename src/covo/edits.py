@@ -153,3 +153,86 @@ def safe_apply_edits(
         "reasons": rejected,
         "applied_edits": [edit.to_json() for edit in applied] if accepted else [],
     }
+
+
+def safe_apply_position_edits(
+    text: str,
+    edits_value: Any,
+    *,
+    max_total_changed_chars: int = 16,
+) -> Dict[str, Any]:
+    if isinstance(edits_value, dict):
+        edits = edits_value.get("edits", [])
+    elif isinstance(edits_value, list):
+        edits = edits_value
+    else:
+        edits = []
+    if not isinstance(edits, list):
+        edits = []
+
+    current = str(text)
+    reasons: List[str] = []
+    applied: List[Dict[str, Any]] = []
+    changed = 0
+    offset = 0
+    normalized_edits: List[Tuple[int, int, str, str, Dict[str, Any]]] = []
+    for item in edits:
+        if not isinstance(item, dict):
+            reasons.append("edit_not_object")
+            continue
+        try:
+            start = int(item.get("start"))
+            end = int(item.get("end"))
+        except (TypeError, ValueError):
+            reasons.append("missing_position")
+            continue
+        from_text = str(item.get("from", ""))
+        to_text = str(item.get("to", ""))
+        if start < 0 or end <= start or end > len(str(text)):
+            reasons.append(f"invalid_span:{start}:{end}")
+            continue
+        if str(text)[start:end] != from_text:
+            reasons.append(f"span_mismatch:{start}:{end}:{from_text}")
+            continue
+        changed += max(len(from_text), len(to_text))
+        if changed > max_total_changed_chars:
+            reasons.append("too_many_changed_chars")
+            continue
+        normalized_edits.append((start, end, from_text, to_text, item))
+
+    normalized_edits.sort(key=lambda x: x[0])
+    previous_end = -1
+    for start, end, _from_text, _to_text, _item in normalized_edits:
+        if start < previous_end:
+            reasons.append("overlapping_edits")
+            break
+        previous_end = end
+
+    if reasons:
+        return {
+            "accepted": False,
+            "text": str(text),
+            "reasons": reasons,
+            "applied_edits": [],
+        }
+
+    for start, end, from_text, to_text, item in normalized_edits:
+        adj_start = start + offset
+        adj_end = end + offset
+        if current[adj_start:adj_end] != from_text:
+            return {
+                "accepted": False,
+                "text": str(text),
+                "reasons": [f"runtime_span_mismatch:{start}:{end}:{from_text}"],
+                "applied_edits": [],
+            }
+        current = current[:adj_start] + to_text + current[adj_end:]
+        offset += len(to_text) - len(from_text)
+        applied.append(dict(item))
+
+    return {
+        "accepted": True,
+        "text": current,
+        "reasons": [],
+        "applied_edits": applied,
+    }
