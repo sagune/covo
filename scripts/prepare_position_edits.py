@@ -40,6 +40,33 @@ def _single_edit_span(asr: str, ref: str) -> Tuple[int, int, int, int] | None:
     return i1, i2, j1, j2
 
 
+def _enclosing_edit_span(asr: str, ref: str) -> Tuple[int, int, int, int] | None:
+    opcodes = [
+        item
+        for item in difflib.SequenceMatcher(a=asr, b=ref, autojunk=False).get_opcodes()
+        if item[0] != "equal"
+    ]
+    if not opcodes:
+        return None
+    i1 = opcodes[0][1]
+    i2 = opcodes[-1][2]
+    j1 = opcodes[0][3]
+    j2 = opcodes[-1][4]
+
+    # Pure insertions have an empty ASR span. Anchor them with a neighboring
+    # character so inference can still verify from == ASR[start:end].
+    if i1 == i2:
+        if i1 > 0 and j1 > 0:
+            i1 -= 1
+            j1 -= 1
+        elif i2 < len(asr) and j2 < len(ref):
+            i2 += 1
+            j2 += 1
+        else:
+            return None
+    return i1, i2, j1, j2
+
+
 def _count_occurrences(text: str, span: str) -> int:
     if not span:
         return 0
@@ -54,7 +81,7 @@ def _count_occurrences(text: str, span: str) -> int:
 
 
 def _position_span(asr: str, ref: str, max_span_chars: int) -> Tuple[int, int, str, str] | None:
-    span = _single_edit_span(asr, ref)
+    span = _single_edit_span(asr, ref) or _enclosing_edit_span(asr, ref)
     if span is None:
         return None
     i1, i2, j1, j2 = span
