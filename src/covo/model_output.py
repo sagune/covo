@@ -50,8 +50,35 @@ def parse_model_edits(text: str) -> Tuple[List[Edit], List[str]]:
 
 
 def parse_model_edits_json(text: str) -> Dict[str, Any]:
-    edits, warnings = parse_model_edits(text)
+    warnings: List[str] = []
+    for candidate in _candidate_json_strings(text):
+        try:
+            value = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        try:
+            # Validate with the shared parser while preserving optional fields
+            # such as start/end for position-aware edit application.
+            parse_edits(value)
+        except ValueError as exc:
+            warnings.append(str(exc))
+            continue
+        if isinstance(value, dict):
+            if "edits" in value:
+                value = value.get("edits", [])
+            elif "from" in value and "to" in value:
+                value = [value]
+            else:
+                value = []
+        if value is None:
+            value = []
+        edits = [dict(item) for item in value if isinstance(item, dict)]
+        return {
+            "edits": edits,
+            "parse_warnings": warnings,
+        }
+    warnings.append("no_valid_json_edits")
     return {
-        "edits": [edit.to_json() for edit in edits],
+        "edits": [],
         "parse_warnings": warnings,
     }
