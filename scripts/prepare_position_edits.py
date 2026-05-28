@@ -19,6 +19,21 @@ if str(SRC_DIR) not in sys.path:
 from covo.io import read_jsonl, write_jsonl
 from covo.text import normalize_chinese_text
 
+GOLD_DERIVED_EVIDENCE_KEYS = {
+    "decision_hint",
+    "edit_type",
+    "from_text",
+    "to_text",
+    "from_pinyin",
+    "to_pinyin",
+    "same_pinyin",
+    "pinyin_distance",
+    "from_support_count",
+    "to_support_count",
+    "to_in_nbest",
+    "position_aware",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -120,9 +135,21 @@ def _indexed_asr(asr: str) -> str:
     return " ".join(f"{idx}:{char}" for idx, char in enumerate(asr))
 
 
+def _strip_gold_evidence(input_block: Dict[str, Any]) -> Dict[str, Any]:
+    input_block = dict(input_block)
+    evidence = input_block.get("phonetic_evidence")
+    if isinstance(evidence, dict):
+        input_block["phonetic_evidence"] = {
+            key: value
+            for key, value in evidence.items()
+            if key not in GOLD_DERIVED_EVIDENCE_KEYS
+        }
+    return input_block
+
+
 def convert_record(record: Dict[str, Any], max_span_chars: int) -> Dict[str, Any]:
     record = deepcopy(record)
-    input_block = dict(record.get("input", {}) or {})
+    input_block = _strip_gold_evidence(record.get("input", {}) or {})
     asr = normalize_chinese_text(input_block.get("asr_top1", ""))
     ref = normalize_chinese_text(record.get("reference", ""))
     output = dict(record.get("output", {}) or {})
@@ -161,11 +188,6 @@ def convert_record(record: Dict[str, Any], max_span_chars: int) -> Dict[str, Any
             }
         ]
     }
-    evidence = input_block.get("phonetic_evidence")
-    if isinstance(evidence, dict):
-        evidence["position_aware"] = True
-        evidence["from_text"] = from_text
-        evidence["to_text"] = to_text
     return record
 
 
