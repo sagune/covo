@@ -9,7 +9,7 @@ import json
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
@@ -40,6 +40,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--max-span-chars", type=int, default=16)
+    parser.add_argument("--add-nbest-consensus", action="store_true")
+    parser.add_argument("--consensus-threshold", type=float, default=0.75)
+    parser.add_argument("--max-consensus-spans", type=int, default=12)
     return parser.parse_args()
 
 
@@ -135,6 +138,83 @@ def _indexed_asr(asr: str) -> str:
     return " ".join(f"{idx}:{char}" for idx, char in enumerate(asr))
 
 
+def _hypothesis_equal_positions(asr: str, hyp: str) -> List[bool]:
+    supported = [False for _ in asr]
+    matcher = difflib.SequenceMatcher(a=asr, b=hyp, autojunk=False)
+    for tag, i1, i2, _j1, _j2 in matcher.get_opcodes():
+        if tag == "equal":
+            for idx in range(i1, i2):
+                supported[idx] = True
+    return supported
+
+
+def _merge_support_spans(asr: str, support_ratios: List[float], threshold: float, stable: bool) -> List[Dict[str, Any]]:
+    spans: List[Dict[str, Any]] = []
+    start = None
+    for idx, ratio in enumerate(support_ratios + [-1.0]):
+        is_selected = (ratio >= threshold) if stable else (ratio < threshold)
+        if is_selected and start is None:
+            start = idx
+        elif not is_selected and start is not None:
+            end = idx
+            spans.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "text": asr[start:end],
+                    "support": round(float(sum(support_ratios[start:end]) / max(1, end - start)), 3),
+                }
+            )
+            start = None
+    return spans
+
+
+def _span_variant(asr: str, hyp: str, start: int, end: int) -> str:
+    matcher = difflib.SequenceMatcher(a=asr, b=hyp, autojunk=False)
+    parts: List[str] = []
+    for _tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if i2 < start or i1 > end:
+            continue
+        if i1 <= end and i2 >= start:
+            parts.append(hyp[j1:j2])
+    return "".join(parts).strip()
+
+
+def _nbest_consensus(input_block: Dict[str, Any], threshold: float, max_spans: int) -> Dict[str, Any]:
+    asr = normalize_chinese_text(input_block.get("asr_top1", ""))
+    nbest = [normalize_chinese_text(item) for item in input_block.get("nbest", []) or [] if str(item).strip()]
+    if not asr or not nbest:
+        return {"threshold": threshold, "stable_spans": [], "uncertain_spans": []}
+
+    equal_counts = [0 for _ in asr]
+    for hyp in nbest:
+        for idx, is_equal in enumerate(_hypothesis_equal_positions(asr, hyp)):
+            if is_equal:
+                equal_counts[idx] += 1
+    support_ratios = [count / max(1, len(nbest)) for count in equal_counts]
+    stable_spans = _merge_support_spans(asr, support_ratios, threshold, stable=True)
+    uncertain_spans = _merge_support_spans(asr, support_ratios, threshold, stable=False)
+
+    enriched_uncertain = []
+    for span in uncertain_spans[: max(0, int(max_spans))]:
+        variants = []
+        seen = set()
+        for hyp in nbest:
+            variant = _span_variant(asr, hyp, int(span["start"]), int(span["end"]))
+            if variant and variant not in seen:
+                seen.add(variant)
+                variants.append(variant)
+            if len(variants) >= 5:
+                break
+        enriched_uncertain.append({**span, "variants": variants})
+
+    return {
+        "threshold": round(float(threshold), 3),
+        "stable_spans": stable_spans[: max(0, int(max_spans))],
+        "uncertain_spans": enriched_uncertain,
+    }
+
+
 def _strip_gold_evidence(input_block: Dict[str, Any]) -> Dict[str, Any]:
     input_block = dict(input_block)
     evidence = input_block.get("phonetic_evidence")
@@ -147,7 +227,13 @@ def _strip_gold_evidence(input_block: Dict[str, Any]) -> Dict[str, Any]:
     return input_block
 
 
-def convert_record(record: Dict[str, Any], max_span_chars: int) -> Dict[str, Any]:
+def convert_record(
+    record: Dict[str, Any],
+    max_span_chars: int,
+    add_nbest_consensus: bool = False,
+    consensus_threshold: float = 0.75,
+    max_consensus_spans: int = 12,
+) -> Dict[str, Any]:
     record = deepcopy(record)
     input_block = _strip_gold_evidence(record.get("input", {}) or {})
     asr = normalize_chinese_text(input_block.get("asr_top1", ""))
@@ -160,9 +246,16 @@ def convert_record(record: Dict[str, Any], max_span_chars: int) -> Dict[str, Any
         "start": "inclusive character index in ASR",
         "end": "exclusive character index in ASR",
     }
+    if add_nbest_consensus:
+        input_block["nbest_consensus"] = _nbest_consensus(
+            input_block,
+            threshold=float(consensus_threshold),
+            max_spans=int(max_consensus_spans),
+        )
     record["input"] = input_block
     record["instruction"] = (
-        "根据 ASR 输出、Indexed ASR、N-best 候选、拼音序列和 phonetic evidence 进行中文 ASR 后纠错。"
+        "根据 ASR 输出、Indexed ASR、N-best 候选、拼音序列、phonetic evidence 和 N-best span consensus 进行中文 ASR 后纠错。"
+        "优先保留 stable spans，只在 uncertain spans 或有强声学/拼音证据的位置做最小修改。"
         "只输出位置感知 JSON edits；每个 edit 必须包含 start、end、from、to。"
         "start/end 指 ASR 字符位置，且 from 必须等于 ASR[start:end]；无需修改时输出空列表。"
     )
@@ -205,7 +298,13 @@ def main() -> int:
         for record in read_jsonl(args.input):
             stats["records"] += 1
             old_edits = list(record.get("output", {}).get("edits", []) or [])
-            converted = convert_record(record, int(args.max_span_chars))
+            converted = convert_record(
+                record,
+                int(args.max_span_chars),
+                add_nbest_consensus=bool(args.add_nbest_consensus),
+                consensus_threshold=float(args.consensus_threshold),
+                max_consensus_spans=int(args.max_consensus_spans),
+            )
             new_edits = list(converted.get("output", {}).get("edits", []) or [])
             if new_edits:
                 stats["position_edits"] += 1

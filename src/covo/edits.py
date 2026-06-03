@@ -160,6 +160,7 @@ def safe_apply_position_edits(
     edits_value: Any,
     *,
     max_total_changed_chars: int = 16,
+    allowed_spans: List[Tuple[int, int]] | None = None,
 ) -> Dict[str, Any]:
     if isinstance(edits_value, dict):
         edits = edits_value.get("edits", [])
@@ -193,6 +194,9 @@ def safe_apply_position_edits(
             continue
         if str(text)[start:end] != from_text:
             reasons.append(f"span_mismatch:{start}:{end}:{from_text}")
+            continue
+        if allowed_spans is not None and not any(start >= a_start and end <= a_end for a_start, a_end in allowed_spans):
+            reasons.append(f"outside_allowed_spans:{start}:{end}")
             continue
         changed += max(len(from_text), len(to_text))
         if changed > max_total_changed_chars:

@@ -39,6 +39,29 @@ def format_input_block(input_block: Dict[str, Any]) -> str:
                 value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
             lines.append(f"- {key}: {value}")
 
+    nbest_consensus = input_block.get("nbest_consensus")
+    if isinstance(nbest_consensus, dict) and nbest_consensus:
+        stable_spans = list(nbest_consensus.get("stable_spans", []) or [])
+        uncertain_spans = list(nbest_consensus.get("uncertain_spans", []) or [])
+        if stable_spans:
+            lines.append("Stable spans:")
+            for item in stable_spans:
+                lines.append(
+                    f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
+                    f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}"
+                )
+        if uncertain_spans:
+            lines.append("Uncertain spans:")
+            for item in uncertain_spans:
+                variants = item.get("variants", [])
+                variants_text = ""
+                if isinstance(variants, list) and variants:
+                    variants_text = " variants=" + json.dumps(variants, ensure_ascii=False, separators=(",", ":"))
+                lines.append(
+                    f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
+                    f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}{variants_text}"
+                )
+
     hotwords = list(input_block.get("hotwords", []) or [])
     if hotwords:
         lines.append("Hotwords:")

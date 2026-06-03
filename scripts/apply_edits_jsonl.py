@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--max-total-changed-chars", type=int, default=12)
     parser.add_argument("--position-aware", action="store_true")
+    parser.add_argument("--restrict-to-uncertain-spans", action="store_true")
     return parser.parse_args()
 
 
@@ -46,15 +47,41 @@ def _get_edits_value(record: Dict[str, Any], field: str) -> Any:
     return {"edits": []}
 
 
-def convert_record(record: Dict[str, Any], edits_field: str, max_total_changed_chars: int, position_aware: bool) -> Dict[str, Any]:
+def _uncertain_spans(record: Dict[str, Any]) -> list[tuple[int, int]]:
+    consensus = _get_input_block(record).get("nbest_consensus")
+    if not isinstance(consensus, dict):
+        return []
+    spans = []
+    for item in consensus.get("uncertain_spans", []) or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            start = int(item.get("start"))
+            end = int(item.get("end"))
+        except (TypeError, ValueError):
+            continue
+        if end > start >= 0:
+            spans.append((start, end))
+    return spans
+
+
+def convert_record(
+    record: Dict[str, Any],
+    edits_field: str,
+    max_total_changed_chars: int,
+    position_aware: bool,
+    restrict_to_uncertain_spans: bool,
+) -> Dict[str, Any]:
     evidence = _get_input_block(record)
     asr_top1 = str(evidence.get("asr_top1", record.get("asr_top1", "")))
     edits_value = _get_edits_value(record, edits_field)
     if position_aware:
+        allowed_spans = _uncertain_spans(record) if restrict_to_uncertain_spans else None
         result = safe_apply_position_edits(
             asr_top1,
             edits_value,
             max_total_changed_chars=max_total_changed_chars,
+            allowed_spans=allowed_spans,
         )
     else:
         result = safe_apply_edits(
@@ -75,7 +102,13 @@ def main() -> int:
 
     def records():
         for record in read_jsonl(args.input):
-            yield convert_record(record, args.edits_field, args.max_total_changed_chars, args.position_aware)
+            yield convert_record(
+                record,
+                args.edits_field,
+                args.max_total_changed_chars,
+                args.position_aware,
+                args.restrict_to_uncertain_spans,
+            )
 
     written = write_jsonl(args.output, records())
     print(json.dumps({"input": args.input, "output": args.output, "written": written}, indent=2))
