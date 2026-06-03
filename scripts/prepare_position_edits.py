@@ -172,10 +172,16 @@ def _merge_support_spans(asr: str, support_ratios: List[float], threshold: float
 def _span_variant(asr: str, hyp: str, start: int, end: int) -> str:
     matcher = difflib.SequenceMatcher(a=asr, b=hyp, autojunk=False)
     parts: List[str] = []
-    for _tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if i2 < start or i1 > end:
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if i2 <= start or i1 >= end:
             continue
-        if i1 <= end and i2 >= start:
+        overlap_start = max(start, i1)
+        overlap_end = min(end, i2)
+        if tag == "equal":
+            parts.append(hyp[j1 + (overlap_start - i1) : j1 + (overlap_end - i1)])
+        elif tag == "replace":
+            parts.append(hyp[j1:j2])
+        elif tag == "insert" and start <= i1 <= end:
             parts.append(hyp[j1:j2])
     return "".join(parts).strip()
 
