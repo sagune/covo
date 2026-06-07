@@ -29,12 +29,18 @@ INSTRUCTION = (
     "如果证据不足，保持 ASR top-1 不变。"
 )
 
+ASR_ONLY_INSTRUCTION = (
+    "任务：根据 ASR top-1 进行中文 ASR 后纠错。"
+    "只做有把握的必要修改；如果证据不足，保持 ASR top-1 不变。"
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", required=True, help="Internal JSONL with ASR/N-best/reference fields")
     parser.add_argument("--output", required=True, help="Qwen messages JSONL output")
     parser.add_argument("--target-field", default="reference", help="Training target text field")
+    parser.add_argument("--evidence-mode", choices=["asr-only", "nbest", "consensus"], default="consensus")
     parser.add_argument("--max-nbest", type=int, default=10)
     parser.add_argument("--max-pinyin", type=int, default=5)
     parser.add_argument("--include-pinyin", action="store_true")
@@ -63,36 +69,45 @@ def _format_span(item: Dict[str, Any]) -> str:
     return f"- {start}:{end} {text} support={support:.3f}{suffix}"
 
 
-def _format_user(record: Dict[str, Any], max_nbest: int, max_pinyin: int, include_pinyin: bool) -> str:
+def _format_user(
+    record: Dict[str, Any],
+    evidence_mode: str,
+    max_nbest: int,
+    max_pinyin: int,
+    include_pinyin: bool,
+) -> str:
     input_block = record.get("input", {}) or {}
-    lines: List[str] = [INSTRUCTION]
+    evidence_mode = str(evidence_mode).strip().lower()
+    lines: List[str] = [ASR_ONLY_INSTRUCTION if evidence_mode == "asr-only" else INSTRUCTION]
 
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
 
-    nbest = list(input_block.get("nbest", []) or [])[: max(1, max_nbest)]
-    if nbest:
-        lines.append("N-best:")
-        for idx, hyp in enumerate(nbest, 1):
-            lines.append(f"{idx}. {hyp}")
+    if evidence_mode in {"nbest", "consensus"}:
+        nbest = list(input_block.get("nbest", []) or [])[: max(1, max_nbest)]
+        if nbest:
+            lines.append("N-best:")
+            for idx, hyp in enumerate(nbest, 1):
+                lines.append(f"{idx}. {hyp}")
 
-    if include_pinyin:
-        pinyin = list(input_block.get("nbest_pinyin", []) or [])[: max(1, max_pinyin)]
-        if pinyin:
-            lines.append("Pinyin:")
-            for idx, item in enumerate(pinyin, 1):
-                lines.append(f"{idx}. {item}")
+        if include_pinyin:
+            pinyin = list(input_block.get("nbest_pinyin", []) or [])[: max(1, max_pinyin)]
+            if pinyin:
+                lines.append("Pinyin:")
+                for idx, item in enumerate(pinyin, 1):
+                    lines.append(f"{idx}. {item}")
 
-    consensus = input_block.get("nbest_consensus")
-    if isinstance(consensus, dict):
-        stable = list(consensus.get("stable_spans", []) or [])
-        uncertain = list(consensus.get("uncertain_spans", []) or [])
-        if stable:
-            lines.append("Stable spans:")
-            lines.extend(_format_span(item) for item in stable[:12])
-        if uncertain:
-            lines.append("Uncertain spans:")
-            lines.extend(_format_span(item) for item in uncertain[:12])
+    if evidence_mode == "consensus":
+        consensus = input_block.get("nbest_consensus")
+        if isinstance(consensus, dict):
+            stable = list(consensus.get("stable_spans", []) or [])
+            uncertain = list(consensus.get("uncertain_spans", []) or [])
+            if stable:
+                lines.append("Stable spans:")
+                lines.extend(_format_span(item) for item in stable[:12])
+            if uncertain:
+                lines.append("Uncertain spans:")
+                lines.extend(_format_span(item) for item in uncertain[:12])
 
     lines.append('请输出 JSON：{"text":"纠错后的完整句子"}')
     return "\n".join(lines)
@@ -116,6 +131,7 @@ def _records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
                     "role": "user",
                     "content": _format_user(
                         record,
+                        evidence_mode=str(args.evidence_mode),
                         max_nbest=int(args.max_nbest),
                         max_pinyin=int(args.max_pinyin),
                         include_pinyin=bool(args.include_pinyin),
