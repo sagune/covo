@@ -6,6 +6,14 @@
   },
   "steps": [
     {
+      "name": "unpack_chinesehp_data",
+      "script": "scripts/unpack_zip.py",
+      "args": {
+        "input": "data/raw/chinesehp_aishell1.jsonl.zip",
+        "output": "data/raw/chinesehp_aishell1.jsonl"
+      }
+    },
+    {
       "name": "prepare_sft_sample",
       "script": "scripts/prepare_chinesehp_sft.py",
       "args": {

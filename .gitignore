@@ -4,6 +4,7 @@ __pycache__/
 .mypy_cache/
 
 # Local data and model outputs.
+data/raw/*.jsonl
 data/processed/
 outputs/
 runs/

@@ -16,7 +16,7 @@ ChineseHP / Whisper-v3 / CB-Whisper evidence
 
 ```bash
 PYTHONPATH=src python scripts/prepare_chinesehp_sft.py \
-  --input ../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl \
+  --input data/raw/chinesehp_aishell1.jsonl \
   --output data/processed/chinesehp_aishell1_sft.jsonl \
   --nbest-size 5 \
   --output-mode edits

@@ -76,30 +76,21 @@ PY
 
 5090 上建议确认 `torch`/CUDA/bitsandbytes 版本能正常加载 4bit。若 bitsandbytes 报 CUDA 兼容问题，先解决环境，不要改实验脚本。
 
-## 3. 放置数据
+## 3. 数据位置
 
-默认配置假设原始文件在仓库同级目录：
-
-```text
-../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl
-```
-
-也就是目录大概是：
+仓库已经带了压缩后的 ChineseHP AISHELL-1 文本数据：
 
 ```text
-workspace/
-  covo/
-  PostASR-Correction-SLT2024-main/
-    chinesehp_aishell1.jsonl
+data/raw/chinesehp_aishell1.jsonl.zip
 ```
 
-如果服务器路径不同，修改 `configs/prepare_chinesehp_full.json` 里的：
+`configs/prepare_chinesehp_full.json` 的第一步会自动解压到：
 
-```json
-"input": "../PostASR-Correction-SLT2024-main/chinesehp_aishell1.jsonl"
+```text
+data/raw/chinesehp_aishell1.jsonl
 ```
 
-不要把大数据文件提交进 git。
+解压后的 JSONL 不提交进 git，只在服务器本地使用。
 
 ## 4. 先做 dry-run
 
@@ -135,6 +126,7 @@ PYTHONPATH=src python scripts/run_pipeline.py \
 成功后应该生成：
 
 ```text
+data/raw/chinesehp_aishell1.jsonl
 data/processed/chinesehp_aishell1_sft.jsonl
 data/processed/chinesehp_aishell1_sft.clean.jsonl
 data/processed/chinesehp_aishell1/train.jsonl
