@@ -72,7 +72,15 @@ def parse_model_edits_json(text: str) -> Dict[str, Any]:
                 value = []
         if value is None:
             value = []
-        edits = [dict(item) for item in value if isinstance(item, dict)]
+        edits = []
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            normalized_item = dict(item)
+            normalized_item["from"] = str(normalized_item.get("from", ""))
+            normalized_item["to"] = str(normalized_item.get("to", ""))
+            normalized_item["reason"] = str(normalized_item.get("reason", "")).strip()
+            edits.append(normalized_item)
         return {
             "edits": edits,
             "parse_warnings": warnings,
