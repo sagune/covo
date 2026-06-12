@@ -241,6 +241,53 @@ Current-code Shuili medium-package rerun with the previous best KWS checkpoint: 
 | 2026-05-06 | original `Enhance-CB-Whisper` CB-Whisper on Shuili | same original ResNet KWS checkpoint | Original CB-Whisper + original KWS, adapted only for local data format, current Transformers compatibility, and Chinese normalization | 0.0679 | N/A | N/A | N/A | Rejected as a baseline only. Compared with the current Shuili setting above (Entity Recall 0.8666, CER 0.0807), original CB-Whisper collapses mainly because the original KWS candidate source has almost no transfer recall on Shuili. The original evaluation script reports Entity Recall only, so CER/WER are not available from this run. |
 | 2026-05-06 | original `Enhance-CB-Whisper` on AISHELL test | original ResNet KWS trained on local `dataaishell/kws` TTS data | Original CB-Whisper baseline after replacing outdated prompt internals with the current Transformers `prompt_ids` path and adding CER reporting | 0.7578 | 0.1121 | N/A | N/A | This is the usable original-code baseline. The earlier original-code AISHELL run was artificially low because prompt tokens were forced in a way that bypassed Whisper's current language/task-token handling. Current full log: `original/Enhance-CB-Whisper/src/logs/cbwhisper_aishell_original_kws_test_stdout.log`. |
 
+## CB-Whisper + covo workflow
+
+The current code can export CB-Whisper evidence for a downstream covo/Qwen text-rewrite corrector without changing the normal CB-Whisper metrics path. Set `CBW_EVIDENCE_OUT` during a CB-Whisper test run:
+
+```bash
+cd /root/autodl-tmp/src
+TRANSFORMERS_VERBOSITY=error \
+CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_aishell.jsonl \
+CBW_METRICS_OUT=logs/test_metrics.csv \
+/root/autodl-tmp/great/bin/python cb-whisper.py test --config configs/cb-whisper-aishell-v3-kws.yaml
+```
+
+Each evidence record stores the CB-Whisper final output as `input.asr_top1`, the reranked candidate pool as `input.nbest`, KWS candidates as `input.hotwords`, injected prompt words as `input.prompt_hotwords`, pinyin strings, and candidate scores under `input.cbwhisper`.
+
+Convert this evidence into Qwen/covo chat messages:
+
+```bash
+cd /root/autodl-tmp
+/root/autodl-tmp/great/bin/python src/analysis/cbwhisper_covo_bridge.py prepare \
+  --input src/logs/cbwhisper_covo_evidence_aishell.jsonl \
+  --output src/logs/cbwhisper_covo_messages_aishell.jsonl \
+  --include-pinyin
+```
+
+Run the migrated covo LoRA corrector on the messages:
+
+```bash
+cd /root/autodl-tmp
+/root/autodl-tmp/great/bin/python src/analysis/cbwhisper_covo_bridge.py run \
+  --input src/logs/cbwhisper_covo_evidence_aishell.jsonl \
+  --output src/logs/cbwhisper_covo_messages_aishell.jsonl \
+  --prediction-output src/logs/cbwhisper_covo_predictions_aishell.jsonl \
+  --include-pinyin \
+  --disable-thinking \
+  --evaluate
+```
+
+The default bridge paths use the migration bundle:
+
+```text
+/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo
+/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B
+/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch
+```
+
+This is intentionally a loose bridge rather than a hard code merge: CB-Whisper remains responsible for ASR, N-best, KWS, and hotword scoring; covo remains responsible for conservative generative correction and fallback-style evaluation.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

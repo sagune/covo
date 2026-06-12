@@ -227,6 +227,11 @@ class CBWhisper(pl.LightningModule):
         self._debug_seed = int(os.getenv("CBW_DEBUG_SEED", "12345"))
         self._debug_selected_indices = None
         self._metrics_output_path = os.getenv("CBW_METRICS_OUT", "logs/test_metrics.csv")
+        self._covo_evidence_output_path = os.getenv("CBW_EVIDENCE_OUT", "").strip()
+        if self._covo_evidence_output_path.lower() in {"", "none", "off", "0"}:
+            self._covo_evidence_output_path = ""
+        elif os.path.dirname(self._covo_evidence_output_path):
+            os.makedirs(os.path.dirname(self._covo_evidence_output_path), exist_ok=True)
         self._oracle_nbest_diagnostic = bool(getattr(self.hparams, "oracle_nbest_diagnostic", False))
         self._oracle_nbest_detail_path = str(getattr(self.hparams, "oracle_nbest_detail_path", "logs/oracle_nbest_detail.csv"))
         self._oracle_nbest_summary_path = str(getattr(self.hparams, "oracle_nbest_summary_path", "logs/oracle_nbest_summary.csv"))
@@ -263,6 +268,7 @@ class CBWhisper(pl.LightningModule):
                 debug_seed=self._debug_seed,
                 debug_clear_on_start=self._debug_clear_on_start,
                 metrics_output_path=self._metrics_output_path,
+                covo_evidence_output_path=self._covo_evidence_output_path,
                 phonetic_backend=self._phonetic_backend,
                 phonetic_probe_examples=self._phonetic_probe_examples,
                 text_normalizer_backend=self._text_normalizer_backend,
@@ -2390,6 +2396,135 @@ class CBWhisper(pl.LightningModule):
         self.test_step_outputs = []
         self._setup_debug_index_sampling()
 
+    def _candidate_texts_for_covo(self, pred: str) -> List[str]:
+        texts = []
+        for candidate in list(self._latest_forward_candidates):
+            text = str(candidate.get("text", "")).strip()
+            if text and text not in texts:
+                texts.append(text)
+        pred = str(pred).strip()
+        if pred and pred not in texts:
+            texts.insert(0, pred)
+        return texts[: max(1, int(getattr(self.hparams, "rescore_nbest", 8)))]
+
+    def _json_safe_for_covo(self, value):
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, torch.Tensor):
+            if value.numel() == 1:
+                return self._json_safe_for_covo(value.detach().cpu().item())
+            return value.detach().cpu().tolist()
+        if isinstance(value, dict):
+            return {str(k): self._json_safe_for_covo(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._json_safe_for_covo(v) for v in value]
+        try:
+            return float(value)
+        except Exception:
+            return str(value)
+
+    def _hotwords_for_covo(self) -> List[dict]:
+        keywords = self._latest_keywords[0] if len(self._latest_keywords) > 0 else []
+        score_map = self._latest_keyword_scores[0] if len(self._latest_keyword_scores) > 0 else {}
+        rows = []
+        for kw in keywords:
+            kw = str(kw)
+            if kw == "":
+                continue
+            rows.append({
+                "text": kw,
+                "score": float(score_map.get(kw, 0.0)),
+            })
+        rows.sort(key=lambda item: (-float(item["score"]), -len(str(item["text"])), str(item["text"])))
+        return rows
+
+    def _prompt_hotwords_for_covo(self) -> List[dict]:
+        keywords = self._latest_prompt_keywords[0] if len(self._latest_prompt_keywords) > 0 else []
+        weights = self._latest_prompt_weights[0] if len(self._latest_prompt_weights) > 0 else []
+        rows = []
+        for idx, kw in enumerate(keywords):
+            kw = str(kw)
+            if kw == "":
+                continue
+            weight = float(weights[idx]) if idx < len(weights) else 0.0
+            rows.append({
+                "text": kw,
+                "weight": weight,
+            })
+        return rows
+
+    def _nbest_pinyin_for_covo(self, nbest: List[str]) -> List[str]:
+        output = []
+        for text in nbest:
+            units = self._to_phonetic_units(self._normalize_text_for_logging(text))
+            output.append(" ".join(str(unit) for unit in units))
+        return output
+
+    def _build_covo_evidence_record(
+        self,
+        batch: dict,
+        batch_idx: int,
+        pred: str,
+        keyword_mentions: List[dict],
+        oracle: List[str],
+    ) -> dict:
+        nbest = self._candidate_texts_for_covo(pred)
+        candidates = []
+        for candidate in list(self._latest_forward_candidates):
+            row = {}
+            for key, value in dict(candidate).items():
+                row[str(key)] = self._json_safe_for_covo(value)
+            if row:
+                candidates.append(row)
+        record_id = str(batch.get("id", batch.get("code", batch_idx)))
+        return {
+            "id": record_id,
+            "source": "cbwhisper",
+            "dataset": str(getattr(self.hparams, "dataset", "")),
+            "split": str(getattr(self.hparams, "split", "")),
+            "reference": str(batch.get("transcript", "")),
+            "input": {
+                "asr_top1": str(pred),
+                "nbest": nbest,
+                "nbest_pinyin": self._nbest_pinyin_for_covo(nbest),
+                "hotwords": self._hotwords_for_covo(),
+                "prompt_hotwords": self._prompt_hotwords_for_covo(),
+                "keyword_mentions": self._json_safe_for_covo(keyword_mentions),
+                "oracle_hotwords": [str(item) for item in oracle],
+                "cbwhisper": {
+                    "batch_idx": int(batch_idx),
+                    "candidate_count": int(len(candidates)),
+                    "candidates": candidates,
+                    "whisper_ckpt": str(getattr(self.hparams, "whisper_ckpt", "")),
+                    "encoder_ckpt": str(getattr(self.hparams, "encoder_ckpt", "")),
+                    "kws_ckpt": str(getattr(self.hparams, "kws_ckpt", "")),
+                    "kw_type": str(getattr(self.hparams, "kw_type", "")),
+                },
+            },
+        }
+
+    def _write_covo_evidence_jsonl(self):
+        if not self._covo_evidence_output_path:
+            return
+        out_path = self._covo_evidence_output_path
+        out_dir = os.path.dirname(out_path)
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        written = 0
+        with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+            for step_output in self.test_step_outputs:
+                record = step_output.get("covo_evidence")
+                if not isinstance(record, dict):
+                    continue
+                f.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                written += 1
+        if self._debug_enabled():
+            self._debug_log(
+                "covo_evidence_written",
+                path=out_path,
+                rows=int(written),
+            )
+
     def test_step(self, batch, batch_idx):  
         dbg_idx = self._debug_counters["test_step"]
         self._debug_counters["test_step"] += 1
@@ -2452,6 +2587,13 @@ class CBWhisper(pl.LightningModule):
             'target': batch['transcript'],
             'speaker': batch.get('speaker', None),
             'keywords': keyword_mentions,
+            'covo_evidence': self._build_covo_evidence_record(
+                batch=batch,
+                batch_idx=batch_idx,
+                pred=preds,
+                keyword_mentions=keyword_mentions,
+                oracle=oracle,
+            ),
             'oracle_diag': {
                 'enabled': bool(self._oracle_nbest_diagnostic),
                 'is_shortform': bool(batch['utterance']['features'].shape[-1] <= N_FRAMES),
@@ -2574,6 +2716,7 @@ class CBWhisper(pl.LightningModule):
                     columns=list(oracle_summary_df.columns),
                     aggregate=oracle_summary_df.tail(1).to_dict(orient="records")[0] if len(oracle_summary_df) > 0 else {},
                 )
+        self._write_covo_evidence_jsonl()
         if self._post_test_progress_bar is not None:
             self._post_test_progress_bar.set_description("Post-test eval write")
             self._post_test_progress_bar.update(1)
