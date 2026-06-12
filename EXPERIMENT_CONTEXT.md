@@ -279,4 +279,26 @@ Pilot100 compact-prompt comparison:
 
 This is the first useful no-gate fine-tuning signal. It matches the best previous prompt-hotword Pilot100 CER while using a shorter compact prompt, and it beats the compact-prompt original LoRA baseline. The next sensible scale-up is more real non-test CB-Whisper evidence, not synthetic hotword spans.
 
+Scaled real-evidence probe:
+
+- Added `CBW_EVIDENCE_ONLY=1` to `src/model/cb_whisper.py` so evidence export can skip slow bootstrap metrics.
+- Exported 600 AISHELL dev samples to `src/logs/cbwhisper_covo_evidence_dev600.jsonl`.
+- Prepared compact bridge messages and randomly split into 500 train / 99 dev rows.
+- Continued the hard-negative LoRA for 160 bf16 steps with gradient checkpointing.
+- Output adapter:
+
+```text
+cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_real_dev600_compact_160steps_bf16
+```
+
+Pilot100 compact-prompt comparison:
+
+| Variant | COVO Eval CER | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| Compact prompt, original hardneg LoRA | 0.08877 | 25 | 25 | 50 |
+| Compact prompt, real-dev200 SFT LoRA | 0.08486 | 23 | 25 | 52 |
+| Compact prompt, real-dev600 SFT LoRA | 0.08094 | 24 | 23 | 53 |
+
+This is the current best no-gate covo pilot result. It suggests that the useful training signal is real CB-Whisper evidence distribution matching, not synthetic hotword construction. The next scale-up should use more dev evidence or full non-test evidence and then evaluate on the full AISHELL test set, not only Pilot100.
+
 Keep this route lightweight and paper-clean: fine-tune the downstream corrector to use predicted hotword evidence, rather than adding hand-written gates.
