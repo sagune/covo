@@ -314,3 +314,31 @@ Full AISHELL test result, 2026-06-12:
 - Entity Recall check: CB-Whisper input `0.9028`, covo output `0.8541`.
 
 Interpretation: this meets the user's short-term CER target under the covo correction-evaluator normalization, but it is not yet a hotword-recall win. The likely next research step is not a gate; it is training the corrector with an objective or data construction that preserves hotword mentions while still correcting generic ASR errors.
+
+Hotword-preservation oversampling result, 2026-06-12:
+
+- Added `src/analysis/build_covo_preserve_sft_split.py`.
+- Input training evidence: `dev600_real_cbwhisper_hotword_compact.qwen.jsonl`.
+- Split strategy: split original rows first, then oversample train rows where ASR top-1 already contains at least one true hotword mention.
+- Train base rows: `500`.
+- Oversampled hotword-preserved rows: `461`.
+- Final train rows after repeat=2: `1422`.
+- Continued adapter: `qwen35_cbwhisper_real_dev600_compact_160steps_bf16`.
+- Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_real_dev600_preserve2_120steps_bf16`.
+- Training: 120 bf16 LoRA steps, lr `5e-5`, grad accumulation `8`, final eval_loss `0.2139`, train_loss `0.2068`.
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Entity Recall | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| real-dev600 compact 160-step | 0.08094 | 0.7477 | 24 | 23 | 53 |
+| preserve2 continued 120-step | 0.03916 | 0.8037 | 32 | 14 | 54 |
+
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Entity Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| real-dev600 compact 160-step | 0.05650 | 0.8541 | 89 | 35 | 296 | 96 | 416 |
+| preserve2 continued 120-step | 0.04400 | 0.8785 | 65 | 36 | 309 | 62 | 437 |
+
+Interpretation: this is the best no-gate route so far. It beats the user's CER<6 target by a wide margin under the covo evaluator and partially repairs the hotword recall drop. The remaining gap is that covo output Entity Recall `0.8785` is still below the CB-Whisper input recall `0.9028`; future work should continue along training/data-objective lines, not post-hoc gates.
