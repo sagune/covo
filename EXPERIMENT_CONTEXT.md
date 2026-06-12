@@ -342,3 +342,14 @@ Full AISHELL test comparison:
 | preserve2 continued 120-step | 0.04400 | 0.8785 | 65 | 36 | 309 | 62 | 437 |
 
 Interpretation: this is the best no-gate route so far. It beats the user's CER<6 target by a wide margin under the covo evaluator and partially repairs the hotword recall drop. The remaining gap is that covo output Entity Recall `0.8785` is still below the CB-Whisper input recall `0.9028`; future work should continue along training/data-objective lines, not post-hoc gates.
+
+Preserve4 follow-up, 2026-06-12:
+
+- Built `dev600_real_cbwhisper_hotword_compact_preserve4_*` with preserve repeat `4`.
+- Continued from the preserve2 adapter for 80 bf16 steps at lr `3e-5`.
+- Final eval_loss `0.2142`, train_loss `0.1689`.
+- Pilot100 CER was `0.03916`, same as preserve2.
+- Pilot100 Entity Recall was `0.8037`, also same as preserve2.
+- Improved / worsened / unchanged was `31 / 13 / 56`, compared with preserve2 `32 / 14 / 54`.
+
+Decision: do not promote preserve4 or run full test unless there is a reason to optimize the improved/worsened count instead of recall/CER. Preserve2 remains the current best because it already has full-test validation.
