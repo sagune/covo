@@ -2604,6 +2604,17 @@ class CBWhisper(pl.LightningModule):
         })
 
     def on_test_epoch_end(self):
+        evidence_only = str(os.getenv("CBW_EVIDENCE_ONLY", "")).strip().lower() in {"1", "true", "yes", "on"}
+        if evidence_only:
+            self._write_covo_evidence_jsonl()
+            if self._debug_enabled():
+                self._debug_log(
+                    "covo_evidence_only_done",
+                    rows=int(len(self.test_step_outputs)),
+                    metrics_skipped=True,
+                )
+            return
+
         self._post_test_progress_bar = tqdm(
             total=7,
             desc="Post-test eval normalize",
