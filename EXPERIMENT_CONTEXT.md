@@ -257,4 +257,26 @@ Pilot100 evaluation with this continued adapter:
 
 Decision: do not scale this exact synthetic-hotword SFT construction. It did not break formatting and it still changed 61/100 samples with 47 exact-reference predictions, but the aggregate CER regressed to the CB-Whisper baseline under the covo evaluator. If this route continues, use real CB-Whisper evidence on a non-test split or improve negative/positive hotword construction before running a longer fine-tune.
 
+Real CB-Whisper evidence probe:
+
+- Exported 200 AISHELL dev samples to `src/logs/cbwhisper_covo_evidence_dev200.jsonl`.
+- CB-Whisper dev200 metrics: Entity Recall `0.9369`, CER `0.0725`, Hotword Only CER `0.0601`, WER `0.4550`.
+- Full evidence prompt training OOMed after 2 steps because prompt/candidate context was too long.
+- Regenerated compact Qwen messages with `max_nbest=4`, `max_pinyin=3`, `max_hotwords=6`, `max_prompt_hotwords=4`, `max_candidates_with_scores=0`.
+- Continued `qwen35_text_rewrite_hardneg_dropout_lora_2epoch` for 80 bf16 LoRA steps with gradient checkpointing.
+- Output adapter:
+
+```text
+cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_real_dev200_compact_80steps_bf16
+```
+
+Pilot100 compact-prompt comparison:
+
+| Variant | COVO Eval CER | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| Compact prompt, original hardneg LoRA | 0.08877 | 25 | 25 | 50 |
+| Compact prompt, real-dev200 SFT LoRA | 0.08486 | 23 | 25 | 52 |
+
+This is the first useful no-gate fine-tuning signal. It matches the best previous prompt-hotword Pilot100 CER while using a shorter compact prompt, and it beats the compact-prompt original LoRA baseline. The next sensible scale-up is more real non-test CB-Whisper evidence, not synthetic hotword spans.
+
 Keep this route lightweight and paper-clean: fine-tune the downstream corrector to use predicted hotword evidence, rather than adding hand-written gates.
