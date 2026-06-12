@@ -174,3 +174,74 @@ src/logs/experiment_*_stdout.log
 ## Working Principle
 
 The target is not just a higher number from an ad hoc patch. The target is a defensible CB-Whisper improvement that can be explained in a paper, keeps the KWS model fixed, stays lightweight, improves entity recall, and does not casually sacrifice CER.
+
+## 2026-06-12 Current Context
+
+Current best AISHELL true large-v3 CB-Whisper result:
+
+| Metric | Value |
+| --- | ---: |
+| Entity Recall | 0.9238 |
+| CER | 0.0661 |
+| Hotword Only CER | 0.0467 |
+| WER | 0.4641 |
+
+This result uses the true large-v3 KWS checkpoint:
+
+```text
+outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt
+```
+
+The main accepted diagnosis is that KWS retrieval is no longer the dominant AISHELL bottleneck. The useful direction is making Whisper or the downstream corrector use already-available hotword evidence more effectively.
+
+CB-Whisper + covo bridge status:
+
+- `CBW_EVIDENCE_OUT` in `src/model/cb_whisper.py` exports CB-Whisper evidence JSONL.
+- `src/analysis/cbwhisper_covo_bridge.py` converts evidence into Qwen/covo messages and can run the migrated LoRA corrector.
+- The bridge injects prompt-side CB-Whisper hotwords by default with `--hotword-source prompt`.
+- Broad all-KWS hotword injection is available with `--hotword-source all`, but Pilot100 showed it is noisy.
+- Do not add a post-hoc gate/selector for this route. The user explicitly rejected gate-style filtering and prefers retraining/fine-tuning if this route continues.
+
+Pilot100 covo observations:
+
+| Variant | COVO Eval CER | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| No hotword bridge, accept all Qwen rewrites | 0.09073 | 23 | 28 | 49 |
+| All KWS hotwords injected | 0.09856 | 22 | 34 | 44 |
+| Prompt-side hotwords injected | 0.08486 | 23 | 27 | 50 |
+
+The prompt-side hotword result is the only useful no-gate signal so far, but it was evaluated with a covo LoRA that was not trained on CB-Whisper hotword evidence.
+
+Hotword-aware SFT probe:
+
+- Added `src/analysis/prepare_covo_hotword_sft.py`.
+- It converts existing covo ChineseHP/AISHELL rewrite data into the same prompt style used by the CB-Whisper bridge.
+- It creates synthetic prompt-side positive hotword evidence from the reference/local edit span and optional confusable KWS-like negatives from N-best.
+- Generated local probe files:
+
+```text
+cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_cbwhisper_hotword_probe.qwen.jsonl  # 2000 rows
+cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_cbwhisper_hotword_probe.qwen.jsonl    # 500 rows
+```
+
+Training probe attempt:
+
+```text
+output dir: cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_hotword_probe_120steps
+log:        cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/logs/qwen35_cbwhisper_hotword_probe_120steps_train.log
+base:       cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B
+adapter:    cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch
+```
+
+The first run did not start training because QLoRA loading failed:
+
+```text
+ImportError: Using `bitsandbytes` 4-bit quantization requires bitsandbytes: `pip install -U bitsandbytes>=0.46.1`
+```
+
+Next choices:
+
+1. Install `bitsandbytes>=0.46.1` in `/root/autodl-tmp/great` and rerun the 120-step QLoRA probe.
+2. Retry without `--qlora` using bf16 LoRA, since Qwen3.5-4B should likely fit on the 32 GB RTX 5090 for a short run.
+
+Keep this route lightweight and paper-clean: fine-tune the downstream corrector to use predicted hotword evidence, rather than adding hand-written gates.
