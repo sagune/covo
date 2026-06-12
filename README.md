@@ -253,7 +253,7 @@ CBW_METRICS_OUT=logs/test_metrics.csv \
 /root/autodl-tmp/great/bin/python cb-whisper.py test --config configs/cb-whisper-aishell-v3-kws.yaml
 ```
 
-Each evidence record stores the CB-Whisper final output as `input.asr_top1`, the reranked candidate pool as `input.nbest`, KWS candidates as `input.hotwords`, injected prompt words as `input.prompt_hotwords`, pinyin strings, and candidate scores under `input.cbwhisper`.
+Each evidence record stores the CB-Whisper final output as `input.asr_top1`, the reranked candidate pool as `input.nbest`, KWS candidates as `input.hotwords`, injected prompt words as `input.prompt_hotwords`, pinyin strings, and candidate scores under `input.cbwhisper`. The bridge merges KWS and prompt hotwords into `input.covo_hotwords` and injects them into the covo prompt as predicted CB-Whisper hotword evidence, explicitly marked as non-gold context.
 
 Convert this evidence into Qwen/covo chat messages:
 

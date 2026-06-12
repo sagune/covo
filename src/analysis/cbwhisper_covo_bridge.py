@@ -20,7 +20,8 @@ SYSTEM_MESSAGE = (
 INSTRUCTION = (
     "任务：融合 CB-Whisper 的最终输出、N-best 候选和 KWS 热词证据进行中文 ASR 后纠错。"
     "优先保留 CB-Whisper 输出；只有当 N-best、拼音或高置信热词共同支持时才修改。"
-    "热词证据用于保护专名/领域词，但不能因为热词分数高就强行插入无上下文支持的词。"
+    "热词证据来自 CB-Whisper/KWS，不是参考答案；它用于保护专名/领域词，"
+    "但不能因为热词分数高就强行插入无上下文支持的词。"
     "如果证据不足，保持 ASR top-1 不变。"
 )
 
@@ -57,18 +58,83 @@ def nested_get(record: Dict[str, Any], dotted: str, default: Any = "") -> Any:
     return value
 
 
-def format_hotwords(rows: List[Dict[str, Any]], max_items: int) -> List[str]:
-    output = []
-    for item in rows[:max_items]:
+def _as_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except Exception:
+        return default
+
+
+def build_context_hotwords(input_block: Dict[str, Any], args: argparse.Namespace) -> List[Dict[str, Any]]:
+    merged: Dict[str, Dict[str, Any]] = {}
+    for rank, item in enumerate(list(input_block.get("hotwords", []) or [])[: int(args.max_hotwords)], 1):
         text = str(item.get("text", "")).strip()
         if not text:
             continue
-        score = item.get("score", item.get("weight", 0.0))
-        try:
-            score_f = float(score)
-        except Exception:
-            score_f = 0.0
-        output.append(f"- {text} score={score_f:.4f}")
+        row = merged.setdefault(
+            text,
+            {
+                "text": text,
+                "score": 0.0,
+                "prompt_weight": 0.0,
+                "sources": [],
+                "kws_rank": rank,
+                "in_prompt": False,
+            },
+        )
+        row["score"] = max(float(row.get("score", 0.0)), _as_float(item.get("score", 0.0)))
+        if "kws" not in row["sources"]:
+            row["sources"].append("kws")
+
+    for rank, item in enumerate(list(input_block.get("prompt_hotwords", []) or [])[: int(args.max_prompt_hotwords)], 1):
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        row = merged.setdefault(
+            text,
+            {
+                "text": text,
+                "score": 0.0,
+                "prompt_weight": 0.0,
+                "sources": [],
+                "kws_rank": 999999,
+                "in_prompt": False,
+            },
+        )
+        row["prompt_weight"] = max(float(row.get("prompt_weight", 0.0)), _as_float(item.get("weight", item.get("score", 0.0))))
+        row["prompt_rank"] = rank
+        row["in_prompt"] = True
+        if "prompt" not in row["sources"]:
+            row["sources"].append("prompt")
+
+    rows = list(merged.values())
+    rows.sort(
+        key=lambda row: (
+            -int(bool(row.get("in_prompt", False))),
+            -float(row.get("score", 0.0)),
+            -float(row.get("prompt_weight", 0.0)),
+            int(row.get("kws_rank", 999999)),
+            -len(str(row.get("text", ""))),
+            str(row.get("text", "")),
+        )
+    )
+    return rows[: int(args.max_hotwords)]
+
+
+def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
+    output = []
+    for item in rows:
+        text = str(item.get("text", "")).strip()
+        if not text:
+            continue
+        score = _as_float(item.get("score", 0.0))
+        prompt_weight = _as_float(item.get("prompt_weight", 0.0))
+        sources = ",".join(str(source) for source in item.get("sources", []) or [])
+        in_prompt = "yes" if item.get("in_prompt", False) else "no"
+        output.append(
+            f"- {text} kws_score={score:.4f} prompt_weight={prompt_weight:.4f} "
+            f"in_prompt={in_prompt} source={sources}"
+        )
     return output
 
 
@@ -108,17 +174,10 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
             for idx, item in enumerate(pinyin, 1):
                 lines.append(f"{idx}. {item}")
 
-    hotwords = list(input_block.get("hotwords", []) or [])
-    hotword_lines = format_hotwords(hotwords, max_items=int(args.max_hotwords))
+    hotword_lines = format_context_hotwords(build_context_hotwords(input_block, args))
     if hotword_lines:
-        lines.append("KWS hotwords:")
+        lines.append("CB-Whisper hotword evidence (predicted, not gold):")
         lines.extend(hotword_lines)
-
-    prompt_hotwords = list(input_block.get("prompt_hotwords", []) or [])
-    prompt_hotword_lines = format_hotwords(prompt_hotwords, max_items=int(args.max_prompt_hotwords))
-    if prompt_hotword_lines:
-        lines.append("Prompt hotwords:")
-        lines.extend(prompt_hotword_lines)
 
     cbw = input_block.get("cbwhisper", {}) or {}
     candidates = list(cbw.get("candidates", []) or [])
@@ -126,10 +185,6 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     if candidate_lines:
         lines.append("CB-Whisper candidate scores:")
         lines.extend(candidate_lines)
-
-    keyword_mentions = list(input_block.get("keyword_mentions", []) or [])
-    if keyword_mentions:
-        lines.append("Reference hotword spans are available only for evaluation; do not copy them blindly.")
 
     lines.append('请输出 JSON：{"text":"纠错后的完整句子"}')
     return "\n".join(lines)
@@ -139,16 +194,18 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
     count = 0
     for record in read_jsonl(args.input):
         reference = str(nested_get(record, args.reference_field, "")).strip()
+        input_block = dict(record.get("input", {}) or {})
+        input_block["covo_hotwords"] = build_context_hotwords(input_block, args)
         output = {
             "id": str(record.get("id", "")),
             "source": record.get("source", "cbwhisper"),
             "dataset": record.get("dataset", ""),
             "split": record.get("split", ""),
             "reference": reference,
-            "input": record.get("input", {}) or {},
+            "input": input_block,
             "messages": [
                 {"role": "system", "content": SYSTEM_MESSAGE},
-                {"role": "user", "content": build_user_prompt(record, args)},
+                {"role": "user", "content": build_user_prompt({**record, "input": input_block}, args)},
             ],
         }
         if reference:
