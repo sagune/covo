@@ -177,14 +177,16 @@ def cmd_run(args: argparse.Namespace) -> int:
     eval_script = covo_dir / "scripts" / "evaluate_correction_jsonl.py"
     if not infer_script.exists():
         raise FileNotFoundError(f"missing covo infer script: {infer_script}")
+    message_path = Path(args.output).resolve()
+    prediction_path = Path(args.prediction_output).resolve()
 
     command = [
         args.python,
         str(infer_script),
         "--input",
-        str(args.output),
+        str(message_path),
         "--output",
-        str(args.prediction_output),
+        str(prediction_path),
         "--model-name-or-path",
         str(args.model_name_or_path),
         "--adapter-path",
@@ -214,7 +216,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             args.python,
             str(eval_script),
             "--input",
-            str(args.prediction_output),
+            str(prediction_path),
             "--prediction-field",
             "prediction",
             "--reference-field",

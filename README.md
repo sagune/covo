@@ -269,6 +269,7 @@ Run the migrated covo LoRA corrector on the messages:
 
 ```bash
 cd /root/autodl-tmp
+# If needed: /root/autodl-tmp/great/bin/python -m pip install -r cbwhisper_covo_migration_20260609_tar_extracted/covo/requirements-train.txt
 /root/autodl-tmp/great/bin/python src/analysis/cbwhisper_covo_bridge.py run \
   --input src/logs/cbwhisper_covo_evidence_aishell.jsonl \
   --output src/logs/cbwhisper_covo_messages_aishell.jsonl \
@@ -287,6 +288,8 @@ The default bridge paths use the migration bundle:
 ```
 
 This is intentionally a loose bridge rather than a hard code merge: CB-Whisper remains responsible for ASR, N-best, KWS, and hotword scoring; covo remains responsible for conservative generative correction and fallback-style evaluation.
+
+Smoke test on 2026-06-12: a 2-sample AISHELL run with `CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_smoke.jsonl` successfully exported evidence, converted it to Qwen messages, loaded the migrated `Qwen3.5-4B` + hard-negative LoRA adapter, and evaluated the predictions. The smoke subset improved CER from `0.07143` to `0.00000`, with `1` improved sample, `0` worsened samples, and `1` unchanged sample. This is only a wiring check, not a reportable metric, but it confirms the CB-Whisper -> covo bridge can repair at least one real CB-Whisper over-correction case.
 
 ## License
 
