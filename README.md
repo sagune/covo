@@ -291,6 +291,8 @@ This is intentionally a loose bridge rather than a hard code merge: CB-Whisper r
 
 Smoke test on 2026-06-12: a 2-sample AISHELL run with `CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_smoke.jsonl` successfully exported evidence, converted it to Qwen messages, loaded the migrated `Qwen3.5-4B` + hard-negative LoRA adapter, and evaluated the predictions. The smoke subset improved CER from `0.07143` to `0.00000`, with `1` improved sample, `0` worsened samples, and `1` unchanged sample. This is only a wiring check, not a reportable metric, but it confirms the CB-Whisper -> covo bridge can repair at least one real CB-Whisper over-correction case.
 
+Pilot100 on 2026-06-12: the first 100 AISHELL test samples were exported through the same bridge. CB-Whisper itself reported Entity Recall `0.9439`, CER `0.0357`, Hotword Only CER `0.0270`, and WER `0.3100` in `logs/test_metrics_covo_pilot100.csv`. Directly accepting all covo/Qwen corrections was not safe under the covo CER evaluator: CER changed from `0.08877` to `0.09073`, with `23` improved, `28` worsened, and `49` unchanged samples. Enabling the distance guard with `--guard-max-distance 1` improved the covo-evaluator CER slightly to `0.08812`, with `8` improved, `7` worsened, and `85` unchanged samples. Decision: keep the bridge and guarded mode, but do not treat direct covo correction as accepted; the next useful step is a stronger CB-Whisper-aware selector/gate rather than unconditional post-correction.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

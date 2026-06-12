@@ -175,10 +175,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     covo_dir = Path(args.covo_dir).resolve()
     infer_script = covo_dir / "scripts" / "infer_lora_text.py"
     eval_script = covo_dir / "scripts" / "evaluate_correction_jsonl.py"
+    guard_script = covo_dir / "scripts" / "guard_text_predictions.py"
     if not infer_script.exists():
         raise FileNotFoundError(f"missing covo infer script: {infer_script}")
     message_path = Path(args.output).resolve()
     prediction_path = Path(args.prediction_output).resolve()
+    eval_input_path = prediction_path
 
     command = [
         args.python,
@@ -211,12 +213,42 @@ def cmd_run(args: argparse.Namespace) -> int:
     print("+ " + " ".join(command), flush=True)
     subprocess.run(command, cwd=str(covo_dir), check=True)
 
+    if args.guard:
+        if not guard_script.exists():
+            raise FileNotFoundError(f"missing covo guard script: {guard_script}")
+        guard_output = (
+            Path(args.guard_output).resolve()
+            if args.guard_output
+            else prediction_path.with_name(prediction_path.stem + ".guarded" + prediction_path.suffix)
+        )
+        guard_command = [
+            args.python,
+            str(guard_script),
+            "--input",
+            str(prediction_path),
+            "--output",
+            str(guard_output),
+            "--prediction-field",
+            "prediction",
+            "--baseline-field",
+            "input.asr_top1",
+            "--max-distance",
+            str(args.guard_max_distance),
+            "--max-distance-ratio",
+            str(args.guard_max_distance_ratio),
+            "--min-output-length-ratio",
+            str(args.guard_min_output_length_ratio),
+        ]
+        print("+ " + " ".join(guard_command), flush=True)
+        subprocess.run(guard_command, cwd=str(covo_dir), check=True)
+        eval_input_path = guard_output
+
     if args.evaluate and eval_script.exists():
         eval_command = [
             args.python,
             str(eval_script),
             "--input",
-            str(prediction_path),
+            str(eval_input_path),
             "--prediction-field",
             "prediction",
             "--reference-field",
@@ -265,6 +297,11 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--progress-every", type=int, default=100)
     run.add_argument("--infer-limit", type=int, default=0)
     run.add_argument("--disable-thinking", action="store_true")
+    run.add_argument("--guard", action="store_true", help="Apply covo distance guard before evaluation")
+    run.add_argument("--guard-output", default="", help="Optional guarded prediction JSONL path")
+    run.add_argument("--guard-max-distance", type=int, default=1)
+    run.add_argument("--guard-max-distance-ratio", type=float, default=0.45)
+    run.add_argument("--guard-min-output-length-ratio", type=float, default=0.55)
     run.add_argument("--evaluate", action="store_true")
     run.set_defaults(func=cmd_run)
     return parser.parse_args()
