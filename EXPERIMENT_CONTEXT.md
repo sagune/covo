@@ -239,9 +239,22 @@ The first run did not start training because QLoRA loading failed:
 ImportError: Using `bitsandbytes` 4-bit quantization requires bitsandbytes: `pip install -U bitsandbytes>=0.46.1`
 ```
 
-Next choices:
+Retried without `--qlora` using bf16 LoRA on the 32 GB RTX 5090. This completed normally:
 
-1. Install `bitsandbytes>=0.46.1` in `/root/autodl-tmp/great` and rerun the 120-step QLoRA probe.
-2. Retry without `--qlora` using bf16 LoRA, since Qwen3.5-4B should likely fit on the 32 GB RTX 5090 for a short run.
+```text
+output dir: cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_hotword_probe_120steps_bf16
+log:        cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/logs/qwen35_cbwhisper_hotword_probe_120steps_bf16_train.log
+final eval_loss: 0.1956
+train_loss:      0.2459
+```
+
+Pilot100 evaluation with this continued adapter:
+
+| Variant | COVO Eval CER | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| Prompt-side hotword bridge, original hardneg LoRA | 0.08486 | 23 | 27 | 50 |
+| Prompt-side hotword bridge, 120-step synthetic-hotword SFT | 0.08877 | 23 | 29 | 48 |
+
+Decision: do not scale this exact synthetic-hotword SFT construction. It did not break formatting and it still changed 61/100 samples with 47 exact-reference predictions, but the aggregate CER regressed to the CB-Whisper baseline under the covo evaluator. If this route continues, use real CB-Whisper evidence on a non-test split or improve negative/positive hotword construction before running a longer fine-tune.
 
 Keep this route lightweight and paper-clean: fine-tune the downstream corrector to use predicted hotword evidence, rather than adding hand-written gates.
