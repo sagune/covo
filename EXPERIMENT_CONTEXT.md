@@ -302,3 +302,15 @@ Pilot100 compact-prompt comparison:
 This is the current best no-gate covo pilot result. It suggests that the useful training signal is real CB-Whisper evidence distribution matching, not synthetic hotword construction. The next scale-up should use more dev evidence or full non-test evidence and then evaluate on the full AISHELL test set, not only Pilot100.
 
 Keep this route lightweight and paper-clean: fine-tune the downstream corrector to use predicted hotword evidence, rather than adding hand-written gates.
+
+Full AISHELL test result, 2026-06-12:
+
+- Evidence: `src/logs/cbwhisper_covo_evidence_test_full.jsonl` with 808 test samples.
+- Adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_real_dev600_compact_160steps_bf16`.
+- Prediction file: `src/logs/cbwhisper_covo_predictions_test_full_realdev600_compact_ft160.jsonl`.
+- COVO evaluator CER: `0.05650`.
+- COVO evaluator baseline CER from `input.asr_top1`: `0.10043`.
+- Improved / worsened / unchanged: `296 / 96 / 416`.
+- Entity Recall check: CB-Whisper input `0.9028`, covo output `0.8541`.
+
+Interpretation: this meets the user's short-term CER target under the covo correction-evaluator normalization, but it is not yet a hotword-recall win. The likely next research step is not a gate; it is training the corrector with an objective or data construction that preserves hotword mentions while still correcting generic ASR errors.

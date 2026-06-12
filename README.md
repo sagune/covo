@@ -299,6 +299,8 @@ Real CB-Whisper evidence SFT probe on 2026-06-12: a 200-sample AISHELL dev subse
 
 Scaled real-evidence SFT on 2026-06-12: `CBW_EVIDENCE_ONLY=1` was added for faster evidence export, then 600 AISHELL dev samples were exported to `logs/cbwhisper_covo_evidence_dev600.jsonl` without running bootstrap metrics. Compact prompt messages were split into 500 train / 99 dev rows, and the hard-negative LoRA was continued for 160 bf16 steps with gradient checkpointing. The final eval loss was `0.2555`. On Pilot100, this adapter reached CER `0.08094`, improved `24`, worsened `23`, unchanged `53` (`logs/experiment_cbwhisper_covo_pilot100_realdev600_compact_ft160_stdout.log`). This is the current best no-gate COVO pilot result and improves over both compact original LoRA (`0.08877`) and the previous prompt-hotword bridge (`0.08486`).
 
+Full AISHELL test evaluation on 2026-06-12: the full 808-sample AISHELL test set was exported through the same evidence-only CB-Whisper path to `logs/cbwhisper_covo_evidence_test_full.jsonl`, then decoded with the real-dev600 compact SFT adapter. Under the covo correction evaluator, CER dropped from the CB-Whisper bridge input baseline `0.10043` to `0.05650`, with `296` improved samples, `96` worsened samples, and `416` unchanged samples (`logs/experiment_cbwhisper_covo_test_full_realdev600_compact_ft160_stdout.log`). A follow-up entity-recall check gave CB-Whisper input Entity Recall `0.9028` and covo output Entity Recall `0.8541`; this route is therefore useful for lowering overall CER below 6%, but it currently sacrifices hotword recall and should not be reported as a hotword-recall improvement without further training or loss design.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
