@@ -383,3 +383,64 @@ Full AISHELL test comparison:
 | + full AISHELL train no-op SFT | 0.04354 | 0.9039 | 39 | 35 | 300 | 41 | 467 |
 
 Interpretation: using the complete AISHELL training hotword alignments worked. It gives the current best no-gate result, with Entity Recall just above the CB-Whisper input recall (`0.9039` vs `0.9028`) and CER still far below 6% under the COVO evaluator. This is stronger than dev600-only preservation because it teaches the corrector a broader prior over real AISHELL hotword surface forms without using test references.
+
+Train-side real-error COVO probe, 2026-06-14:
+
+- Added `src/analysis/build_aishell_hotword_train_split.py`.
+- `AishellHotwordDataset` and `DatabaseLite` now accept generated train-style split names such as `train_probe1000` as long as the split folder exists.
+- Built full AISHELL `hotword/train` from:
+  - `datasets/aishell/train/aligned.txt`
+  - `datasets/aishell/train/keywords.txt`
+  - `datasets/aishell/data_aishell/transcript/aishell_transcript_v0.8.txt`
+  - existing KWS hidden states under `datasets/aishell/data_aishell/kws`
+- Full train materialization summary:
+  - `17301` usable utterances
+  - `20000` keywords
+  - keyword hidden states reused by directory symlink
+- Built `train_probe1000` for the first practical run:
+  - `1000` utterances
+  - `2000` keywords
+  - per-keyword hidden-state symlinks
+  - wav split symlink: `data_aishell/wav/train_probe1000 -> train`
+- Export command shape:
+
+```bash
+cd /root/autodl-tmp/src
+TRANSFORMERS_VERBOSITY=error \
+CBW_EVIDENCE_ONLY=1 \
+CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_train_probe200.jsonl \
+/root/autodl-tmp/great/bin/python cb-whisper.py test \
+  --config configs/cb-whisper-aishell-v3-kws.yaml \
+  --trainer.limit_test_batches=200 \
+  --data.init_args.test_split=train_probe1000 \
+  --model.init_args.split=train_probe1000 \
+  --model.init_args.oracle_nbest_diagnostic=false
+```
+
+- Runtime for 200 evidence rows: about `9m41s`.
+- Raw train-probe CB-Whisper top1 statistics:
+  - rows: `200`
+  - CER: `0.1252`
+  - exact matches: `73`
+  - keyword recall: `0.8686` (`615 / 708`)
+- Converted to compact Qwen/COVO messages:
+
+```text
+cbwhisper_covo_migration_20260609_tar_extracted/covo/data/train_probe200_real_cbwhisper_hotword_compact.qwen.jsonl
+```
+
+- Short continued training:
+  - base adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - output adapter: `qwen35_cbwhisper_train_probe200_realerr_40steps_bf16`
+  - max steps: `40`
+  - lr: `1e-5`
+  - final train_loss: `0.2294`
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.03721 | 0.8136 | 31 | 10 | 59 |
+| + train-probe200 real-error SFT | 0.04178 | 0.7542 | 32 | 14 | 54 |
+
+Decision: the clean route is still to train COVO on real CB-Whisper/Whisper errors from train, but 200 rows is too small and overfits, damaging hotword preservation. Do not promote the probe200 adapter. The next run should scale the evidence set substantially and mix it with no-op/preservation rows rather than replacing the training distribution with a tiny real-error set.

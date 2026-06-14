@@ -245,8 +245,6 @@ class AishellHotwordDataset(Dataset):
             assert os.path.isdir(wav_folder), f'the directory you indicated with the audio files could not be found'
 
         # check if the indicated split is valid and whether the corresponding files exist
-        self.valid_splits = ['dev', 'test']
-        assert split in self.valid_splits, f'the indicated split name is not valid, got {split}'
         self.split_folder = os.path.join(root, split)
         assert os.path.isdir(self.split_folder), f'missing indicated split folder in the provided directory'
 

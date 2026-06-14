@@ -2755,7 +2755,8 @@ class DatabaseLite:
         # check dataset
         assert dataset in ['aishell', 'acl', 'shuili'], f'DatabaseLite: the dataset is not supported, got {dataset}'
         # check split
-        assert split in ['dev', 'test'], f'DatabaseLite: the split is not supported, got {split} for {dataset}'
+        if dataset == 'acl':
+            assert split in ['dev', 'test'], f'DatabaseLite: the split is not supported, got {split} for {dataset}'
         # check keyword type
         assert kw_type in ['tts', 'natural'], f'DatabaseLite: the keyword type is not supported, got {kw_type} for {dataset}'
 
