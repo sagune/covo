@@ -353,3 +353,33 @@ Preserve4 follow-up, 2026-06-12:
 - Improved / worsened / unchanged was `31 / 13 / 56`, compared with preserve2 `32 / 14 / 54`.
 
 Decision: do not promote preserve4 or run full test unless there is a reason to optimize the improved/worsened count instead of recall/CER. Preserve2 remains the current best because it already has full-test validation.
+
+Full AISHELL-train hotword no-op SFT, 2026-06-14:
+
+- Added `src/analysis/build_aishell_train_hotword_noop_sft.py`.
+- Source annotations:
+  - `datasets/aishell/train/aligned.txt`
+  - `datasets/aishell/data_aishell/transcript/aishell_transcript_v0.8.txt`
+- Built `aishell_train_hotword_noop.qwen.jsonl` with `17301` no-op preservation rows.
+- Mixed this with `dev600_real_cbwhisper_hotword_compact_preserve2_train.jsonl`, producing `18723` rows.
+- Continued from `qwen35_cbwhisper_real_dev600_preserve2_120steps_bf16`.
+- Final adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.
+- Training config: one full epoch, batch size `7`, gradient accumulation `4`, lr `2e-5`, bf16, gradient checkpointing.
+- Training runtime: about `62` minutes on RTX 5090.
+- Final eval_loss `0.2208`, train_loss `0.1704`.
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Entity Recall | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| preserve2 continued 120-step | 0.03916 | 0.8037 | 32 | 14 | 54 |
+| + full AISHELL train no-op SFT | 0.03721 | 0.8318 | 31 | 10 | 59 |
+
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Entity Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| preserve2 continued 120-step | 0.04400 | 0.8785 | 65 | 36 | 309 | 62 | 437 |
+| + full AISHELL train no-op SFT | 0.04354 | 0.9039 | 39 | 35 | 300 | 41 | 467 |
+
+Interpretation: using the complete AISHELL training hotword alignments worked. It gives the current best no-gate result, with Entity Recall just above the CB-Whisper input recall (`0.9039` vs `0.9028`) and CER still far below 6% under the COVO evaluator. This is stronger than dev600-only preservation because it teaches the corrector a broader prior over real AISHELL hotword surface forms without using test references.
