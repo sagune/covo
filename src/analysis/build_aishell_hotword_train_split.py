@@ -74,17 +74,26 @@ def select_probe(
     hs_dir: Path,
     all_keywords: List[str],
     limit_utterances: int,
+    utterance_offset: int,
     max_keywords: int,
     seed: int,
+    selection: str,
 ) -> Tuple[List[str], List[str]]:
     usable_utts = [
         utt_id
         for utt_id in by_utt
         if utt_id in transcripts and (hs_dir / f"{utt_id}.bin").exists()
     ]
-    if limit_utterances and limit_utterances < len(usable_utts):
+    usable_utts = sorted(usable_utts)
+    if selection == "random" and limit_utterances and limit_utterances < len(usable_utts):
         rng = random.Random(seed)
         usable_utts = sorted(rng.sample(usable_utts, limit_utterances))
+    elif selection == "sequential":
+        start = max(0, int(utterance_offset))
+        end = start + int(limit_utterances) if limit_utterances else None
+        usable_utts = usable_utts[start:end]
+    elif selection != "all":
+        raise ValueError(f"unsupported selection `{selection}`, expected all|random|sequential")
 
     selected_keyword_set: Set[str] = set()
     for utt_id in usable_utts:
@@ -160,7 +169,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-split", default="train")
     parser.add_argument("--kw-types", default="tts,natural")
     parser.add_argument("--limit-utterances", type=int, default=0)
+    parser.add_argument("--utterance-offset", type=int, default=0)
     parser.add_argument("--max-keywords", type=int, default=0)
+    parser.add_argument("--selection", choices=["all", "random", "sequential"], default="random")
     parser.add_argument("--seed", type=int, default=13)
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -186,8 +197,10 @@ def main() -> int:
         hs_dir=kws_root / "hs",
         all_keywords=all_train_keywords,
         limit_utterances=args.limit_utterances,
+        utterance_offset=args.utterance_offset,
         max_keywords=args.max_keywords,
         seed=args.seed,
+        selection=args.selection,
     )
     usable_set = set(usable_utts)
     keyword_set = set(target_keywords)
@@ -218,7 +231,9 @@ def main() -> int:
                 "aligned_utterances": len(by_utt),
                 "usable_utterances": len(usable_utts),
                 "keywords": len(target_keywords),
+                "selection": args.selection,
                 "limit_utterances": args.limit_utterances,
+                "utterance_offset": args.utterance_offset,
                 "max_keywords": args.max_keywords,
                 "keyword_hs_link_modes": link_modes,
             },
