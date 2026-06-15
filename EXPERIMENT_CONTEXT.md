@@ -444,3 +444,48 @@ Pilot100 comparison:
 | + train-probe200 real-error SFT | 0.04178 | 0.7542 | 32 | 14 | 54 |
 
 Decision: the clean route is still to train COVO on real CB-Whisper/Whisper errors from train, but 200 rows is too small and overfits, damaging hotword preservation. Do not promote the probe200 adapter. The next run should scale the evidence set substantially and mix it with no-op/preservation rows rather than replacing the training distribution with a tiny real-error set.
+
+Full train-side real-error COVO SFT, 2026-06-15:
+
+- Completed all AISHELL train evidence shards:
+  - `train_full_shard00` to `train_full_shard16`: `1000` rows each
+  - `train_full_shard17`: `301` rows
+  - merged evidence: `src/logs/cbwhisper_covo_evidence_train_full.jsonl`
+  - total rows: `17301`
+- The shard runner was updated to force local cache loading:
+  - commit: `222e304 Use offline cache for AISHELL evidence shards`
+  - reason: shard11 previously failed when `hf-mirror.com` refused the processor HEAD request.
+- Raw train evidence statistics:
+  - CB-Whisper top1 CER: `0.1155`
+  - exact match rate: `0.4041`
+  - keyword recall: `0.9044` (`56343 / 62296`)
+  - average n-best size: `5.42`
+  - n-best distribution: `{1: 498, 2: 1435, 3: 1918, 4: 2492, 5: 2281, 6: 2211, 7: 1778, 8: 4688}`
+- Converted full evidence to compact COVO messages:
+
+```text
+cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_full_real_cbwhisper_hotword_compact.qwen.jsonl
+```
+
+- Mixed training set:
+  - full train real-error evidence: `17301`
+  - full AISHELL train no-op preservation: `17301`
+  - dev600 preserve2 rows: `1422`
+  - total: `36024`
+  - file: `data/processed/chinesehp_aishell1/train_full_real_plus_noop_preserve2.jsonl`
+- Continued training:
+  - base adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - output adapter: `qwen35_cbwhisper_train_full_real_noop_preserve2_1epoch_bf16_bs7`
+  - one epoch, lr `1e-5`, batch size `7`, grad accumulation `4`, bf16
+  - runtime: about `2h20m`
+  - final eval loss: `0.2133`
+  - train loss: `0.2005`
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.03721 | 0.8136 | 31 | 10 | 59 |
+| + full train real-error/no-op/preserve2 SFT | 0.04634 | 0.7034 | 30 | 18 | 52 |
+
+Decision: do not promote the full real-error adapter or run full test. The real-error data is useful diagnostically, but a full epoch with roughly equal real-error/no-op weighting makes the corrector too aggressive and hurts hotword preservation badly. Future variants should use a much smaller real-error sampling weight, fewer steps from the best no-op adapter, or a preservation-balanced curriculum where no-op/hotword-preserved examples dominate late training.
