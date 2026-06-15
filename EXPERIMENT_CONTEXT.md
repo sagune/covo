@@ -488,4 +488,11 @@ Pilot100 comparison:
 | best no-op adapter | 0.03721 | 0.8136 | 31 | 10 | 59 |
 | + full train real-error/no-op/preserve2 SFT | 0.04634 | 0.7034 | 30 | 18 | 52 |
 
-Decision: do not promote the full real-error adapter or run full test. The real-error data is useful diagnostically, but a full epoch with roughly equal real-error/no-op weighting makes the corrector too aggressive and hurts hotword preservation badly. Future variants should use a much smaller real-error sampling weight, fewer steps from the best no-op adapter, or a preservation-balanced curriculum where no-op/hotword-preserved examples dominate late training.
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.04354 | 0.9057 | 39 | 35 | 300 | 41 | 467 |
+| + full train real-error/no-op/preserve2 SFT | 0.04680 | 0.8316 | 108 | 34 | 312 | 95 | 401 |
+
+Decision: do not promote the full real-error adapter. The real-error data is useful diagnostically, but a full epoch with roughly equal real-error/no-op weighting makes the corrector too aggressive and hurts hotword preservation badly. Future variants should use a much smaller real-error sampling weight, fewer steps from the best no-op adapter, or a preservation-balanced curriculum where no-op/hotword-preserved examples dominate late training.
