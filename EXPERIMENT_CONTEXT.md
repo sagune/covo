@@ -496,3 +496,58 @@ Full AISHELL test comparison:
 | + full train real-error/no-op/preserve2 SFT | 0.04680 | 0.8316 | 108 | 34 | 312 | 95 | 401 |
 
 Decision: do not promote the full real-error adapter. The real-error data is useful diagnostically, but a full epoch with roughly equal real-error/no-op weighting makes the corrector too aggressive and hurts hotword preservation badly. Future variants should use a much smaller real-error sampling weight, fewer steps from the best no-op adapter, or a preservation-balanced curriculum where no-op/hotword-preserved examples dominate late training.
+
+Hotword-anchored real-error COVO SFT, 2026-06-15:
+
+- Motivation: the full real-error SFT damaged hotword preservation, so this variant only used real-error examples where all true keyword mentions already appeared in ASR top-1. The intended behavior was "fix non-hotword errors while keeping already-hit hotwords".
+- Full train evidence filter statistics:
+  - rows: `17301`
+  - ASR exact rows: `6991`
+  - ASR-different rows: `10310`
+  - all keyword mentions already in ASR top-1: `13399`
+  - any keyword mention in ASR top-1: `16926`
+  - all keyword mentions in ASR top-1 and ASR still differs from reference: `6408`
+- Mixed training set:
+  - full AISHELL train no-op preservation: `17301`
+  - dev600 preserve2 rows: `1422`
+  - train real-error hotword-anchored rows: `6408`
+  - total: `25131`
+  - file: `data/processed/chinesehp_aishell1/train_hotword_anchored_real_plus_noop_preserve2.jsonl`
+- Continued training:
+  - base adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - output adapter: `qwen35_cbwhisper_hotword_anchored_real_300steps_bf16_bs7`
+  - max steps: `300`
+  - lr: `5e-6`
+  - batch size: `7`
+  - grad accumulation: `4`
+  - bf16 + gradient checkpointing
+  - runtime: about `32m26s`
+  - final eval loss: `0.2176`
+  - train loss: `0.1948`
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.03721 | 0.8136 | 13 | 4 | 31 | 10 | 59 |
+| + hotword-anchored real-error 300 steps | 0.04504 | 0.7373 | 22 | 4 | 30 | 16 | 54 |
+
+Additional strict-prompt probe:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords |
+| --- | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.03721 | 0.8136 | 13 | 4 |
+| best no-op adapter + stronger hotword preservation prompt | 0.03786 | 0.8136 | 13 | 4 |
+
+Error pattern:
+
+- The model still rewrites already-present rare proper nouns or organization names into more common homophones/variants.
+- Observed examples include:
+  - `许玮甯 -> 许玮宁`
+  - `今久 -> 金九`
+  - `宋芳 -> 孙芳` / `颂芳`
+  - `刘澄 -> 刘成`
+  - `杨锋 -> 杨峰`
+  - `布赖恩克尔扎尼奇 -> 布莱恩克尔扎尼基`
+
+Decision: do not promote this adapter and do not run full-test evaluation for it. The current best remains `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`. The diagnosis is now stronger: generic real-error SFT, even filtered to rows where hotwords are already present, teaches the corrector a language-prior rewrite behavior that conflicts with CB-Whisper's hotword evidence. Next attempts should use contrastive hotword-preservation targets, much lower real-error sampling weight, or training examples that explicitly penalize homophone replacement of evidence hotwords.
