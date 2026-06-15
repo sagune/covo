@@ -34,6 +34,8 @@ for shard in $(seq "$START_SHARD" "$END_SHARD"); do
 
   echo "[start] $split $(date -Is)"
   TRANSFORMERS_VERBOSITY=error \
+  TRANSFORMERS_OFFLINE=1 \
+  HF_HUB_OFFLINE=1 \
   CBW_EVIDENCE_ONLY=1 \
   CBW_EVIDENCE_OUT="$evidence" \
   "$PYTHON_BIN" cb-whisper.py test \
