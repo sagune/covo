@@ -655,3 +655,61 @@ Full AISHELL test comparison:
 | hotword+CER DPO 30 steps | 0.06271 | 0.9206 | 5 | 15 | 189 | 10 | 609 |
 
 Decision: mixed DPO confirms the trade-off but does not solve it. Adding CER/no-op preferences makes the model too conservative; it prevents hotword loss but suppresses many useful corrections, so CER worsens sharply. Keep the short hotword-only DPO 30-step adapter as the only useful DPO ablation. The main result remains the no-op preservation SFT adapter.
+
+AISHELL COVO error audit, 2026-06-16:
+
+- Added `src/analysis/covo_error_audit.py`.
+- Audited current best full-test predictions:
+  - predictions: `src/logs/cbwhisper_covo_predictions_test_full_aishell_train_noop_bs7.jsonl`
+  - summary: `src/logs/covo_error_audit_best_noop_summary.json`
+  - cases: `src/logs/covo_error_audit_best_noop_cases.csv`
+
+CER / oracle ceiling:
+
+| Source | CER | Exact samples |
+| --- | ---: | ---: |
+| CB-Whisper input / COVO baseline | 0.10043 | 368 / 808 |
+| n-best oracle only | 0.06178 | 486 / 808 |
+| current COVO best | 0.04354 | 523 / 808 |
+| oracle over current COVO + n-best | 0.03097 | N/A |
+| current COVO best after OpenCC t2s normalization | 0.04261 | 525 / 808 |
+
+Delta categories for current COVO best:
+
+| Category | Count |
+| --- | ---: |
+| CB-Whisper correct and COVO kept correct | 342 |
+| CB-Whisper correct but COVO broke it | 26 |
+| CB-Whisper wrong and COVO fixed exactly | 181 |
+| CB-Whisper wrong and COVO partially improved | 119 |
+| CB-Whisper wrong and COVO left same-distance error | 125 |
+| CB-Whisper wrong and COVO worsened | 15 |
+
+Oracle reachability:
+
+| Item | Count |
+| --- | ---: |
+| n-best better than current COVO | 113 |
+| n-best better than CB-Whisper input | 263 |
+| current COVO better than n-best oracle | 165 |
+
+Hotword audit:
+
+| Item | Count / Rate |
+| --- | ---: |
+| true keyword mentions | 942 |
+| CB-Whisper input recall | 0.9098 |
+| current COVO recall | 0.9055 |
+| n-best oracle recall | 0.9108 |
+| base-hit hotwords lost by COVO | 39 |
+| hotwords gained by COVO | 35 |
+| false prompt hotword insertions in CB-Whisper input | 24 |
+| false prompt hotword insertions in COVO output | 8 |
+
+Interpretation:
+
+- Current COVO is not just choosing among CB-Whisper n-best; it already beats the n-best oracle (`0.04354` vs `0.06178`), so the ChineseHP-style text-rewrite ability is contributing real corrections.
+- The best possible selector over current COVO output plus n-best reaches `0.03097`, which is closer to but still above the ChineseHP `0.0277` reference point. This suggests part of the gap is an evidence/candidate limitation, not just a training objective issue.
+- Traditional-to-simplified normalization only improves CER by about `0.00093`, so normalization mismatch is not the main remaining bottleneck.
+- The largest immediately actionable bucket is the `113` samples where n-best beats current COVO. A lightweight selector or confidence model between COVO output and n-best could recover some CER without asking the generator to learn everything.
+- The risk bucket is small but important: `26` originally correct samples are broken by COVO and `15` wrong samples become worse. Any further method needs to reduce these without becoming as conservative as the mixed DPO probes.
