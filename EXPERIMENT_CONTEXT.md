@@ -629,3 +629,29 @@ Full AISHELL test comparison:
 | full-pass DPO, lr2e-6 beta0.03 | 0.05658 | 0.9089 | 32 | 31 | 244 | 58 | 506 |
 
 Decision: do not promote full-pass DPO. It does not preserve the 30-step recall gain and badly hurts CER. The likely cause is over-optimizing on hotword-preservation pairs without enough CER-preserving preferences. The short 30-step DPO remains useful as a high-recall ablation, but the main result remains the no-op preservation adapter.
+
+Mixed DPO probes, 2026-06-16:
+
+- Added `src/analysis/build_covo_mixed_dpo_pairs.py`.
+- Pair types:
+  - `hotword_preserve_candidate_dpo`: chosen reference, rejected close n-best candidate that drops a prompt hotword
+  - `cer_candidate_dpo`: chosen lower-CER n-best candidate, rejected higher-CER n-best candidate
+  - `noop_conservative_dpo`: chosen ASR top-1 when it is already close to reference, rejected worse n-best candidate
+- Balanced three-way set:
+  - file: `train_mixed_hotword_cer_noop_dpo_pairs.jsonl`
+  - counts: `2583` hotword + `2583` CER + `2583` no-op = `7749`
+- Hotword+CER set:
+  - file: `train_hotword_cer_dpo_pairs.jsonl`
+  - counts: `2583` hotword + `2583` CER = `5166`
+
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.04354 | 0.9057 | 39 | 35 | 300 | 41 | 467 |
+| hotword-only DPO 30 steps | 0.04501 | 0.9227 | 22 | 34 | 272 | 22 | 514 |
+| mixed hotword+CER+no-op DPO 20 steps | 0.05728 | 0.9142 | 15 | 19 | 218 | 18 | 572 |
+| mixed hotword+CER+no-op DPO 60 steps | 0.08188 | 0.9121 | 1 | 3 | 92 | 2 | 714 |
+| hotword+CER DPO 30 steps | 0.06271 | 0.9206 | 5 | 15 | 189 | 10 | 609 |
+
+Decision: mixed DPO confirms the trade-off but does not solve it. Adding CER/no-op preferences makes the model too conservative; it prevents hotword loss but suppresses many useful corrections, so CER worsens sharply. Keep the short hotword-only DPO 30-step adapter as the only useful DPO ablation. The main result remains the no-op preservation SFT adapter.
