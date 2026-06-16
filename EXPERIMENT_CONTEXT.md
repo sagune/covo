@@ -551,3 +551,54 @@ Error pattern:
   - `布赖恩克尔扎尼奇 -> 布莱恩克尔扎尼基`
 
 Decision: do not promote this adapter and do not run full-test evaluation for it. The current best remains `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`. The diagnosis is now stronger: generic real-error SFT, even filtered to rows where hotwords are already present, teaches the corrector a language-prior rewrite behavior that conflicts with CB-Whisper's hotword evidence. Next attempts should use contrastive hotword-preservation targets, much lower real-error sampling weight, or training examples that explicitly penalize homophone replacement of evidence hotwords.
+
+Contrastive hotword-preservation DPO probe, 2026-06-16:
+
+- Added `src/analysis/build_covo_hotword_dpo_pairs.py`.
+- Data construction:
+  - source: `train_full_real_cbwhisper_hotword_compact.qwen.jsonl`
+  - keep prompt-side hotwords only
+  - chosen response: reference text
+  - rejected response: an n-best candidate that is close to reference but drops at least one prompt-side hotword mention
+  - output pair file: `data/processed/chinesehp_aishell1/train_hotword_preserve_dpo_pairs.jsonl`
+  - total pairs: `2583`
+- Example pattern:
+  - prompt evidence contains `金泉`
+  - chosen: `她们是来自韩国金泉大学的留学生`
+  - rejected: `他们是来自韩国金权大学的留学生`
+- Training details:
+  - base adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - DPO script: `covo/scripts/train_lora_dpo_text.py`
+  - output adapter: `qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16`
+  - max steps: `30`
+  - lr: `5e-6`
+  - beta: `0.08`
+  - sft_weight: `0.03`
+  - max_length: `1400`
+  - max_prompt_length: `1152`
+  - grad accumulation: `4`
+  - bf16 + gradient checkpointing
+- A first `120`-step attempt was stopped early because DPO with policy/ref models was too slow for a quick probe. A `15`-step weak probe was also trained but not full-tested because Pilot100 did not improve CER.
+
+Pilot100 comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.03721 | 0.8136 | 13 | 4 | 31 | 10 | 59 |
+| DPO 15 steps | 0.03786 | 0.8305 | 11 | 4 | 30 | 10 | 60 |
+| DPO 30 steps | 0.03460 | 0.8475 | 9 | 4 | 29 | 8 | 63 |
+
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.04354 | 0.9057 | 39 | 35 | 300 | 41 | 467 |
+| DPO 30 steps | 0.04501 | 0.9227 | 22 | 34 | 272 | 22 | 514 |
+
+Observed fixes on Pilot100:
+
+- `宋芳` preserved instead of `颂芳`
+- `杨锋` preserved instead of `杨峰`
+- `今久` restored in several sentences where the best no-op model output `金九`
+
+Decision: contrastive DPO clearly works for hotword preservation and gives the best recall-oriented COVO variant so far, but it is not the CER-best model. Do not replace `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` as the main result. Keep `qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16` as a useful ablation/high-recall variant. The next route should add CER-preserving preferences or use lower DPO strength so the full-test recall gain does not cost CER.
