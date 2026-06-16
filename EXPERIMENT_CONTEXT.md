@@ -602,3 +602,30 @@ Observed fixes on Pilot100:
 - `今久` restored in several sentences where the best no-op model output `金九`
 
 Decision: contrastive DPO clearly works for hotword preservation and gives the best recall-oriented COVO variant so far, but it is not the CER-best model. Do not replace `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` as the main result. Keep `qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16` as a useful ablation/high-recall variant. The next route should add CER-preserving preferences or use lower DPO strength so the full-test recall gain does not cost CER.
+
+Full-pass contrastive DPO, 2026-06-16:
+
+- Goal: test whether the positive 30-step DPO signal scales to the full preference set.
+- Pair set:
+  - `train_hotword_preserve_dpo_pairs.jsonl`
+  - `2583` real n-best preference pairs
+- Training:
+  - base adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - output adapter: `qwen35_cbwhisper_hotword_preserve_dpo_full_lr2e6_beta003_bf16`
+  - max steps: `650`, approximately one full pass with grad accumulation `4`
+  - lr: `2e-6`
+  - beta: `0.03`
+  - sft_weight: `0.03`
+  - max_length: `1400`
+  - max_prompt_length: `1152`
+  - final logged step: `650`
+
+Full AISHELL test comparison:
+
+| Variant | COVO Eval CER | Keyword Recall | Lost hotwords | Gained hotwords | Improved | Worsened | Unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| best no-op adapter | 0.04354 | 0.9057 | 39 | 35 | 300 | 41 | 467 |
+| DPO 30 steps | 0.04501 | 0.9227 | 22 | 34 | 272 | 22 | 514 |
+| full-pass DPO, lr2e-6 beta0.03 | 0.05658 | 0.9089 | 32 | 31 | 244 | 58 | 506 |
+
+Decision: do not promote full-pass DPO. It does not preserve the 30-step recall gain and badly hurts CER. The likely cause is over-optimizing on hotword-preservation pairs without enough CER-preserving preferences. The short 30-step DPO remains useful as a high-recall ablation, but the main result remains the no-op preservation adapter.
