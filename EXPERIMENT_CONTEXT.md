@@ -750,3 +750,24 @@ Legacy CER recalculation, 2026-06-17:
 | full-real+noop final-500 | 0.04943 | 0.04583 |
 
 - Interpretation: the current best remains best under the old CB-Whisper-style mean CER. The earlier `0.10043` number should be described only as the COVO correction-evaluator baseline, not as the standalone CB-Whisper CER.
+
+Complete AISHELL test-set check, 2026-06-17:
+
+- Clarification: the earlier COVO "full test" evidence/prediction files contain the AISHELL hotword subset (`808` rows), not the full AISHELL test split (`7176` wavs).
+- Added `src/analysis/aishell_full_whisper_decode.py` for ordinary full-split Whisper decoding and CER calculation.
+- Ran full AISHELL test with `openai/whisper-large-v3`, greedy decoding:
+  - output: `src/logs/aishell_full_whisper_large_v3_test_full.jsonl`
+  - samples: `7176`
+  - mean-sample CER: `0.09060`
+  - corpus CER: `0.09023`
+- Converted these 7176 outputs through `src/analysis/cbwhisper_covo_bridge.py` and ran the current best no-gate adapter:
+  - adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - messages: `src/logs/aishell_full_covo_messages_large_v3_test_full_best_noop.jsonl`
+  - predictions: `src/logs/aishell_full_covo_predictions_large_v3_test_full_best_noop.jsonl`
+  - COVO evaluator CER: `0.06137`
+  - COVO evaluator baseline CER: `0.09288`
+  - improved / worsened / unchanged: `1184 / 20 / 5972`
+- Recomputed with the older stripped-text口径:
+  - baseline mean-sample CER / corpus CER: `0.08070 / 0.08044`
+  - COVO mean-sample CER / corpus CER: `0.05752 / 0.05589`
+- Interpretation: this is the first true complete-AISHELL result. It meets the "CER below 6%" target under the old mean-sample/full-split口径, but it is not a hotword-recall result; hotword recall should still be reported only on the 808-row hotword subset.
