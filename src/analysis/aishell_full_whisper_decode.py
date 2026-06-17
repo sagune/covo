@@ -3,7 +3,7 @@
 
 Unlike the CB-Whisper dataloader, this script iterates over every wav file in
 ``data_aishell/wav/<split>`` instead of the hotword subset. It can also export
-beam n-best hypotheses for downstream COVO correction experiments.
+deduplicated n-best hypotheses for downstream COVO correction experiments.
 """
 
 from __future__ import annotations
@@ -205,6 +205,13 @@ def main() -> int:
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--num-beams", type=int, default=1)
     parser.add_argument("--num-return-sequences", type=int, default=1)
+    parser.add_argument("--num-beam-groups", type=int, default=1)
+    parser.add_argument("--diversity-penalty", type=float, default=0.0)
+    parser.add_argument("--do-sample", action="store_true")
+    parser.add_argument("--temperature", type=float, default=0.0)
+    parser.add_argument("--top-p", type=float, default=1.0)
+    parser.add_argument("--candidate-rounds", type=int, default=1)
+    parser.add_argument("--no-greedy-first", action="store_true")
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
@@ -222,6 +229,14 @@ def main() -> int:
         dataset.items = dataset.items[: int(args.limit)]
     num_return_sequences = max(1, int(args.num_return_sequences))
     num_beams = max(int(args.num_beams), num_return_sequences)
+    num_beam_groups = max(1, int(args.num_beam_groups))
+    if num_beam_groups > num_beams:
+        num_beam_groups = num_beams
+    if num_beams % num_beam_groups != 0:
+        raise ValueError("--num-beams must be divisible by --num-beam-groups")
+    do_sample = bool(args.do_sample)
+    candidate_rounds = max(1, int(args.candidate_rounds))
+    greedy_first = do_sample and not bool(args.no_greedy_first)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_float32_matmul_precision("high")
@@ -249,21 +264,46 @@ def main() -> int:
             attention_mask = getattr(features, "attention_mask", None)
             if attention_mask is not None:
                 attention_mask = attention_mask.to(device)
-            pred_ids = model.generate(
-                input_features=input_features,
-                attention_mask=attention_mask,
-                language="zh",
-                task="transcribe",
-                return_timestamps=False,
-                num_beams=num_beams,
-                num_return_sequences=num_return_sequences,
-                do_sample=False,
-            )
-            preds = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-            grouped_preds = [
-                preds[idx : idx + num_return_sequences]
-                for idx in range(0, len(preds), num_return_sequences)
-            ]
+            grouped_preds = [[] for _ in batch["id"]]
+            if greedy_first:
+                greedy_ids = model.generate(
+                    input_features=input_features,
+                    attention_mask=attention_mask,
+                    language="zh",
+                    task="transcribe",
+                    return_timestamps=False,
+                    num_beams=1,
+                    num_return_sequences=1,
+                    do_sample=False,
+                )
+                greedy_preds = processor.tokenizer.batch_decode(greedy_ids, skip_special_tokens=True)
+                for sample_idx, text in enumerate(greedy_preds):
+                    grouped_preds[sample_idx].append(text)
+            for round_idx in range(candidate_rounds):
+                generation_kwargs = {
+                    "input_features": input_features,
+                    "attention_mask": attention_mask,
+                    "language": "zh",
+                    "task": "transcribe",
+                    "return_timestamps": False,
+                    "num_beams": num_beams,
+                    "num_return_sequences": num_return_sequences,
+                    "do_sample": do_sample,
+                }
+                if num_beam_groups > 1:
+                    generation_kwargs["num_beam_groups"] = num_beam_groups
+                    generation_kwargs["diversity_penalty"] = float(args.diversity_penalty)
+                if do_sample:
+                    generation_kwargs["temperature"] = max(float(args.temperature), 1e-6)
+                    generation_kwargs["top_p"] = float(args.top_p)
+                pred_ids = model.generate(**generation_kwargs)
+                preds = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+                round_groups = [
+                    preds[idx : idx + num_return_sequences]
+                    for idx in range(0, len(preds), num_return_sequences)
+                ]
+                for sample_idx, sample_preds in enumerate(round_groups):
+                    grouped_preds[sample_idx].extend(sample_preds)
             for utt_id, audio_path, ref, nbest_raw in zip(batch["id"], batch["audio_path"], batch["reference"], grouped_preds):
                 nbest = []
                 seen = set()
@@ -273,6 +313,8 @@ def main() -> int:
                     if text and key not in seen:
                         nbest.append(text)
                         seen.add(key)
+                    if len(nbest) >= num_return_sequences:
+                        break
                 pred = nbest[0] if nbest else ""
                 norm_ref = normalize_surface(ref)
                 norm_pred = normalize_surface(pred)
@@ -292,6 +334,14 @@ def main() -> int:
                     "whisper_ckpt": args.whisper_ckpt,
                     "num_beams": num_beams,
                     "num_return_sequences": num_return_sequences,
+                    "num_beam_groups": num_beam_groups,
+                    "diversity_penalty": float(args.diversity_penalty),
+                    "do_sample": do_sample,
+                    "temperature": float(args.temperature),
+                    "top_p": float(args.top_p),
+                    "candidate_rounds": candidate_rounds,
+                    "greedy_first": greedy_first,
+                    "unique_nbest": len(nbest),
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 rows += 1
