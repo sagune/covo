@@ -112,8 +112,9 @@ def decode_one(
         "num_beams": num_beams,
         "num_return_sequences": num_return_sequences,
         "do_sample": temperature > 0.0,
-        "max_new_tokens": max_new_tokens,
     }
+    if int(max_new_tokens) > 0:
+        kwargs["max_new_tokens"] = int(max_new_tokens)
     if temperature > 0.0:
         kwargs["temperature"] = max(float(temperature), 1e-6)
         kwargs["top_p"] = float(top_p)
@@ -152,7 +153,7 @@ def main() -> int:
     parser.add_argument("--max-hotwords", type=int, default=8)
     parser.add_argument("--max-nbest", type=int, default=20)
     parser.add_argument("--max-prompt-chars", type=int, default=80)
-    parser.add_argument("--max-new-tokens", type=int, default=128)
+    parser.add_argument("--max-new-tokens", type=int, default=0)
     args = parser.parse_args()
 
     evidence = load_evidence(Path(args.evidence))
@@ -259,6 +260,7 @@ def main() -> int:
                 "unique_nbest": len(nbest),
             }
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+            f.flush()
             totals["rows"] += 1
             totals["unique_nbest"] += len(nbest)
             totals["gt1"] += int(len(nbest) > 1)
