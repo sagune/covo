@@ -798,3 +798,36 @@ Sampled diverse full-AISHELL n-best check, 2026-06-17:
   - top1 mean-sample CER / corpus CER: `0.09050 / 0.09012`
   - n-best oracle mean-sample CER / corpus CER: `0.06471 / 0.06558`
 - Interpretation: sampling solves the candidate-diversity problem partly, unlike deterministic beam search. But the oracle ceiling is still not strong enough to beat the best complete-AISHELL COVO result (`0.05752` old mean-sample CER, or `0.06137` under the COVO evaluator). The next step, if pursued, should be a conservative COVO rerun with this sampled n-best evidence, not treating sampled n-best selection as a standalone solution.
+
+AISHELL 808 hotword multi-prompt n-best check, 2026-06-18:
+
+- Added `src/analysis/aishell_hotword_multiprompt_nbest.py` for an isolated hotword-subset candidate-pool test.
+- Input:
+  - evidence: `src/logs/cbwhisper_covo_evidence_test_full.jsonl`
+  - uttids/audio: `datasets/aishell/data_aishell/hotword/test/uttid` and `datasets/aishell/data_aishell/wav/test`
+  - hotword source: existing CB-Whisper/KWS `prompt_hotwords` followed by `hotwords`
+- Decode setup:
+  - `openai/whisper-large-v3`
+  - prompt variants: no prompt, parenthesized top-3 hotwords, natural-language top-3 hotwords, natural-language top-6 hotwords
+  - temperatures: `0` and `0.4`
+  - `num_beams=5`, `num_return_sequences=5`, de-duplicated max n-best `12`
+  - output: `src/logs/aishell_hotword_multiprompt_nbest_test808_t04.jsonl`
+  - summary: `src/logs/aishell_hotword_multiprompt_nbest_test808_t04_summary.json`
+- Multi-prompt candidates alone:
+  - rows: `808`
+  - average unique n-best: `3.9295`
+  - samples with more than one unique candidate: `634`
+  - samples hitting max n-best 12: `41`
+  - top1 mean/corpus CER: `0.11230 / 0.10776`
+  - oracle mean/corpus CER: `0.03842 / 0.03917`
+  - top1 hotword recall: `0.4672`
+  - oracle hotword recall: `0.9364`
+- Full-normalization oracle comparison:
+
+| Candidate Pool | Avg Unique | Oracle Mean CER | Oracle Corpus CER | Reference In Candidates |
+| --- | ---: | ---: | ---: | ---: |
+| CB-Whisper evidence n-best only | 6.0965 | 0.03293 | 0.03344 | 576 / 808 |
+| multi-prompt Whisper only | 3.9245 | 0.03842 | 0.03917 | 540 / 808 |
+| CB-Whisper + multi-prompt union | 8.0087 | 0.02711 | 0.02725 | 606 / 808 |
+
+- Interpretation: multi-prompt Whisper should not replace CB-Whisper top1 because its top1 quality is bad, but it adds complementary candidates. The union oracle (`0.02711`) is finally in the ChineseHP-like range and slightly below the previously measured ChineseHP test n-best oracle (`0.02818`). The next useful step is a conservative COVO/reranker run over the union candidate pool, with the original CB-Whisper top1 preserved as the default candidate.
