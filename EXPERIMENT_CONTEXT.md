@@ -771,3 +771,17 @@ Complete AISHELL test-set check, 2026-06-17:
   - baseline mean-sample CER / corpus CER: `0.08070 / 0.08044`
   - COVO mean-sample CER / corpus CER: `0.05752 / 0.05589`
 - Interpretation: this is the first true complete-AISHELL result. It meets the "CER below 6%" target under the old mean-sample/full-split口径, but it is not a hotword-recall result; hotword recall should still be reported only on the 808-row hotword subset.
+
+Full AISHELL n-best sanity check, 2026-06-17:
+
+- Added `--num-return-sequences` to `src/analysis/aishell_full_whisper_decode.py`.
+- Updated `src/analysis/cbwhisper_covo_bridge.py` so ordinary full-split Whisper decode JSONL can pass top-level `nbest` into COVO prompts.
+- Ran `openai/whisper-large-v3` with `num_beams=5`, `num_return_sequences=5`, batch size 2 on all `7176` AISHELL test wavs:
+  - output: `src/logs/aishell_full_whisper_large_v3_nbest5_test_full.jsonl`
+  - runtime: about `62` minutes
+  - top1 mean-sample CER: `0.08735`
+  - top1 corpus CER: `0.08730`
+  - average unique normalized n-best size: `1.0000`
+  - samples with more than one unique hypothesis: `0`
+  - n-best oracle mean/corpus CER: same as top1 (`0.08735 / 0.08730`)
+- Interpretation: full-split ordinary HF Whisper beam search does not provide useful diverse n-best candidates; all returned beams collapse after surface normalization. The n-best evidence used in earlier CB-Whisper/COVO work comes from `PBAWhisper` with KWS prompt injection and shortform candidate processing, not from plain full-split Whisper generation. Therefore the previous full-AISHELL COVO run had no n-best because the complete-split path bypassed CB-Whisper's PBA/KWS candidate-generation pipeline.
