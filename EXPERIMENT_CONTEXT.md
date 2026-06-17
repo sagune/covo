@@ -309,7 +309,7 @@ Full AISHELL test result, 2026-06-12:
 - Adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_real_dev600_compact_160steps_bf16`.
 - Prediction file: `src/logs/cbwhisper_covo_predictions_test_full_realdev600_compact_ft160.jsonl`.
 - COVO evaluator CER: `0.05650`.
-- COVO evaluator baseline CER from `input.asr_top1`: `0.10043`.
+- COVO evaluator baseline CER from bridge `input.asr_top1`: `0.10043`. This is the COVO evidence baseline, not the earlier standalone CB-Whisper AISHELL CER table (`~0.0820`).
 - Improved / worsened / unchanged: `296 / 96 / 416`.
 - Entity Recall check: CB-Whisper input `0.9028`, covo output `0.8541`.
 
@@ -668,7 +668,7 @@ CER / oracle ceiling:
 
 | Source | CER | Exact samples |
 | --- | ---: | ---: |
-| CB-Whisper input / COVO baseline | 0.10043 | 368 / 808 |
+| COVO bridge input baseline | 0.10043 | 368 / 808 |
 | n-best oracle only | 0.06178 | 486 / 808 |
 | current COVO best | 0.04354 | 523 / 808 |
 | oracle over current COVO + n-best | 0.03097 | N/A |
@@ -736,3 +736,17 @@ Interpretation:
 - The `n-best repair` objective is less harmful but still pulls the model away from hotword preservation; longer training did not recover the current best.
 - Full-real continuation genuinely trains (`eval_loss` improved from `0.2187` to `0.2163`), but lower loss did not translate to better full-test behavior. It increases rewrite aggressiveness and loses already-present hotwords.
 - Current conclusion: do not keep pushing generic SFT volume. The main adapter remains `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`. Further model-capability work needs a target that rewards preserving true hotword spans while correcting surrounding text, not plain reference SFT on noisy KWS prompts.
+
+Legacy CER recalculation, 2026-06-17:
+
+- Reason: the `0.10043` COVO baseline CER was computed with `covo/scripts/evaluate_correction_jsonl.py` as corpus edit distance over normalized text. Earlier CB-Whisper `test_metrics.csv` CER uses a different structure: per-sample CER after `cb_whisper.py` surface normalization, then averaging over samples.
+- Recalculated with the current `cb_whisper.py` normalization logic:
+
+| Variant | Legacy mean-sample CER | Normalized corpus CER |
+| --- | ---: | ---: |
+| COVO bridge input baseline | 0.06600 | 0.06750 |
+| current best no-op adapter | 0.04297 | 0.04149 |
+| hotword-only DPO 30 steps | 0.04417 | 0.04234 |
+| full-real+noop final-500 | 0.04943 | 0.04583 |
+
+- Interpretation: the current best remains best under the old CB-Whisper-style mean CER. The earlier `0.10043` number should be described only as the COVO correction-evaluator baseline, not as the standalone CB-Whisper CER.
