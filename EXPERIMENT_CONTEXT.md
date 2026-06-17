@@ -785,3 +785,16 @@ Full AISHELL n-best sanity check, 2026-06-17:
   - samples with more than one unique hypothesis: `0`
   - n-best oracle mean/corpus CER: same as top1 (`0.08735 / 0.08730`)
 - Interpretation: full-split ordinary HF Whisper beam search does not provide useful diverse n-best candidates; all returned beams collapse after surface normalization. The n-best evidence used in earlier CB-Whisper/COVO work comes from `PBAWhisper` with KWS prompt injection and shortform candidate processing, not from plain full-split Whisper generation. Therefore the previous full-AISHELL COVO run had no n-best because the complete-split path bypassed CB-Whisper's PBA/KWS candidate-generation pipeline.
+
+Sampled diverse full-AISHELL n-best check, 2026-06-17:
+
+- Added sampled n-best support to `src/analysis/aishell_full_whisper_decode.py`, keeping greedy top1 and adding de-duplicated sampled candidates.
+- Ran `openai/whisper-large-v3` on all `7176` AISHELL test wavs with greedy top1 plus temperature `0.8` sampling:
+  - output: `src/logs/aishell_full_whisper_large_v3_sample_t08_nbest5_test_full.jsonl`
+  - samples: `7176`
+  - average unique n-best size: `2.6506`
+  - samples with more than one unique candidate: `4332`
+  - samples with five unique candidates: `1943`
+  - top1 mean-sample CER / corpus CER: `0.09050 / 0.09012`
+  - n-best oracle mean-sample CER / corpus CER: `0.06471 / 0.06558`
+- Interpretation: sampling solves the candidate-diversity problem partly, unlike deterministic beam search. But the oracle ceiling is still not strong enough to beat the best complete-AISHELL COVO result (`0.05752` old mean-sample CER, or `0.06137` under the COVO evaluator). The next step, if pursued, should be a conservative COVO rerun with this sampled n-best evidence, not treating sampled n-best selection as a standalone solution.
