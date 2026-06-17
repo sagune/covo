@@ -206,6 +206,8 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
             asr_top1 = str(record.get("asr_top1", "")).strip()
             if asr_top1:
                 input_block["asr_top1"] = asr_top1
+        if not input_block.get("nbest") and record.get("nbest"):
+            input_block["nbest"] = list(record.get("nbest", []) or [])
         if not input_block.get("nbest") and input_block.get("asr_top1"):
             input_block["nbest"] = [str(input_block.get("asr_top1", "")).strip()]
         input_block["covo_hotwords"] = build_context_hotwords(input_block, args)

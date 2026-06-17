@@ -2,7 +2,8 @@
 """Decode the complete AISHELL split with Whisper and compute CER.
 
 Unlike the CB-Whisper dataloader, this script iterates over every wav file in
-``data_aishell/wav/<split>`` instead of the hotword subset.
+``data_aishell/wav/<split>`` instead of the hotword subset. It can also export
+beam n-best hypotheses for downstream COVO correction experiments.
 """
 
 from __future__ import annotations
@@ -203,6 +204,7 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--num-beams", type=int, default=1)
+    parser.add_argument("--num-return-sequences", type=int, default=1)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
@@ -218,6 +220,8 @@ def main() -> int:
         dataset.items = [item for item in dataset.items if item["id"] not in done]
     if int(args.limit) > 0:
         dataset.items = dataset.items[: int(args.limit)]
+    num_return_sequences = max(1, int(args.num_return_sequences))
+    num_beams = max(int(args.num_beams), num_return_sequences)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_float32_matmul_precision("high")
@@ -251,11 +255,25 @@ def main() -> int:
                 language="zh",
                 task="transcribe",
                 return_timestamps=False,
-                num_beams=int(args.num_beams),
+                num_beams=num_beams,
+                num_return_sequences=num_return_sequences,
                 do_sample=False,
             )
             preds = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
-            for utt_id, audio_path, ref, pred in zip(batch["id"], batch["audio_path"], batch["reference"], preds):
+            grouped_preds = [
+                preds[idx : idx + num_return_sequences]
+                for idx in range(0, len(preds), num_return_sequences)
+            ]
+            for utt_id, audio_path, ref, nbest_raw in zip(batch["id"], batch["audio_path"], batch["reference"], grouped_preds):
+                nbest = []
+                seen = set()
+                for hyp in nbest_raw:
+                    text = str(hyp).strip()
+                    key = normalize_surface(text)
+                    if text and key not in seen:
+                        nbest.append(text)
+                        seen.add(key)
+                pred = nbest[0] if nbest else ""
                 norm_ref = normalize_surface(ref)
                 norm_pred = normalize_surface(pred)
                 dist = edit_distance(norm_ref, norm_pred)
@@ -265,12 +283,15 @@ def main() -> int:
                     "audio_path": audio_path,
                     "reference": ref,
                     "asr_top1": str(pred).strip(),
+                    "nbest": nbest,
                     "norm_reference": norm_ref,
                     "norm_asr_top1": norm_pred,
                     "edit_distance": dist,
                     "ref_len": len(norm_ref),
                     "sample_cer": dist / ref_len,
                     "whisper_ckpt": args.whisper_ckpt,
+                    "num_beams": num_beams,
+                    "num_return_sequences": num_return_sequences,
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
                 rows += 1
