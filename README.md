@@ -339,6 +339,8 @@ Integrated AISHELL v3 10-best run on 2026-06-26: `src/configs/cb-whisper-aishell
 
 Targeted n-best supplement on 2026-06-26: `src/analysis/targeted_supplement_covo_nbest.py` was added to supplement only rows with fewer than 10 unique candidates. Merging cleaned CB-Whisper 10-best evidence with existing multi-prompt and full-AISHELL sampled candidates reached average unique n-best `9.2649`; one targeted supplement pass over 195 low-diversity rows reached `9.6720`; a second higher-temperature pass over the remaining 86 rows reached `10.0000`. A stronger cleaned version removed 73 long-suffix artifacts and still reached average unique n-best `9.9097`, rows with 10 candidates `789/808`, and oracle corpus CER `0.02864`. This confirms that the ChineseHP-like `9.8+` candidate-diversity target is reachable, though the clean and unclean supplemented pools should both be compared before downstream COVO use.
 
+Cleanliness-first candidate pool on 2026-06-26: the quality filter was tightened so severe pollution is removed before length statistics are computed, including video/platform tails, Unicode replacement characters, long Latin tails, and repeated-heavy strings. The final preferred clean file is `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`: average unique n-best `9.9332`, rows with 10 candidates `779/808`, exact reference in n-best `616/808`, oracle corpus CER `0.03019`, and oracle hotword recall `0.9459`. A strict audit found `0` bad phrase tails, `0` long Latin tails, `0` replacement-character candidates, `0` repeated-heavy candidates, and `0` extreme length outliers.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

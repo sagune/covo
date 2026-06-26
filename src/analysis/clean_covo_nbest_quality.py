@@ -75,25 +75,54 @@ def clean_nbest(
     max_ratio: float,
     length_slack: int,
     anchor_suffix_filter: bool = False,
+    drop_polluted_top1: bool = True,
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
     unique = unique_texts(candidates)
     if len(unique) <= 1:
         return [item[0] for item in unique[:max_nbest]], []
 
-    lengths = sorted(len(key) for _, key in unique)
+    pollution_markers = (
+        "请不吝点赞", "订阅", "转发", "打赏", "明镜", "点点栏目",
+        "优优独播", "YoYo", "Television", "Exclusive", "Series",
+    )
+
+    def severe_reason(raw: str, key: str) -> str:
+        if any(marker in raw for marker in pollution_markers):
+            return "bad_phrase"
+        if "�" in raw:
+            return "replacement_char"
+        latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
+        if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.20:
+            return "latin_tail"
+        if repetition_ratio(raw) > 0.45 and len(key) >= 8:
+            return "repeat_heavy"
+        return ""
+
+    dropped: List[Dict[str, Any]] = []
+    severe_clean: List[Tuple[str, str, int]] = []
+    for rank, (raw, key) in enumerate(unique, start=1):
+        reason = severe_reason(raw, key)
+        if reason and (rank > 1 or drop_polluted_top1):
+            dropped.append({"rank": rank, "text": raw, "reason": reason, "norm_len": len(key)})
+            continue
+        severe_clean.append((raw, key, rank))
+    if len(severe_clean) == 0:
+        raw, key = unique[0]
+        severe_clean = [(raw, key, 1)]
+
+    lengths = sorted(len(key) for _, key, _ in severe_clean)
     median_len = lengths[len(lengths) // 2]
     min_len = max(2, int(median_len * min_ratio))
     max_len = max(int(median_len * max_ratio), median_len + max(0, length_slack))
-    shortest_key = min((key for _, key in unique if key), key=len, default="")
+    shortest_key = min((key for _, key, _ in severe_clean if key), key=len, default="")
     use_short_anchor = (
         bool(anchor_suffix_filter)
         and len(shortest_key) >= 8
         and len(shortest_key) >= int(max(1, median_len) * 0.55)
     )
-    kept = [unique[0][0]]
-    dropped: List[Dict[str, Any]] = []
 
-    for rank, (raw, key) in enumerate(unique[1:], start=2):
+    kept = []
+    for raw, key, rank in severe_clean:
         reason = ""
         key_len = len(key)
         if key_len < min_len:
@@ -120,6 +149,8 @@ def clean_nbest(
         kept.append(raw)
         if len(kept) >= max_nbest:
             break
+    if len(kept) == 0:
+        kept = [unique[0][0]]
 
     return kept, dropped
 
@@ -202,6 +233,7 @@ def main() -> int:
     parser.add_argument("--max-ratio", type=float, default=1.35)
     parser.add_argument("--length-slack", type=int, default=8)
     parser.add_argument("--anchor-suffix-filter", action="store_true")
+    parser.add_argument("--keep-polluted-top1", action="store_true")
     args = parser.parse_args()
 
     rows = list(read_jsonl(Path(args.input)))
@@ -216,6 +248,7 @@ def main() -> int:
             max_ratio=float(args.max_ratio),
             length_slack=int(args.length_slack),
             anchor_suffix_filter=bool(args.anchor_suffix_filter),
+            drop_polluted_top1=not bool(args.keep_polluted_top1),
         )
         input_block["nbest"] = cleaned
         input_block["nbest_quality_filter"] = {

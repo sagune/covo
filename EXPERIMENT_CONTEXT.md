@@ -947,3 +947,29 @@ Targeted supplement for near-10-best diversity, 2026-06-26:
   - The target `Avg unique n-best >= 9.8` is achievable.
   - The safest candidate-oracle version is the unclean round-2 supplement (`10.0` avg, oracle `0.02787`), but it may contain some high-temperature tail artifacts.
   - The cleaner/reportable candidate-quality version is `round2_clean` (`9.9097` avg, oracle `0.02864`), but its stronger anchor-suffix rule can remove a few useful completions, so it should be compared against the unclean version before downstream COVO use.
+
+Cleanliness-first 9.8+ candidate pool, 2026-06-26:
+
+- User requirement: prioritize candidate cleanliness; do not reach `9.8+` by padding with high-temperature garbage.
+- Updated the COVO n-best quality filter:
+  - severe pollution is removed before length statistics are computed
+  - severe pollution includes video/platform tails (`请不吝点赞`, `订阅`, `转发`, `打赏`, `明镜`, `点点栏目`, `优优独播`, `YoYo`, `Television`, `Exclusive`, `Series`), Unicode replacement character `�`, long Latin tails, and repeated-heavy strings
+  - polluted top1 can be removed from `input.nbest` while the original `input.asr_top1` remains available separately
+  - aggressive anchor-suffix filtering is optional and stays disabled by default in CB-Whisper because it can remove useful full-sentence completions
+- Final cleanliness-first file:
+  - output: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`
+  - summary: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5_summary.json`
+- Final metrics:
+  - average unique n-best: `9.9332`
+  - rows with 10 candidates: `779 / 808`
+  - exact reference in n-best: `616 / 808`
+  - oracle corpus CER: `0.03019`
+  - oracle hotword recall: `0.9459`
+  - dropped candidates: `54` (`replacement_char=16`, `bad_phrase=20`, `too_short=8`, `too_long=9`, `repeat_heavy=1`)
+- Final audit:
+  - bad phrase tails: `0`
+  - long Latin tails: `0`
+  - Unicode replacement chars: `0`
+  - repeated-heavy candidates: `0`
+  - extreme length outliers under the strict audit: `0`
+- Interpretation: this version satisfies the `9.8+` diversity target while enforcing a clean candidate pool. It is the preferred candidate file for downstream COVO/reranker testing when cleanliness matters more than the absolute best oracle CER.

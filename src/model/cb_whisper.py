@@ -135,6 +135,7 @@ class CBWhisper(pl.LightningModule):
         covo_candidate_max_length_ratio: float = 1.35,
         covo_candidate_length_slack: int = 8,
         covo_candidate_filter_anchor_suffix: bool = False,
+        covo_candidate_drop_polluted_top1: bool = True,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -2425,6 +2426,26 @@ class CBWhisper(pl.LightningModule):
         return texts[:limit]
 
     def _quality_filter_covo_candidate_texts(self, texts: List[str], limit: int) -> List[str]:
+        pollution_markers = (
+            "请不吝点赞", "订阅", "转发", "打赏", "明镜", "点点栏目",
+            "优优独播", "YoYo", "Television", "Exclusive", "Series",
+        )
+
+        def _pollution_reason(raw: str, key: str) -> str:
+            if any(marker in raw for marker in pollution_markers):
+                return "bad_phrase"
+            if "�" in raw:
+                return "replacement_char"
+            latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
+            if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.20:
+                return "latin_tail"
+            chars = list(key)
+            if len(chars) >= 8:
+                counts = Counter(chars)
+                if max(counts.values()) / max(len(chars), 1) > 0.45:
+                    return "repeat_heavy"
+            return ""
+
         unique = []
         seen = set()
         for text in texts:
@@ -2437,14 +2458,24 @@ class CBWhisper(pl.LightningModule):
         if len(unique) <= 1:
             return [item[0] for item in unique[:limit]]
 
-        lengths = sorted(len(key) for _, key in unique if key)
+        drop_polluted_top1 = bool(getattr(self.hparams, "covo_candidate_drop_polluted_top1", True))
+        severe_clean = []
+        for idx, (raw, key) in enumerate(unique):
+            reason = _pollution_reason(raw, key)
+            if reason and (idx > 0 or drop_polluted_top1):
+                continue
+            severe_clean.append((raw, key))
+        if len(severe_clean) == 0:
+            severe_clean = [unique[0]]
+
+        lengths = sorted(len(key) for _, key in severe_clean if key)
         median_len = lengths[len(lengths) // 2] if lengths else len(unique[0][1])
         min_ratio = float(getattr(self.hparams, "covo_candidate_min_length_ratio", 0.65))
         max_ratio = float(getattr(self.hparams, "covo_candidate_max_length_ratio", 1.35))
         slack = max(0, int(getattr(self.hparams, "covo_candidate_length_slack", 8)))
         min_len = max(2, int(median_len * min_ratio))
         max_len = max(int(median_len * max_ratio), median_len + slack)
-        shortest_key = min((key for _, key in unique if key), key=len, default="")
+        shortest_key = min((key for _, key in severe_clean if key), key=len, default="")
         use_short_anchor = (
             bool(getattr(self.hparams, "covo_candidate_filter_anchor_suffix", False))
             and
@@ -2473,13 +2504,15 @@ class CBWhisper(pl.LightningModule):
                 return True
             return False
 
-        kept = [unique[0][0]]
-        for raw, key in unique[1:]:
+        kept = []
+        for raw, key in severe_clean:
             if _is_bad(raw, key):
                 continue
             kept.append(raw)
             if len(kept) >= limit:
                 break
+        if len(kept) == 0:
+            kept = [unique[0][0]]
         return kept
 
     def _json_safe_for_covo(self, value):
