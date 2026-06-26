@@ -831,3 +831,28 @@ AISHELL 808 hotword multi-prompt n-best check, 2026-06-18:
 | CB-Whisper + multi-prompt union | 8.0087 | 0.02711 | 0.02725 | 606 / 808 |
 
 - Interpretation: multi-prompt Whisper should not replace CB-Whisper top1 because its top1 quality is bad, but it adds complementary candidates. The union oracle (`0.02711`) is finally in the ChineseHP-like range and slightly below the previously measured ChineseHP test n-best oracle (`0.02818`). The next useful step is a conservative COVO/reranker run over the union candidate pool, with the original CB-Whisper top1 preserved as the default candidate.
+
+CB-Whisper candidate-quality work, 2026-06-26:
+
+- Goal: make CB-Whisper produce ChineseHP-like useful 10-best candidates, not just a single strong top1 or many normalized duplicates.
+- Added `src/analysis/build_cbwhisper_candidate_pool.py` as an offline diagnostic bridge. It keeps CB-Whisper top1 first, adds CB-Whisper scored candidates and complementary multi-prompt Whisper candidates, removes normalized duplicates, and applies only light quality checks (empty text, extreme length ratio, obvious repetition).
+- Diagnostic input:
+  - CB evidence: `src/logs/cbwhisper_covo_evidence_test_full.jsonl`
+  - multi-prompt candidates: `src/logs/aishell_hotword_multiprompt_nbest_test808_t04.jsonl`
+  - output: `src/logs/cbwhisper_candidate_pool_test808_t04.jsonl`
+  - summary: `src/logs/cbwhisper_candidate_pool_test808_t04_summary.json`
+- Result on the 808 AISHELL hotword subset:
+  - average unique n-best: `7.4022`
+  - samples with at least 5 candidates: `679 / 808`
+  - samples with 10 candidates: `287 / 808`
+  - exact reference in candidate pool: `595 / 808`
+  - top1 mean/corpus CER: `0.06600 / 0.06750`
+  - oracle mean/corpus CER: `0.03003 / 0.03058`
+  - top1 hotword recall: `0.9299`
+  - oracle hotword recall: `0.9448`
+- Comparison with CB evidence alone:
+  - CB-only average unique n-best: `6.0965`
+  - CB-only oracle mean/corpus CER: `0.03293 / 0.03344`
+  - CB-only exact reference in candidates: `576 / 808`
+  - The diagnostic pool improves the oracle and exact-reference count, but still does not consistently reach ChineseHP's near-10 unique candidates.
+- Code change: `CBWhisper` now separates target n-best from generation breadth through `rescore_generation_factor`, `rescore_generation_cap`, and optional `covo_nbest`. AISHELL config is set to target `10` candidates and generate up to `32` candidates before de-duplication. This is intended to improve candidate quality at the generation stage while keeping the existing rerank/selection behavior unchanged.

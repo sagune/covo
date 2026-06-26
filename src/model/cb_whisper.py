@@ -126,6 +126,9 @@ class CBWhisper(pl.LightningModule):
         nested_keyword_promotion_max_extra: int = 2,
         enable_phonetic_rescore: bool = False,
         rescore_nbest: int = 5,
+        rescore_generation_factor: int = 3,
+        rescore_generation_cap: int = 16,
+        covo_nbest: Optional[int] = None,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -2131,7 +2134,9 @@ class CBWhisper(pl.LightningModule):
 
         do_rescore = bool(is_shortform and getattr(self.hparams, "enable_phonetic_rescore", False))
         nbest = max(1, int(getattr(self.hparams, "rescore_nbest", 5)))
-        gen_nbest = min(max(nbest * 3, nbest), 16) if do_rescore else 1
+        generation_factor = max(1, int(getattr(self.hparams, "rescore_generation_factor", 3)))
+        generation_cap = max(nbest, int(getattr(self.hparams, "rescore_generation_cap", 16)))
+        gen_nbest = min(max(nbest * generation_factor, nbest), generation_cap) if do_rescore else 1
         num_beams = max(5, gen_nbest) if do_rescore else 5
         num_return_sequences = gen_nbest if do_rescore else 1
         # generate transcript candidates
@@ -2405,7 +2410,10 @@ class CBWhisper(pl.LightningModule):
         pred = str(pred).strip()
         if pred and pred not in texts:
             texts.insert(0, pred)
-        return texts[: max(1, int(getattr(self.hparams, "rescore_nbest", 8)))]
+        covo_nbest = getattr(self.hparams, "covo_nbest", None)
+        if covo_nbest is None:
+            covo_nbest = getattr(self.hparams, "rescore_nbest", 8)
+        return texts[: max(1, int(covo_nbest))]
 
     def _json_safe_for_covo(self, value):
         if isinstance(value, (str, int, float, bool)) or value is None:
