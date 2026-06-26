@@ -856,3 +856,31 @@ CB-Whisper candidate-quality work, 2026-06-26:
   - CB-only exact reference in candidates: `576 / 808`
   - The diagnostic pool improves the oracle and exact-reference count, but still does not consistently reach ChineseHP's near-10 unique candidates.
 - Code change: `CBWhisper` now separates target n-best from generation breadth through `rescore_generation_factor`, `rescore_generation_cap`, and optional `covo_nbest`. AISHELL config is set to target `10` candidates and generate up to `32` candidates before de-duplication. This is intended to improve candidate quality at the generation stage while keeping the existing rerank/selection behavior unchanged.
+
+AISHELL v3 10-best generation run, 2026-06-26:
+
+- Config: `src/configs/cb-whisper-aishell-v3-kws.yaml`
+- Change: set `rescore_nbest=10`, `rescore_generation_factor=3`, `rescore_generation_cap=32`, `covo_nbest=10`.
+- Output files:
+  - metrics: `src/logs/test_metrics_aishell_v3_nbest10_gen32.csv`
+  - evidence: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32.jsonl`
+  - stdout: `src/logs/experiment_aishell_v3_nbest10_gen32_stdout.log`
+- Runtime: about `28m33s` for 808 AISHELL hotword test rows; slower than the earlier 8-best baseline because generation now asks for up to 30 returned sequences before de-duplication.
+- Final CB-Whisper metrics:
+  - Entity Recall: `0.92707`
+  - CER: `0.07102`
+  - Hotword Only CER: `0.04531`
+  - WER: `0.46535`
+- Candidate-pool diagnostics from exported evidence:
+  - average unique n-best: `8.8205`
+  - rows with 10 unique candidates: `524 / 808`
+  - exact reference in n-best: `612 / 808`
+  - top1 corpus CER under candidate diagnostic normalization: `0.07238`
+  - n-best oracle corpus CER: `0.02864`
+  - top1 hotword recall: `0.9363`
+  - oracle hotword recall: `0.9448`
+- Comparison:
+  - Prior CB-only evidence pool: avg unique `6.0965`, oracle corpus CER `0.03344`, exact reference `576 / 808`.
+  - Offline CB + multi-prompt pool: avg unique `7.4022`, oracle corpus CER `0.03058`, exact reference `595 / 808`.
+  - New integrated CB-Whisper 10-best run: avg unique `8.8205`, oracle corpus CER `0.02864`, exact reference `612 / 808`.
+- Interpretation: this is the strongest candidate-quality result so far and moves CB-Whisper close to the ChineseHP-style 10-best regime without using offline multi-prompt union. It improves the candidate oracle substantially, but top1 CER is worse than the previous best CB-Whisper endpoint, so the gain should be used mainly for downstream COVO/reranker input rather than reported as a standalone ASR improvement.

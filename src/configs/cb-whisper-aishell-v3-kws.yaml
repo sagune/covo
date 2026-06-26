@@ -109,7 +109,10 @@ model:
     keyword_perturb_prob: 0.0
 
     enable_phonetic_rescore: true
-    rescore_nbest: 8
+    rescore_nbest: 10
+    rescore_generation_factor: 3
+    rescore_generation_cap: 32
+    covo_nbest: 10
     rescore_use_asr_score: true
     rescore_asr_weight: 1.0
     rescore_keyword_weight: 1.8

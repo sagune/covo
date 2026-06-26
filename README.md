@@ -333,6 +333,8 @@ Targeted and longer COVO capability probes on 2026-06-16: `src/analysis/build_co
 
 CB-Whisper candidate-quality update on 2026-06-26: `src/analysis/build_cbwhisper_candidate_pool.py` was added to diagnose ChineseHP-like 10-best candidate construction. On the 808-row AISHELL hotword subset, merging CB-Whisper evidence candidates with complementary multi-prompt candidates produced average unique n-best `7.4022`, `287/808` samples with 10 candidates, exact reference in pool `595/808`, and oracle mean/corpus CER `0.03003 / 0.03058`. CB-only evidence was average unique `6.0965` with oracle mean/corpus CER `0.03293 / 0.03344`, so the complementary candidates help but still do not fully reproduce ChineseHP's near-10 unique n-best. `CBWhisper` now exposes `rescore_generation_factor`, `rescore_generation_cap`, and `covo_nbest`; the AISHELL config targets 10 retained candidates and up to 32 generated candidates before de-duplication.
 
+Integrated AISHELL v3 10-best run on 2026-06-26: `src/configs/cb-whisper-aishell-v3-kws.yaml` was updated to `rescore_nbest=10`, `rescore_generation_cap=32`, and `covo_nbest=10`, then rerun on the 808-row AISHELL hotword test set. The exported evidence reached average unique n-best `8.8205`, `524/808` rows with 10 unique candidates, exact reference in n-best `612/808`, and n-best oracle corpus CER `0.02864`. Standalone CB-Whisper top1 metrics were Entity Recall `0.92707`, CER `0.07102`, Hotword Only CER `0.04531`, and WER `0.46535`; therefore this route is best treated as a candidate-quality improvement for downstream COVO/reranker input, not as a standalone top1 CER improvement.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
