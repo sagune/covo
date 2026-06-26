@@ -3,6 +3,7 @@ from typing import List, Union, Optional, Tuple, Dict, Any
 import os
 import json
 import unicodedata
+from collections import Counter
 from datetime import datetime
 import torch
 import torchvision
@@ -129,6 +130,10 @@ class CBWhisper(pl.LightningModule):
         rescore_generation_factor: int = 3,
         rescore_generation_cap: int = 16,
         covo_nbest: Optional[int] = None,
+        enable_covo_candidate_quality_filter: bool = False,
+        covo_candidate_min_length_ratio: float = 0.65,
+        covo_candidate_max_length_ratio: float = 1.35,
+        covo_candidate_length_slack: int = 8,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -2413,7 +2418,54 @@ class CBWhisper(pl.LightningModule):
         covo_nbest = getattr(self.hparams, "covo_nbest", None)
         if covo_nbest is None:
             covo_nbest = getattr(self.hparams, "rescore_nbest", 8)
-        return texts[: max(1, int(covo_nbest))]
+        limit = max(1, int(covo_nbest))
+        if bool(getattr(self.hparams, "enable_covo_candidate_quality_filter", False)):
+            return self._quality_filter_covo_candidate_texts(texts, limit=limit)
+        return texts[:limit]
+
+    def _quality_filter_covo_candidate_texts(self, texts: List[str], limit: int) -> List[str]:
+        unique = []
+        seen = set()
+        for text in texts:
+            raw = str(text or "").strip()
+            key = self._normalize_surface_text(raw)
+            if raw == "" or key == "" or key in seen:
+                continue
+            unique.append((raw, key))
+            seen.add(key)
+        if len(unique) <= 1:
+            return [item[0] for item in unique[:limit]]
+
+        lengths = sorted(len(key) for _, key in unique if key)
+        median_len = lengths[len(lengths) // 2] if lengths else len(unique[0][1])
+        min_ratio = float(getattr(self.hparams, "covo_candidate_min_length_ratio", 0.65))
+        max_ratio = float(getattr(self.hparams, "covo_candidate_max_length_ratio", 1.35))
+        slack = max(0, int(getattr(self.hparams, "covo_candidate_length_slack", 8)))
+        min_len = max(2, int(median_len * min_ratio))
+        max_len = max(int(median_len * max_ratio), median_len + slack)
+
+        def _is_bad(raw: str, key: str) -> bool:
+            key_len = len(key)
+            if key_len < min_len or key_len > max_len:
+                return True
+            chars = list(key)
+            if len(chars) >= 8:
+                counts = Counter(chars)
+                if max(counts.values()) / max(len(chars), 1) > 0.45:
+                    return True
+            latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
+            if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.25:
+                return True
+            return False
+
+        kept = [unique[0][0]]
+        for raw, key in unique[1:]:
+            if _is_bad(raw, key):
+                continue
+            kept.append(raw)
+            if len(kept) >= limit:
+                break
+        return kept
 
     def _json_safe_for_covo(self, value):
         if isinstance(value, (str, int, float, bool)) or value is None:

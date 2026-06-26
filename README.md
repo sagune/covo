@@ -335,6 +335,8 @@ CB-Whisper candidate-quality update on 2026-06-26: `src/analysis/build_cbwhisper
 
 Integrated AISHELL v3 10-best run on 2026-06-26: `src/configs/cb-whisper-aishell-v3-kws.yaml` was updated to `rescore_nbest=10`, `rescore_generation_cap=32`, and `covo_nbest=10`, then rerun on the 808-row AISHELL hotword test set. The exported evidence reached average unique n-best `8.8205`, `524/808` rows with 10 unique candidates, exact reference in n-best `612/808`, and n-best oracle corpus CER `0.02864`. Standalone CB-Whisper top1 metrics were Entity Recall `0.92707`, CER `0.07102`, Hotword Only CER `0.04531`, and WER `0.46535`; therefore this route is best treated as a candidate-quality improvement for downstream COVO/reranker input, not as a standalone top1 CER improvement.
 
+10-best cleanup on 2026-06-26: `CBWhisper` now has a conservative `enable_covo_candidate_quality_filter` for exported COVO/evidence n-best candidates, and `src/analysis/clean_covo_nbest_quality.py` can clean existing evidence files. On `cbwhisper_covo_evidence_aishell_v3_nbest10_gen32.jsonl`, the filter removed `28` obvious outliers (`too_long=13`, `too_short=12`, `repeat_heavy=1`, `latin_tail=2`) while preserving exact-reference coverage `612/808`, oracle corpus CER `0.02864`, and oracle hotword recall `0.9448`. The cleaned file is `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

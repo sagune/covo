@@ -884,3 +884,27 @@ AISHELL v3 10-best generation run, 2026-06-26:
   - Offline CB + multi-prompt pool: avg unique `7.4022`, oracle corpus CER `0.03058`, exact reference `595 / 808`.
   - New integrated CB-Whisper 10-best run: avg unique `8.8205`, oracle corpus CER `0.02864`, exact reference `612 / 808`.
 - Interpretation: this is the strongest candidate-quality result so far and moves CB-Whisper close to the ChineseHP-style 10-best regime without using offline multi-prompt union. It improves the candidate oracle substantially, but top1 CER is worse than the previous best CB-Whisper endpoint, so the gain should be used mainly for downstream COVO/reranker input rather than reported as a standalone ASR improvement.
+
+10-best candidate quality cleanup, 2026-06-26:
+
+- Motivation: manual/automatic inspection found a small number of meaningless n-best candidates in the new 10-best pool, mostly truncation, long hallucinated tails, repeated tokens, or English video-site tails such as `YoYo Television Series Exclusive`.
+- Added a conservative COVO/evidence candidate quality filter in `CBWhisper`:
+  - enabled by `enable_covo_candidate_quality_filter`
+  - keeps the final CB-Whisper top1
+  - de-duplicates by normalized surface text
+  - filters only extreme length outliers, repeated-heavy strings, and long Latin tails
+  - does not filter by top1-prefix/suffix because top1 itself can be truncated (`美商务部` case), and that rule hurt useful candidates.
+- Added `src/analysis/clean_covo_nbest_quality.py` to clean already-exported evidence files with the same conservative policy.
+- Cleaned the 10-best evidence:
+  - input: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32.jsonl`
+  - output: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`
+  - summary: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean_summary.json`
+- Cleanup result:
+  - dropped candidates: `28`
+  - drop reasons: `too_long=13`, `too_short=12`, `repeat_heavy=1`, `latin_tail=2`
+  - average unique n-best: `8.7859` (from `8.8205`)
+  - rows with 10 unique candidates: `510 / 808` (from `524 / 808`)
+  - exact reference in n-best: unchanged at `612 / 808`
+  - oracle corpus CER: unchanged at `0.02864`
+  - oracle hotword recall: unchanged at `0.9448`
+- Interpretation: the conservative filter removes obvious garbage without reducing the candidate oracle. This is safer than aggressive prefix/suffix filtering, which mistakenly removed useful completions and worsened oracle CER.

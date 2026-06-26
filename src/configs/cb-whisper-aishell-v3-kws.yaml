@@ -113,6 +113,10 @@ model:
     rescore_generation_factor: 3
     rescore_generation_cap: 32
     covo_nbest: 10
+    enable_covo_candidate_quality_filter: true
+    covo_candidate_min_length_ratio: 0.65
+    covo_candidate_max_length_ratio: 1.35
+    covo_candidate_length_slack: 8
     rescore_use_asr_score: true
     rescore_asr_weight: 1.0
     rescore_keyword_weight: 1.8
