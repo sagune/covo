@@ -973,3 +973,26 @@ Cleanliness-first 9.8+ candidate pool, 2026-06-26:
   - repeated-heavy candidates: `0`
   - extreme length outliers under the strict audit: `0`
 - Interpretation: this version satisfies the `9.8+` diversity target while enforcing a clean candidate pool. It is the preferred candidate file for downstream COVO/reranker testing when cleanliness matters more than the absolute best oracle CER.
+
+COVO on cleanliness-first 9.8+ n-best, 2026-06-26:
+
+- Input evidence: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`
+- Messages: `src/logs/cbwhisper_covo_messages_nbest10_clean_strict_slack5.jsonl`
+- Predictions: `src/logs/cbwhisper_covo_predictions_nbest10_clean_strict_slack5_best_noop.jsonl`
+- Adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+- Bridge settings: `max_nbest=10`, `include_pinyin`, prompt hotwords only, batch size `7`, disable thinking.
+- COVO evaluator:
+  - baseline CER: `0.10446`
+  - prediction CER: `0.04594`
+  - improved / worsened / unchanged: `310 / 48 / 450`
+- Legacy CB-Whisper-style normalization:
+  - baseline mean/corpus CER: `0.07102 / 0.07238`
+  - prediction mean/corpus CER: `0.04564 / 0.04327`
+- Audit:
+  - n-best oracle CER under COVO evaluator: `0.05014`
+  - prediction-or-nbest oracle CER: `0.02895`
+  - exact matches: base `369`, prediction `513`, n-best oracle `519`
+  - hotword recall: base `0.9151`, prediction `0.8907`, n-best oracle `0.9172`
+  - base-hit hotwords lost by COVO: `55`
+  - hotwords gained by COVO: `32`
+- Interpretation: the clean 9.8+ candidate pool improves candidate diversity, but the existing no-op COVO adapter does not exploit it well enough. It is slightly worse than the current best no-op result (`0.04354` COVO evaluator CER, legacy mean around `0.04297`) and loses too many hotwords. Do not promote this COVO output. The next step should be either COVO prompt/training adaptation for 10-best evidence or a learned/rule-light selector before COVO, not just more candidates.

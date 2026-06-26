@@ -341,6 +341,8 @@ Targeted n-best supplement on 2026-06-26: `src/analysis/targeted_supplement_covo
 
 Cleanliness-first candidate pool on 2026-06-26: the quality filter was tightened so severe pollution is removed before length statistics are computed, including video/platform tails, Unicode replacement characters, long Latin tails, and repeated-heavy strings. The final preferred clean file is `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`: average unique n-best `9.9332`, rows with 10 candidates `779/808`, exact reference in n-best `616/808`, oracle corpus CER `0.03019`, and oracle hotword recall `0.9459`. A strict audit found `0` bad phrase tails, `0` long Latin tails, `0` replacement-character candidates, `0` repeated-heavy candidates, and `0` extreme length outliers.
 
+COVO check on the cleanliness-first 9.8+ pool on 2026-06-26: using the current best no-gate adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` with `max_nbest=10` produced COVO evaluator CER `0.04594` versus baseline `0.10446`, with `310` improved, `48` worsened, and `450` unchanged samples. Under the legacy CB-Whisper-style normalization, prediction mean/corpus CER was `0.04564 / 0.04327`. Hotword recall fell from base `0.9151` to prediction `0.8907`. This is slightly worse than the current best no-op COVO result (`0.04354` evaluator CER), so it is not promoted; the existing COVO adapter does not yet exploit the richer clean 10-best evidence well enough.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
