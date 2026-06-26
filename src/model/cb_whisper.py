@@ -134,6 +134,7 @@ class CBWhisper(pl.LightningModule):
         covo_candidate_min_length_ratio: float = 0.65,
         covo_candidate_max_length_ratio: float = 1.35,
         covo_candidate_length_slack: int = 8,
+        covo_candidate_filter_anchor_suffix: bool = False,
         rescore_use_asr_score: bool = True,
         rescore_asr_weight: float = 1.0,
         rescore_keyword_weight: float = 2.0,
@@ -2443,10 +2444,24 @@ class CBWhisper(pl.LightningModule):
         slack = max(0, int(getattr(self.hparams, "covo_candidate_length_slack", 8)))
         min_len = max(2, int(median_len * min_ratio))
         max_len = max(int(median_len * max_ratio), median_len + slack)
+        shortest_key = min((key for _, key in unique if key), key=len, default="")
+        use_short_anchor = (
+            bool(getattr(self.hparams, "covo_candidate_filter_anchor_suffix", False))
+            and
+            len(shortest_key) >= 8
+            and len(shortest_key) >= int(max(1, median_len) * 0.55)
+        )
 
         def _is_bad(raw: str, key: str) -> bool:
             key_len = len(key)
             if key_len < min_len or key_len > max_len:
+                return True
+            if (
+                use_short_anchor
+                and key != shortest_key
+                and key.startswith(shortest_key)
+                and key_len - len(shortest_key) >= max(5, slack // 2)
+            ):
                 return True
             chars = list(key)
             if len(chars) >= 8:

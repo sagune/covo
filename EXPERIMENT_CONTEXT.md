@@ -908,3 +908,42 @@ AISHELL v3 10-best generation run, 2026-06-26:
   - oracle corpus CER: unchanged at `0.02864`
   - oracle hotword recall: unchanged at `0.9448`
 - Interpretation: the conservative filter removes obvious garbage without reducing the candidate oracle. This is safer than aggressive prefix/suffix filtering, which mistakenly removed useful completions and worsened oracle CER.
+
+Targeted supplement for near-10-best diversity, 2026-06-26:
+
+- Goal: push AISHELL hotword evidence from average unique n-best `8.8-9.0` toward ChineseHP-like `9.8+` while keeping candidates meaningful.
+- Added `src/analysis/targeted_supplement_covo_nbest.py`.
+- Procedure:
+  1. Start from the cleaned integrated 10-best evidence.
+  2. Merge existing multi-prompt candidates and full-AISHELL sampled Whisper candidates.
+  3. For rows still below 10 unique candidates, run targeted supplementary Whisper sampling only on those low-diversity rows.
+  4. Stop per row once 10 normalized unique candidates are obtained.
+- Cheap file-only merge:
+  - output: `src/logs/cbwhisper_candidate_pool_v3_nbest10_clean_plus_mp_fullsample.jsonl`
+  - average unique n-best: `9.2649`
+  - rows with 10 candidates: `613 / 808`
+  - oracle corpus CER: `0.02787`
+- Targeted supplement round 1:
+  - output: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement.jsonl`
+  - processed low-diversity rows: `195`
+  - average unique n-best: `9.6720`
+  - rows with 10 candidates: `722 / 808`
+  - oracle corpus CER: `0.02787`
+- Targeted supplement round 2:
+  - output: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2.jsonl`
+  - processed remaining low-diversity rows: `86`
+  - average unique n-best: `10.0000`
+  - rows with 10 candidates: `808 / 808`
+  - oracle corpus CER: `0.02787`
+- Strong-cleaned round 2:
+  - output: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean.jsonl`
+  - average unique n-best: `9.9097`
+  - rows with 10 candidates: `789 / 808`
+  - dropped candidates: `73`
+  - exact reference in n-best: `617 / 808`
+  - oracle corpus CER: `0.02864`
+  - oracle hotword recall: `0.9459`
+- Interpretation:
+  - The target `Avg unique n-best >= 9.8` is achievable.
+  - The safest candidate-oracle version is the unclean round-2 supplement (`10.0` avg, oracle `0.02787`), but it may contain some high-temperature tail artifacts.
+  - The cleaner/reportable candidate-quality version is `round2_clean` (`9.9097` avg, oracle `0.02864`), but its stronger anchor-suffix rule can remove a few useful completions, so it should be compared against the unclean version before downstream COVO use.

@@ -74,6 +74,7 @@ def clean_nbest(
     min_ratio: float,
     max_ratio: float,
     length_slack: int,
+    anchor_suffix_filter: bool = False,
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
     unique = unique_texts(candidates)
     if len(unique) <= 1:
@@ -83,6 +84,12 @@ def clean_nbest(
     median_len = lengths[len(lengths) // 2]
     min_len = max(2, int(median_len * min_ratio))
     max_len = max(int(median_len * max_ratio), median_len + max(0, length_slack))
+    shortest_key = min((key for _, key in unique if key), key=len, default="")
+    use_short_anchor = (
+        bool(anchor_suffix_filter)
+        and len(shortest_key) >= 8
+        and len(shortest_key) >= int(max(1, median_len) * 0.55)
+    )
     kept = [unique[0][0]]
     dropped: List[Dict[str, Any]] = []
 
@@ -93,6 +100,13 @@ def clean_nbest(
             reason = "too_short"
         elif key_len > max_len:
             reason = "too_long"
+        elif (
+            use_short_anchor
+            and key != shortest_key
+            and key.startswith(shortest_key)
+            and key_len - len(shortest_key) >= max(5, length_slack // 2)
+        ):
+            reason = "short_anchor_long_suffix"
         elif repetition_ratio(raw) > 0.45 and key_len >= 8:
             reason = "repeat_heavy"
         else:
@@ -187,6 +201,7 @@ def main() -> int:
     parser.add_argument("--min-ratio", type=float, default=0.65)
     parser.add_argument("--max-ratio", type=float, default=1.35)
     parser.add_argument("--length-slack", type=int, default=8)
+    parser.add_argument("--anchor-suffix-filter", action="store_true")
     args = parser.parse_args()
 
     rows = list(read_jsonl(Path(args.input)))
@@ -200,6 +215,7 @@ def main() -> int:
             min_ratio=float(args.min_ratio),
             max_ratio=float(args.max_ratio),
             length_slack=int(args.length_slack),
+            anchor_suffix_filter=bool(args.anchor_suffix_filter),
         )
         input_block["nbest"] = cleaned
         input_block["nbest_quality_filter"] = {

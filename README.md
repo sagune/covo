@@ -337,6 +337,8 @@ Integrated AISHELL v3 10-best run on 2026-06-26: `src/configs/cb-whisper-aishell
 
 10-best cleanup on 2026-06-26: `CBWhisper` now has a conservative `enable_covo_candidate_quality_filter` for exported COVO/evidence n-best candidates, and `src/analysis/clean_covo_nbest_quality.py` can clean existing evidence files. On `cbwhisper_covo_evidence_aishell_v3_nbest10_gen32.jsonl`, the filter removed `28` obvious outliers (`too_long=13`, `too_short=12`, `repeat_heavy=1`, `latin_tail=2`) while preserving exact-reference coverage `612/808`, oracle corpus CER `0.02864`, and oracle hotword recall `0.9448`. The cleaned file is `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`.
 
+Targeted n-best supplement on 2026-06-26: `src/analysis/targeted_supplement_covo_nbest.py` was added to supplement only rows with fewer than 10 unique candidates. Merging cleaned CB-Whisper 10-best evidence with existing multi-prompt and full-AISHELL sampled candidates reached average unique n-best `9.2649`; one targeted supplement pass over 195 low-diversity rows reached `9.6720`; a second higher-temperature pass over the remaining 86 rows reached `10.0000`. A stronger cleaned version removed 73 long-suffix artifacts and still reached average unique n-best `9.9097`, rows with 10 candidates `789/808`, and oracle corpus CER `0.02864`. This confirms that the ChineseHP-like `9.8+` candidate-diversity target is reachable, though the clean and unclean supplemented pools should both be compared before downstream COVO use.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
