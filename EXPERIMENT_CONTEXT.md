@@ -1095,3 +1095,37 @@ Supported-hotword protection prompt probe, 2026-06-27:
   - false-hotword wrong rows: `19 -> 19`.
   - changed predictions: `32`; it fixed `杨幼萍` in one sample but introduced another trusted-hotword miss (`蚌飞市 -> 蚌淅市`) and several unrelated regressions.
 - Interpretation: prompt-only hard preservation is not enough. The model sees the hotwords, but an instruction saying "do not change them" does not reliably override its learned preference for common homophones/variants. The next useful direction is not stronger prompt wording; it should be training-side hard negatives or preference data where the chosen answer preserves supported hotwords and the rejected answer uses common homophones or supplemental-candidate artifacts.
+
+Supported-hotword protection training probes, 2026-06-27:
+
+- Data:
+  - Rebuilt compact train/dev prompts with `--protect-supported-hotwords`.
+  - train: `covo/data/processed/chinesehp_aishell1/train_full_reliability_nbest6_compact_protect.qwen.jsonl`, `17301` rows.
+  - dev: `covo/data/processed/chinesehp_aishell1/dev600_reliability_nbest6_compact_protect.qwen.jsonl`, `600` rows.
+- Mixed DPO attempt:
+  - pair file: `train_reliability_nbest6_compact_protect_mixed_dpo_pairs.jsonl`, `5431` pairs.
+  - pair mix: `2231` hotword-preserve, `1600` CER-candidate, `1600` noop-conservative.
+  - start adapter: `qwen35_cbwhisper_reliability_nbest6_compact_80steps_bf16`.
+  - output adapter: `outputs/qwen35_cbwhisper_protect_mixed_dpo_60steps_bf16`.
+  - DPO settings: `60` steps, lr `2e-6`, beta `0.03`, SFT weight `0.2`, bf16.
+  - Full 808 result: CER `0.05378`, improved/worsened/unchanged `242 / 11 / 555`.
+  - Interpretation: bad. DPO made the model too conservative, preserving more hotwords but failing to correct many ordinary ASR errors. Do not promote this adapter.
+- Protected-prompt SFT attempt:
+  - start adapter: `qwen35_cbwhisper_reliability_nbest6_compact_80steps_bf16`.
+  - output adapter: `outputs/qwen35_cbwhisper_protect_sft40_from_ft80_bf16`.
+  - settings: `40` steps, lr `1e-6`, constant scheduler, bf16, batch `2`, grad accumulation `10`, max length `1280`.
+  - train loss decreased from about `0.75` to `0.5901`; dev eval loss decreased from `0.6133` at step 20 to `0.5333` at step 40.
+  - full-test messages: `src/logs/cbwhisper_covo_messages_nbest6_protect_sft40_from_ft80_full.jsonl`.
+  - full-test predictions: `src/logs/cbwhisper_covo_predictions_nbest6_protect_sft40_from_ft80_full.jsonl`.
+  - COVO evaluator: base CER `0.10446`, prediction CER `0.04338`, improved/worsened/unchanged `317 / 45 / 446`.
+  - Audit summary: `src/logs/covo_error_audit_nbest6_protect_sft40_from_ft80_full_summary.json`.
+  - Audit CER: prediction `0.04338`, n-best oracle `0.05014`, prediction-or-nbest oracle `0.02833`.
+  - Exact matches: `524`.
+  - Hotword recall: `0.90977`; base-hit hotwords lost by prediction: `41`; false prompt hotwords in prediction: `12`.
+- Comparison under the same audit/evaluator family:
+  - old best no-gate adapter on older evidence: CER `0.04354`, exact `523`, hotword recall `0.90552`.
+  - compact reliability ft80: CER `0.04362`, exact `528`, hotword recall `0.90764`.
+  - compact reliability ft40: CER `0.04362`, exact `526`, hotword recall `0.90870`.
+  - compact prompt-only: CER `0.04408`, exact `522`, hotword recall `0.91083`.
+  - protected-prompt SFT40: CER `0.04338`, exact `524`, hotword recall `0.90977`.
+- Interpretation: this is the current best CER result on the 808 AISHELL hotword test with the rich clean n-best pool, and it also improves hotword recall over the old CER-best result. The gain is small but real. DPO with easy candidate-level pairs is not suitable; if more training is attempted, use SFT or construct harder rejected outputs from the model's own actual COVO mistakes, not just n-best alternatives.
