@@ -1024,3 +1024,53 @@ COVO reliability-label/top6 probe, 2026-06-27:
   - Reliability/top6 improves both CER and hotword preservation relative to that failed 10-best run.
   - It still does not beat the current best no-gate result on the older evidence (`0.04354` evaluator CER, legacy mean around `0.04297`).
 - Interpretation: labels and a smaller trusted candidate set partially repair COVO's use of the rich pool, but prompt-only adaptation is insufficient. The next paper-clean route is to train COVO on reliability-labeled expanded n-best prompts, with hard negatives where supplemental homophones are present but the target preserves the trusted/prompt hotword.
+
+Compact reliability-label COVO training probe, 2026-06-27:
+
+- Motivation: the first reliability-labeled prompt was too long for efficient SFT. A token-length check on 2000 train rows showed p50 around `1512` tokens and p90 around `1758`; `max_length=1024` would truncate most examples.
+- Compact prompt construction:
+  - `max_nbest=6`
+  - `max_pinyin=3`
+  - `max_hotwords=6`
+  - `max_prompt_hotwords=4`
+  - `max_candidates_with_scores=0`
+  - `hotword_source=all`
+  - keep the reliability labels and hotword-preservation annotations in the n-best lines.
+- Compact train/eval files:
+  - train: `covo/data/processed/chinesehp_aishell1/train_full_reliability_nbest6_compact.qwen.jsonl`
+  - eval: `covo/data/processed/chinesehp_aishell1/dev600_reliability_nbest6_compact.qwen.jsonl`
+  - train rows: `17301`
+  - eval rows: `600`
+- Compact prompt-only full-test result with current best adapter:
+  - messages: `src/logs/cbwhisper_covo_messages_nbest6_reliability_compact_full.jsonl`
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_reliability_compact_full.jsonl`
+  - COVO evaluator CER: `0.04408`
+  - improved / worsened / unchanged: `313 / 40 / 455`
+  - legacy mean/corpus CER: `0.04625 / 0.04408`
+  - hotword recall: `0.9108`
+  - interpretation: removing redundant evidence made the prompt easier for the existing adapter to use; this was better than the longer reliability prompt.
+- 80-step compact reliability SFT:
+  - start adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - output adapter: `outputs/qwen35_cbwhisper_reliability_nbest6_compact_80steps_bf16`
+  - settings: `max_length=1280`, lr `2e-6`, constant scheduler, bf16, batch `2`, grad accumulation `10`, max steps `80`.
+  - train loss: `0.7567`; final eval loss: `0.4383`
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_reliability_compact_ft80_full.jsonl`
+  - COVO evaluator CER: `0.04362`
+  - improved / worsened / unchanged: `319 / 45 / 444`
+  - legacy mean/corpus CER: `0.04564 / 0.04362`
+  - hotword recall: `0.9076`
+- 40-step compact reliability SFT:
+  - output adapter: `outputs/qwen35_cbwhisper_reliability_nbest6_compact_40steps_bf16`
+  - final eval loss: `0.6857`
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_reliability_compact_ft40_full.jsonl`
+  - COVO evaluator CER: `0.04362`
+  - improved / worsened / unchanged: `316 / 42 / 450`
+  - legacy mean/corpus CER: `0.04574 / 0.04362`
+  - hotword recall: `0.9087`
+- Comparison:
+  - prior clean-pool `max_nbest=10` COVO: evaluator CER `0.04594`, hotword recall `0.8907`
+  - reliability/top6 long prompt: evaluator CER `0.04494`, hotword recall `0.9034`
+  - compact prompt-only: evaluator CER `0.04408`, hotword recall `0.9108`
+  - compact SFT: evaluator CER `0.04362`, hotword recall `0.9076-0.9087`
+  - old current best no-gate adapter on older evidence: evaluator CER `0.04354`, legacy mean around `0.04297`, hotword recall around `0.9039`
+- Interpretation: retraining is useful but modest. The compact reliability-labeled route almost matches the old CER-best result while preserving more hotwords and using the richer clean n-best pool, but it is not yet a decisive new main result. The next variant should not simply train longer; 80 steps reduced eval loss and mean CER slightly, but also reduced hotword recall versus 40-step/prompt-only. A better next step is a small preference or SFT mix focused on keeping compact-prompt recall while recovering the last `~0.0001` CER gap.
