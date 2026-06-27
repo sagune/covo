@@ -1129,3 +1129,39 @@ Supported-hotword protection training probes, 2026-06-27:
   - compact prompt-only: CER `0.04408`, exact `522`, hotword recall `0.91083`.
   - protected-prompt SFT40: CER `0.04338`, exact `524`, hotword recall `0.90977`.
 - Interpretation: this is the current best CER result on the 808 AISHELL hotword test with the rich clean n-best pool, and it also improves hotword recall over the old CER-best result. The gain is small but real. DPO with easy candidate-level pairs is not suitable; if more training is attempted, use SFT or construct harder rejected outputs from the model's own actual COVO mistakes, not just n-best alternatives.
+
+Hotword-use-focused SFT on CB-Whisper train evidence, 2026-06-27:
+
+- Motivation: instead of only telling COVO to preserve already-used hotwords, make the model more willing to use hotwords from CB-Whisper/KWS evidence when the reference contains them.
+- Added script: `src/analysis/build_covo_hotword_use_sft.py`.
+  - Starts from protected compact CB-Whisper train prompts.
+  - Keeps the full train set.
+  - Oversamples rows where prompt hotwords appear in the reference but are missing from ASR top-1.
+  - Also includes rows where false prompt hotwords appear in ASR top-1, so the model does not learn to blindly insert every hotword.
+  - Text matching uses OpenCC simplified normalization to avoid treating pure traditional/simplified differences as hotword-missing examples.
+- Data built from `train_full_reliability_nbest6_compact_protect.qwen.jsonl`:
+  - base rows: `17301`
+  - true hotword-use-needed rows after OpenCC normalization: `414`
+  - false-hotword-in-ASR rows: `2834`
+  - repeats: hotword-use rows `5x`, false-hotword rows `1x`
+  - output train file: `covo/data/processed/chinesehp_aishell1/train_full_reliability_nbest6_compact_protect_hotword_use_sft.jsonl`
+  - total written rows: `22205`
+- Training:
+  - start adapter: `outputs/qwen35_cbwhisper_protect_sft40_from_ft80_bf16`
+  - output adapter: `outputs/qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`
+  - settings: `60` steps, lr `7e-7`, constant scheduler, bf16, batch `2`, grad accumulation `10`, max length `1280`.
+  - train loss decreased from about `0.574` to `0.4309`; dev eval loss decreased from `0.4533` at step 30 to `0.3824` at step 60.
+- Full 808 test:
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_hotword_use_sft60_full.jsonl`
+  - audit summary: `src/logs/covo_error_audit_nbest6_hotword_use_sft60_full_summary.json`
+  - COVO evaluator CER: `0.04323`
+  - improved / worsened / unchanged: `317 / 46 / 445`
+  - audit exact matches: `522`
+  - hotword recall: `0.90658`
+  - base-hit hotwords lost by prediction: `43`
+  - false prompt hotwords in prediction: `11`
+- Comparison:
+  - old best: CER `0.04354`, hotword recall `0.90552`, exact `523`
+  - protected SFT40: CER `0.04338`, hotword recall `0.90977`, exact `524`
+  - hotword-use SFT60: CER `0.04323`, hotword recall `0.90658`, exact `522`
+- Interpretation: this is now the lowest CER result, and it still slightly beats the old best on hotword recall, but it trades away some recall compared with protected SFT40. Treat it as the CER-priority main candidate; keep protected SFT40 as the better recall/CER balance candidate.
