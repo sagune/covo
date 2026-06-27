@@ -1165,3 +1165,37 @@ Hotword-use-focused SFT on CB-Whisper train evidence, 2026-06-27:
   - protected SFT40: CER `0.04338`, hotword recall `0.90977`, exact `524`
   - hotword-use SFT60: CER `0.04323`, hotword recall `0.90658`, exact `522`
 - Interpretation: this is now the lowest CER result, and it still slightly beats the old best on hotword recall, but it trades away some recall compared with protected SFT40. Treat it as the CER-priority main candidate; keep protected SFT40 as the better recall/CER balance candidate.
+
+Synthetic hotword-use SFT expansion, 2026-06-27:
+
+- Motivation: test whether the small gain from hotword-use SFT is caused by the model memorizing or underusing the limited CB-Whisper train supervision. If so, expanding the training set with more hotword-use examples should help.
+- Added script: `src/analysis/build_covo_synthetic_hotword_use_sft.py`.
+  - It reads full CB-Whisper train evidence.
+  - It extracts synthetic positive hotwords from ASR top-1/reference diff spans.
+  - It injects those spans as prompt/KWS hotwords and trains the assistant target to output the reference.
+  - OpenCC simplified normalization is used before matching.
+- Data:
+  - synthetic diff-hotword rows: `8897`
+  - combined train file: `covo/data/processed/chinesehp_aishell1/train_full_protect_hotword_use_plus_synthetic.qwen.jsonl`
+  - combined rows: `31102`
+- Training:
+  - start adapter: `outputs/qwen35_cbwhisper_protect_sft40_from_ft80_bf16`
+  - output adapter: `outputs/qwen35_cbwhisper_hotword_use_synth_sft80_bf16`
+  - settings: `80` steps, lr `7e-7`, constant scheduler, bf16, batch `2`, grad accumulation `10`, max length `1280`.
+  - train loss: `0.4831`
+  - final dev eval loss: `0.3470`
+- Full 808 test:
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_hotword_use_synth_sft80_full.jsonl`
+  - audit summary: `src/logs/covo_error_audit_nbest6_hotword_use_synth_sft80_full_summary.json`
+  - COVO evaluator CER: `0.04315`
+  - improved / worsened / unchanged: `319 / 46 / 443`
+  - audit exact matches: `523`
+  - hotword recall: `0.90764`
+  - base-hit hotwords lost by prediction: `43`
+  - false prompt hotwords in prediction: `11`
+- Comparison:
+  - old best: CER `0.04354`, hotword recall `0.90552`, exact `523`
+  - protected SFT40: CER `0.04338`, hotword recall `0.90977`, exact `524`
+  - hotword-use SFT60: CER `0.04323`, hotword recall `0.90658`, exact `522`
+  - synthetic hotword-use SFT80: CER `0.04315`, hotword recall `0.90764`, exact `523`
+- Interpretation: expanding the hotword-use SFT data gives a real but very small CER improvement and partially recovers recall compared with the non-synthetic hotword-use SFT. This means more data helps, but the bottleneck is not only memorization or train-set size. The likely remaining limits are candidate/evidence quality, ambiguity in synthetic diff spans, and COVO's tendency to prefer fluent common homophones unless the training examples are closer to its actual mistakes.
