@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -20,6 +21,10 @@ SYSTEM_MESSAGE = (
 INSTRUCTION = (
     "任务：融合 CB-Whisper 的最终输出、N-best 候选和 KWS 热词证据进行中文 ASR 后纠错。"
     "优先保留 CB-Whisper 输出；只有当 N-best、拼音或高置信热词共同支持时才修改。"
+    "N-best 中 trusted_scored 候选比 supplemental_unscored 候选更可信；"
+    "补充候选只能作为纠错线索，不能单独推翻 ASR top-1 或高分 trusted_scored 候选。"
+    "如果 ASR top-1 或 trusted_scored 候选已经包含 prompt 热词，不要把该热词改成同音常见词，"
+    "除非多个可信候选和上下文都明确支持替换。"
     "热词证据来自 CB-Whisper/KWS，不是参考答案；它用于保护专名/领域词，"
     "但不能因为热词分数高就强行插入无上下文支持的词。"
     "如果证据不足，保持 ASR top-1 不变。"
@@ -63,6 +68,23 @@ def _as_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except Exception:
         return default
+
+
+_PUNCT_RE = re.compile(r"[\s,，。.!！？?；;：:“”\"'‘’、（）()\[\]【】《》<>-]+")
+
+
+def normalize_text(text: Any) -> str:
+    return _PUNCT_RE.sub("", str(text or "").strip())
+
+
+def _candidate_score_index(candidates: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    indexed: Dict[str, Dict[str, Any]] = {}
+    for item in candidates:
+        text = str(item.get("text", "")).strip()
+        key = normalize_text(text)
+        if key and key not in indexed:
+            indexed[key] = item
+    return indexed
 
 
 def build_context_hotwords(input_block: Dict[str, Any], args: argparse.Namespace) -> List[Dict[str, Any]]:
@@ -128,6 +150,18 @@ def build_context_hotwords(input_block: Dict[str, Any], args: argparse.Namespace
     return rows[: int(args.max_hotwords)]
 
 
+def _matched_hotword_texts(text: str, rows: List[Dict[str, Any]], prompt_only: bool = False) -> List[str]:
+    normalized = normalize_text(text)
+    matched = []
+    for item in rows:
+        if prompt_only and not bool(item.get("in_prompt", False)):
+            continue
+        keyword = str(item.get("text", "")).strip()
+        if keyword and normalize_text(keyword) in normalized:
+            matched.append(keyword)
+    return matched
+
+
 def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
     output = []
     for item in rows:
@@ -141,6 +175,49 @@ def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
         output.append(
             f"- {text} kws_score={score:.4f} prompt_weight={prompt_weight:.4f} "
             f"in_prompt={in_prompt} source={sources}"
+        )
+    return output
+
+
+def format_nbest(
+    nbest: List[str],
+    input_block: Dict[str, Any],
+    hotword_rows: List[Dict[str, Any]],
+    max_items: int,
+) -> List[str]:
+    cbw = input_block.get("cbwhisper", {}) or {}
+    scored_candidates = list(cbw.get("candidates", []) or [])
+    scored_index = _candidate_score_index(scored_candidates)
+    output = []
+    seen = set()
+    for idx, hyp in enumerate(nbest[:max_items], 1):
+        text = str(hyp).strip()
+        if not text:
+            continue
+        normalized = normalize_text(text)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        scored = scored_index.get(normalized)
+        if scored is None:
+            source = "supplemental_unscored"
+            score_bits = "score=NA"
+        else:
+            source = "trusted_scored"
+            score_bits = (
+                f"score_rank={int(scored.get('rank', idx))} "
+                f"total={float(scored.get('total_score', 0.0)):.4f} "
+                f"asr={float(scored.get('asr_score', 0.0)):.4f} "
+                f"exact={float(scored.get('exact_score', 0.0)):.4f} "
+                f"phon={float(scored.get('phonetic_score', 0.0)):.4f}"
+            )
+        prompt_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=True)
+        kws_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=False)
+        prompt_msg = ",".join(prompt_hits) if prompt_hits else "none"
+        kws_msg = ",".join(kws_hits) if kws_hits else "none"
+        output.append(
+            f"{idx}. {text} | source={source} {score_bits} "
+            f"keeps_prompt_hotwords={prompt_msg} keeps_context_hotwords={kws_msg}"
         )
     return output
 
@@ -167,12 +244,19 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     lines = [INSTRUCTION]
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
+    hotword_rows = build_context_hotwords(input_block, args)
+    if hotword_rows:
+        asr_prompt_hits = _matched_hotword_texts(asr_top1, hotword_rows, prompt_only=True)
+        hit_msg = ",".join(asr_prompt_hits) if asr_prompt_hits else "none"
+        lines.append(f"ASR top-1 keeps prompt hotwords: {hit_msg}")
 
     nbest = list(input_block.get("nbest", []) or [])[: max(1, int(args.max_nbest))]
     if nbest:
-        lines.append("N-best:")
-        for idx, hyp in enumerate(nbest, 1):
-            lines.append(f"{idx}. {hyp}")
+        lines.append(
+            "N-best with reliability labels "
+            "(trusted_scored=CB-Whisper scored beam, supplemental_unscored=extra diversity candidate):"
+        )
+        lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest))))
 
     if bool(args.include_pinyin):
         pinyin = list(input_block.get("nbest_pinyin", []) or [])[: max(1, int(args.max_pinyin))]
@@ -181,7 +265,7 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
             for idx, item in enumerate(pinyin, 1):
                 lines.append(f"{idx}. {item}")
 
-    hotword_lines = format_context_hotwords(build_context_hotwords(input_block, args))
+    hotword_lines = format_context_hotwords(hotword_rows)
     if hotword_lines:
         lines.append("CB-Whisper hotword evidence (predicted, not gold):")
         lines.extend(hotword_lines)

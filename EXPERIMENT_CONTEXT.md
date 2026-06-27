@@ -996,3 +996,31 @@ COVO on cleanliness-first 9.8+ n-best, 2026-06-26:
   - base-hit hotwords lost by COVO: `55`
   - hotwords gained by COVO: `32`
 - Interpretation: the clean 9.8+ candidate pool improves candidate diversity, but the existing no-op COVO adapter does not exploit it well enough. It is slightly worse than the current best no-op result (`0.04354` COVO evaluator CER, legacy mean around `0.04297`) and loses too many hotwords. Do not promote this COVO output. The next step should be either COVO prompt/training adaptation for 10-best evidence or a learned/rule-light selector before COVO, not just more candidates.
+
+COVO reliability-label/top6 probe, 2026-06-27:
+
+- Diagnosis before the probe: many new COVO errors are not candidate-pool failures. In the `max_nbest=10` run, better candidates often already existed in the n-best list, but COVO selected or generated a worse homophone/variant. Typical failures include `杨锋 -> 杨峰`, `今久 -> 金九`, and `马塞洛特 -> 马赛洛特`.
+- Code change: `src/analysis/cbwhisper_covo_bridge.py` now:
+  - normalizes n-best surfaces for matching.
+  - labels each hypothesis as `trusted_scored` if it matches `input.cbwhisper.candidates`, otherwise `supplemental_unscored`.
+  - annotates `keeps_prompt_hotwords` and `keeps_context_hotwords` for each hypothesis.
+  - tells COVO that supplemental candidates are evidence only and should not alone override ASR top-1 or a trusted scored candidate, especially when that would replace an already-present prompt hotword with a common homophone.
+- Pilot100 on the cleanliness-first pool:
+  - `max_nbest=10` reliability labels: COVO evaluator CER `0.04243`; hotword recall `0.7797`.
+  - `max_nbest=6` reliability labels: COVO evaluator CER `0.04047`; hotword recall `0.7797`.
+  - `max_nbest=4` reliability labels: COVO evaluator CER `0.04112`; hotword recall `0.7712`.
+  - `max_nbest=6` plus stronger preservation instruction: COVO evaluator CER `0.03982`; hotword recall `0.7966`.
+- Full AISHELL-hotword 808 run with the best pilot setting:
+  - Input evidence: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`
+  - Messages: `src/logs/cbwhisper_covo_messages_nbest6_reliability_v2_full.jsonl`
+  - Predictions: `src/logs/cbwhisper_covo_predictions_nbest6_reliability_v2_full.jsonl`
+  - Adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - COVO evaluator CER: base `0.10446`, prediction `0.04494`.
+  - Improved / worsened / unchanged: `314 / 43 / 451`.
+  - Legacy mean/corpus CER: base `0.10281 / 0.10477`, prediction `0.04671 / 0.04494`.
+  - Audit: exact matches prediction `524`, n-best oracle `519`; hotword recall base `0.9151`, prediction `0.9034`, n-best oracle `0.9172`; base-hit hotwords lost by COVO `46`, hotwords gained by COVO `35`.
+- Comparison:
+  - Previous `max_nbest=10` clean-pool COVO: evaluator CER `0.04594`, hotword recall `0.8907`, lost base-hit hotwords `55`.
+  - Reliability/top6 improves both CER and hotword preservation relative to that failed 10-best run.
+  - It still does not beat the current best no-gate result on the older evidence (`0.04354` evaluator CER, legacy mean around `0.04297`).
+- Interpretation: labels and a smaller trusted candidate set partially repair COVO's use of the rich pool, but prompt-only adaptation is insufficient. The next paper-clean route is to train COVO on reliability-labeled expanded n-best prompts, with hard negatives where supplemental homophones are present but the target preserves the trusted/prompt hotword.
