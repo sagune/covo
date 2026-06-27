@@ -1074,3 +1074,24 @@ Compact reliability-label COVO training probe, 2026-06-27:
   - compact SFT: evaluator CER `0.04362`, hotword recall `0.9076-0.9087`
   - old current best no-gate adapter on older evidence: evaluator CER `0.04354`, legacy mean around `0.04297`, hotword recall around `0.9039`
 - Interpretation: retraining is useful but modest. The compact reliability-labeled route almost matches the old CER-best result while preserving more hotwords and using the richer clean n-best pool, but it is not yet a decisive new main result. The next variant should not simply train longer; 80 steps reduced eval loss and mean CER slightly, but also reduced hotword recall versus 40-step/prompt-only. A better next step is a small preference or SFT mix focused on keeping compact-prompt recall while recovering the last `~0.0001` CER gap.
+
+Supported-hotword protection prompt probe, 2026-06-27:
+
+- Motivation: error audit showed many failures where the correct hotword had already been injected into COVO and even appeared in ASR top-1 or trusted n-best, but COVO rewrote it to a common homophone or variant, e.g. `今久 -> 金九`, `杨锋 -> 杨峰`, `宋芳 -> 颂芳`, `瓯文 -> 欧文`, `邬迪 -> 吴迪`.
+- Code change: `src/analysis/cbwhisper_covo_bridge.py` gained `--protect-supported-hotwords`.
+  - It injects a hard prompt clause saying supported prompt hotwords must be preserved exactly.
+  - A hotword is protected only if it is a prompt hotword, appears in ASR top-1 or trusted scored candidates, and is supported by CB-Whisper exact/consensus scoring evidence.
+  - This avoids protecting obvious surface-repair false positives such as the first-sample `中心 -> 钟欣` repair, where `钟欣` appears in text but is not in matched/consensus scoring evidence.
+- Full 808 run:
+  - input evidence: `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`
+  - adapter: `outputs/qwen35_cbwhisper_reliability_nbest6_compact_80steps_bf16`
+  - messages: `src/logs/cbwhisper_covo_messages_nbest6_hotword_protect_ft80_full.jsonl`
+  - predictions: `src/logs/cbwhisper_covo_predictions_nbest6_hotword_protect_ft80_full.jsonl`
+  - COVO evaluator CER: `0.04362`, unchanged from compact ft80.
+  - improved / worsened / unchanged: `316 / 45 / 447`, slightly worse than compact ft80's `319 / 45 / 444`.
+  - wrong final rows: `278 -> 283`.
+  - correct hotword given but final missed: `68 -> 68`.
+  - correct hotword in trusted candidate but final missed: `38 -> 38`.
+  - false-hotword wrong rows: `19 -> 19`.
+  - changed predictions: `32`; it fixed `杨幼萍` in one sample but introduced another trusted-hotword miss (`蚌飞市 -> 蚌淅市`) and several unrelated regressions.
+- Interpretation: prompt-only hard preservation is not enough. The model sees the hotwords, but an instruction saying "do not change them" does not reliably override its learned preference for common homophones/variants. The next useful direction is not stronger prompt wording; it should be training-side hard negatives or preference data where the chosen answer preserves supported hotwords and the rejected answer uses common homophones or supplemental-candidate artifacts.

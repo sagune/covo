@@ -30,6 +30,12 @@ INSTRUCTION = (
     "如果证据不足，保持 ASR top-1 不变。"
 )
 
+PROTECTED_HOTWORD_INSTRUCTION = (
+    "受保护热词是已经出现在 ASR top-1 或 trusted_scored 候选中的 prompt 热词。"
+    "最终输出必须逐字保留受保护热词；不要把它改成同音、近音、繁简异体或更常见写法。"
+    "如果受保护热词附近还有其他明显 ASR 错误，只能修改热词之外的字符。"
+)
+
 
 def read_jsonl(path: str | Path) -> Iterable[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -162,6 +168,32 @@ def _matched_hotword_texts(text: str, rows: List[Dict[str, Any]], prompt_only: b
     return matched
 
 
+def build_protected_hotwords(input_block: Dict[str, Any], rows: List[Dict[str, Any]]) -> List[str]:
+    cbw = input_block.get("cbwhisper", {}) or {}
+    candidates = list(cbw.get("candidates", []) or [])
+    trusted_text = normalize_text(input_block.get("asr_top1", ""))
+    scored_support = set()
+    for item in candidates:
+        trusted_text += normalize_text(item.get("text", ""))
+        exact_stats = item.get("exact_stats", {}) or {}
+        for keyword in list(exact_stats.get("matched_keywords", []) or []) + list(item.get("consensus_keywords", []) or []):
+            normalized_keyword = normalize_text(keyword)
+            if normalized_keyword:
+                scored_support.add(normalized_keyword)
+
+    protected = []
+    seen = set()
+    for item in rows:
+        if not bool(item.get("in_prompt", False)):
+            continue
+        keyword = str(item.get("text", "")).strip()
+        normalized = normalize_text(keyword)
+        if normalized and normalized in trusted_text and normalized in scored_support and normalized not in seen:
+            protected.append(keyword)
+            seen.add(normalized)
+    return protected
+
+
 def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
     output = []
     for item in rows:
@@ -242,9 +274,14 @@ def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[
 def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     input_block = record.get("input", {}) or {}
     lines = [INSTRUCTION]
+    if bool(getattr(args, "protect_supported_hotwords", False)):
+        lines.append(PROTECTED_HOTWORD_INSTRUCTION)
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
     hotword_rows = build_context_hotwords(input_block, args)
+    protected_hotwords = build_protected_hotwords(input_block, hotword_rows)
+    if bool(getattr(args, "protect_supported_hotwords", False)) and protected_hotwords:
+        lines.append("Protected hotwords that must be preserved exactly: " + ",".join(protected_hotwords))
     if hotword_rows:
         asr_prompt_hits = _matched_hotword_texts(asr_top1, hotword_rows, prompt_only=True)
         hit_msg = ",".join(asr_prompt_hits) if asr_prompt_hits else "none"
@@ -401,6 +438,11 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         help="Which CB-Whisper hotwords to inject into covo prompts.",
     )
     parser.add_argument("--include-pinyin", action="store_true")
+    parser.add_argument(
+        "--protect-supported-hotwords",
+        action="store_true",
+        help="Add a hard prompt constraint to preserve prompt hotwords already present in ASR/trusted candidates.",
+    )
     parser.add_argument("--limit", type=int, default=0)
 
 
