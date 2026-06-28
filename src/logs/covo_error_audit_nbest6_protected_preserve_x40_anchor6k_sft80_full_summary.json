@@ -1,0 +1,46 @@
+{
+  "predictions": "/root/autodl-tmp/src/logs/cbwhisper_covo_predictions_nbest6_protected_preserve_x40_anchor6k_sft80_full.jsonl",
+  "samples": 808,
+  "reference_chars": 12885,
+  "cer": {
+    "base": 0.10446255335661622,
+    "prediction": 0.043538998835855644,
+    "nbest_oracle": 0.048971672487388436,
+    "prediction_or_nbest_oracle": 0.027473806752037252
+  },
+  "edit_totals": {
+    "base_edits": 1346,
+    "pred_edits": 561,
+    "nbest_oracle_edits": 631,
+    "pred_or_nbest_oracle_edits": 354
+  },
+  "delta_counts": {
+    "fixed_to_exact": 184,
+    "base_correct_kept": 340,
+    "unchanged_error": 110,
+    "improved_partial": 131,
+    "worsened_error": 14,
+    "base_correct_broken": 29
+  },
+  "oracle_reachability": {
+    "nbest_exact": 523,
+    "pred_exact": 524,
+    "base_exact": 369,
+    "nbest_better_than_pred": 134,
+    "nbest_better_than_base": 315,
+    "pred_better_than_nbest": 145
+  },
+  "hotword": {
+    "total_mentions": 942,
+    "base_hits": 862,
+    "pred_hits": 856,
+    "nbest_oracle_hits": 871,
+    "base_lost_by_pred": 44,
+    "pred_gained_over_base": 38,
+    "prompt_false_in_base": 30,
+    "prompt_false_in_pred": 13,
+    "base_recall": 0.9150743099787686,
+    "pred_recall": 0.9087048832271762,
+    "nbest_oracle_recall": 0.9246284501061571
+  }
+}

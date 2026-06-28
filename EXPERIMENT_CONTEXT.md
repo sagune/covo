@@ -1431,3 +1431,39 @@ Protected-hotword preservation training probe, 2026-06-28:
   - The model can be taught not to rewrite protected/base-present hotwords: recall improved by `+0.00212`, and both base-hit lost hotwords and base-correct-broken counts dropped by `2`.
   - The current targeted SFT also costs one extra edit overall (`552 -> 553`), so it is recall-best but not CER-best.
   - This route is no longer "no signal"; it works, but the data is too small and slightly over-specialized. The next version should enlarge train-only protected-preserve cases, preferably by running current best model on train or generating controlled homophone-preservation negatives, then mix with enough general correction/no-op rows to keep CER from drifting.
+
+Protected-hotword preservation follow-up, 2026-06-28:
+
+- Goal: test whether the model can learn protected-hotword preservation without a hard decoding gate.
+- Mixed preserve + anchor SFT:
+  - script: `src/analysis/build_covo_preserve_anchor_mix.py`
+  - data: `train_protected_preserve_x40_plus_anchor6k.qwen.jsonl`
+  - composition: `1280` protected-preserve rows repeated twice plus `6000` general anchor rows.
+  - training: `80` steps from `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`, lr `3e-7`.
+  - output adapter: `outputs/qwen35_cbwhisper_protected_preserve_x40_anchor6k_sft80_from_expanded_bf16`
+  - full AISHELL 808 result:
+    - CER: `0.04354`
+    - exact matches: `524`
+    - hotword recall: `0.90870`
+    - base-hit hotwords lost by prediction: `44`
+    - base-correct-broken: `29`
+  - interpretation: rejected. The large generic anchor mix diluted the preserve signal and worsened both CER and recall.
+- Protected-positive SFT:
+  - script: `src/analysis/build_covo_protected_positive_sft.py`
+  - data: `train_protected_positive6k_lostx40_anchor2k.qwen.jsonl`
+  - composition: `6000` train rows where ASR top-1 and reference both contain a true prompt hotword, `76` actual lost-protected rows repeated `40` times, plus `2000` anchor rows.
+  - target text is normalized/simplified reference text, not raw ASR no-op, to avoid teaching繁体 ASR output.
+  - training: `100` steps from `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`, lr `3e-7`.
+  - output adapter: `outputs/qwen35_cbwhisper_protected_positive6k_lostx40_anchor2k_sft100_from_expanded_bf16`
+  - full AISHELL 808 result:
+    - CER: `0.04331`
+    - exact matches: `526`
+    - hotword recall: `0.91083`
+    - base-hit hotwords lost by prediction: `42`
+    - base-correct-broken: `28`
+  - interpretation: rejected as main result. It recovers the previous best recall but costs `+6` edits versus the current combined best (`0.04284`). The model is learning protection, but the added positive-reference training weakens general correction quality.
+- Current decision:
+  - Keep the current main result as CB-side targeted supplement + expanded adapter: CER `0.04284`, recall `0.91083`, exact `527`.
+  - Keep protected-preserve SFT40 as recall-best only: CER `0.04292`, recall `0.91295`.
+  - Do not use the two follow-up adapters as main results.
+  - Next useful direction is not simply "more preserve SFT"; it needs a training objective that preserves hotwords while maintaining the existing correction distribution, e.g. harder contrastive examples or a small span-level preference/calibration module.
