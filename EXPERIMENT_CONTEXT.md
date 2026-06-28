@@ -1199,3 +1199,50 @@ Synthetic hotword-use SFT expansion, 2026-06-27:
   - hotword-use SFT60: CER `0.04323`, hotword recall `0.90658`, exact `522`
   - synthetic hotword-use SFT80: CER `0.04315`, hotword recall `0.90764`, exact `523`
 - Interpretation: expanding the hotword-use SFT data gives a real but very small CER improvement and partially recovers recall compared with the non-synthetic hotword-use SFT. This means more data helps, but the bottleneck is not only memorization or train-set size. The likely remaining limits are candidate/evidence quality, ambiguity in synthetic diff spans, and COVO's tendency to prefer fluent common homophones unless the training examples are closer to its actual mistakes.
+
+Actual-error hard SFT, 2026-06-28:
+
+- Motivation: the synthetic expansion helped only slightly, so the next route used the model's own train-set failures rather than generic ASR/reference diffs. This avoids test leakage and gives training examples closer to COVO's real failure modes.
+- Added script: `src/analysis/build_covo_actual_error_sft.py`.
+  - It reads COVO prediction JSONL.
+  - It classifies actual failures: worsened output, base-correct-broken, missed correction, n-best better than prediction, true hotword lost/missing, and false prompt hotword insertion.
+  - It rewrites the assistant target to the reference while preserving the same bridge prompt.
+  - It also samples correct/successful rows to avoid teaching the model to rewrite too aggressively.
+- Train-side failure mining:
+  - input messages: `covo/data/processed/chinesehp_aishell1/train_full_reliability_nbest6_compact_protect.qwen.jsonl`
+  - inference adapter: `outputs/qwen35_cbwhisper_hotword_use_synth_sft80_bf16`
+  - train predictions: `src/logs/cbwhisper_covo_predictions_train_full_protect_hotword_use_synth_sft80.jsonl`
+  - samples: `17301`
+  - train-side COVO evaluator CER: `0.03604`
+  - improved / worsened / unchanged: `7569 / 292 / 9440`
+- Strong hard SFT attempt:
+  - hard rows: `16859`
+  - combined train file: `train_full_protect_hotword_use_plus_synth_actual_hard.qwen.jsonl`, `47961` rows.
+  - output adapter: `outputs/qwen35_cbwhisper_actual_hard_sft80_from_synth_bf16`
+  - settings: start from synthetic SFT80, `80` steps, lr `5e-7`, bf16.
+  - final dev eval loss: `0.3015`
+  - full 808 CER: `0.04331`
+  - improved / worsened / unchanged: `319 / 49 / 440`
+  - hotword recall: `0.90658`
+  - interpretation: rejected. The dev loss improved, but test CER and worsened count regressed; hard examples were too strong and made the model over-rewrite.
+- Mild hard SFT attempt:
+  - hard rows: `10288`
+  - combined train file: `train_full_protect_hotword_use_plus_synth_actual_hard_mild.qwen.jsonl`, `41390` rows.
+  - output adapter: `outputs/qwen35_cbwhisper_actual_hard_mild_sft40_from_synth_bf16`
+  - settings: start from synthetic SFT80, `40` steps, lr `3e-7`, bf16.
+  - final dev eval loss: `0.3265`
+  - full-test predictions: `src/logs/cbwhisper_covo_predictions_nbest6_actual_hard_mild_sft40_full.jsonl`
+  - audit summary: `src/logs/covo_error_audit_nbest6_actual_hard_mild_sft40_full_summary.json`
+  - COVO evaluator CER: `0.04284`
+  - improved / worsened / unchanged: `320 / 44 / 444`
+  - audit exact matches: `523`
+  - hotword recall: `0.90764`
+  - base-hit hotwords lost by prediction: `43`
+  - false prompt hotwords in prediction: `11`
+- Comparison:
+  - old best: CER `0.04354`, hotword recall `0.90552`, exact `523`
+  - protected SFT40: CER `0.04338`, hotword recall `0.90977`, exact `524`
+  - synthetic hotword-use SFT80: CER `0.04315`, hotword recall `0.90764`, exact `523`
+  - actual-error strong SFT80: CER `0.04331`, hotword recall `0.90658`, exact `523`
+  - actual-error mild SFT40: CER `0.04284`, hotword recall `0.90764`, exact `523`
+- Interpretation: mild actual-error SFT is the new CER-best route. It does not raise recall beyond the synthetic SFT80 result, but it lowers CER and reduces worsened samples. The key lesson is that actual model mistakes help, but the hard-data weight must be small and mixed with preservation examples; stronger hard training improves dev loss while hurting test behavior.
