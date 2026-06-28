@@ -1246,3 +1246,37 @@ Actual-error hard SFT, 2026-06-28:
   - actual-error strong SFT80: CER `0.04331`, hotword recall `0.90658`, exact `523`
   - actual-error mild SFT40: CER `0.04284`, hotword recall `0.90764`, exact `523`
 - Interpretation: mild actual-error SFT is the new CER-best route. It does not raise recall beyond the synthetic SFT80 result, but it lowers CER and reduces worsened samples. The key lesson is that actual model mistakes help, but the hard-data weight must be small and mixed with preservation examples; stronger hard training improves dev loss while hurting test behavior.
+
+Expanded AISHELL/COVO training amount probe, 2026-06-28:
+
+- Motivation: test the user's hypothesis that the model may need more training data, including other AISHELL-style rewrite data, rather than only CB-Whisper train evidence.
+- Data construction:
+  - base current best train mix: `train_full_protect_hotword_use_plus_synth_actual_hard_mild.qwen.jsonl`, `41390` rows.
+  - AISHELL hotword noop preservation: `aishell_train_hotword_noop.qwen.jsonl`, `17301` rows.
+  - sampled general ASR rewrite data: `train_text_rewrite_hardneg_dropout.qwen.jsonl`, `60000` sampled rows.
+  - combined file: `train_full_protect_actual_hard_mild_plus_rewrite60k_noop.qwen.jsonl`, `118691` rows.
+  - `train.qwen_messages.jsonl` was intentionally not mixed because it uses an edits-output schema, while the current COVO route uses `{"text": ...}` output.
+- Expanded training:
+  - start adapter: `outputs/qwen35_cbwhisper_actual_hard_mild_sft40_from_synth_bf16`
+  - output adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - settings: `120` steps, lr `2e-7`, bf16.
+  - final dev eval loss: `0.3236`
+  - full 808 COVO evaluator CER: `0.04292`
+  - improved / worsened / unchanged: `320 / 43 / 445`
+  - audit exact matches: `524`
+  - hotword recall: `0.90870`
+  - base-hit hotwords lost by prediction: `42`
+- Mild callback after expanded training:
+  - start adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - train file: `train_full_protect_hotword_use_plus_synth_actual_hard_mild.qwen.jsonl`
+  - output adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_then_mild_sft30_bf16`
+  - settings: `30` steps, lr `1e-7`, bf16.
+  - final dev eval loss: `0.3196`
+  - full 808 COVO evaluator CER: `0.04323`
+  - improved / worsened / unchanged: `319 / 47 / 442`
+  - hotword recall: `0.90658`
+- Comparison:
+  - current CER-best actual-error mild SFT40: CER `0.04284`, hotword recall `0.90764`, exact `523`, base-hit hotwords lost `43`.
+  - expanded rewrite60k+noop SFT120: CER `0.04292`, hotword recall `0.90870`, exact `524`, base-hit hotwords lost `42`.
+  - expanded then mild callback: CER `0.04323`, hotword recall `0.90658`.
+- Interpretation: larger AISHELL/COVO training improves hotword recall, exact matches, and preservation slightly, but it does not beat the current CER-best model. A small callback on mild hard data does not recover the CER; it over-specializes and regresses. Keep the expanded model as a recall-priority alternate, but do not replace the current main CER-best adapter.
