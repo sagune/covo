@@ -1280,3 +1280,39 @@ Expanded AISHELL/COVO training amount probe, 2026-06-28:
   - expanded rewrite60k+noop SFT120: CER `0.04292`, hotword recall `0.90870`, exact `524`, base-hit hotwords lost `42`.
   - expanded then mild callback: CER `0.04323`, hotword recall `0.90658`.
 - Interpretation: larger AISHELL/COVO training improves hotword recall, exact matches, and preservation slightly, but it does not beat the current CER-best model. A small callback on mild hard data does not recover the CER; it over-specializes and regresses. Keep the expanded model as a recall-priority alternate, but do not replace the current main CER-best adapter.
+
+Recall-priority probes, 2026-06-28:
+
+- Motivation: after the expanded model improved hotword recall to `0.90870`, test whether recall can be pushed further without a large CER regression.
+- Recall-focused SFT:
+  - data: `train_hotword_recall_focus_plus_noop_use.qwen.jsonl`, `54830` rows.
+  - composition: actual train-side hotword-lost/missing failures, AISHELL hotword noop preservation, and hotword-use SFT rows.
+  - start adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - output adapter: `outputs/qwen35_cbwhisper_recall_focus_sft60_from_expanded_bf16`
+  - settings: `60` steps, lr `1e-7`, bf16.
+  - final dev eval loss: `0.3174`
+  - full 808 CER: `0.04307`
+  - hotword recall: `0.90764`
+  - exact matches: `524`
+  - interpretation: rejected. It improved some correction counts but did not beat the expanded model on recall and hurt CER.
+- More hotword evidence at inference:
+  - model: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - setting: `--max-hotwords 8 --max-prompt-hotwords 6`, `--hotword-source all`
+  - full 808 CER: `0.04292`
+  - hotword recall: `0.90870`
+  - exact matches: `526`
+  - base-hit hotwords lost: `42`
+  - false prompt hotwords in prediction: `12`
+  - interpretation: recall did not improve beyond expanded all-hotword decoding, but exact matches improved. This is a useful exact-match variant, not a recall breakthrough.
+- Prompt-only hotword evidence:
+  - model: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - setting: `--hotword-source prompt`
+  - full 808 CER: `0.04284`
+  - hotword recall: `0.89915`
+  - exact matches: `529`
+  - interpretation: rejected for recall. It gives strong exact/CER behavior but drops hotword recall, so prompt-only evidence is too narrow for the current recall goal.
+- Current recall-best:
+  - `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - all-hotword setting: CER `0.04292`, hotword recall `0.90870`, exact `524`.
+  - hw8/prompt6 all-hotword setting: CER `0.04292`, hotword recall `0.90870`, exact `526`.
+- Interpretation: recall now appears limited by the available evidence/candidate pool rather than simply by COVO training. The n-best oracle recall in the same audit is `0.91720`, so there is only about `0.0085` absolute recall headroom left from final-text correction under the current evidence. Further recall gain likely requires better CB-Whisper candidate/evidence generation or a carefully justified hotword-preservation mechanism, not simply more COVO SFT.
