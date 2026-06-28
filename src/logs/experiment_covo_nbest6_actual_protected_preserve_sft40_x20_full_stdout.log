@@ -1,0 +1,24 @@
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_candidate_pool_v3_context_target_singleprompt.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cbwhisper_covo_messages_nbest6_actual_protected_preserve_sft40_x20_full.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py --input /root/autodl-tmp/src/logs/cbwhisper_covo_messages_nbest6_actual_protected_preserve_sft40_x20_full.jsonl --output /root/autodl-tmp/src/logs/cbwhisper_covo_predictions_nbest6_actual_protected_preserve_sft40_x20_full.jsonl --model-name-or-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B --adapter-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_actual_protected_preserve_sft40_x20_from_expanded_bf16 --batch-size 7 --max-new-tokens 128 --temperature 0.0 --top-p 1.0 --device auto --progress-every 100 --disable-thinking
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<01:12,  5.83it/s]Loading weights:   9%|▉         | 39/426 [00:00<00:02, 172.04it/s]Loading weights:  18%|█▊        | 75/426 [00:00<00:01, 242.51it/s]Loading weights:  25%|██▍       | 106/426 [00:00<00:01, 261.89it/s]Loading weights:  34%|███▍      | 144/426 [00:00<00:00, 299.19it/s]Loading weights:  41%|████▏     | 176/426 [00:00<00:00, 294.52it/s]Loading weights:  49%|████▊     | 207/426 [00:00<00:00, 286.83it/s]Loading weights:  58%|█████▊    | 248/426 [00:00<00:00, 314.80it/s]Loading weights:  66%|██████▌   | 281/426 [00:01<00:00, 318.98it/s]Loading weights:  74%|███████▎  | 314/426 [00:01<00:00, 314.26it/s]Loading weights:  82%|████████▏ | 351/426 [00:01<00:00, 329.79it/s]Loading weights:  90%|█████████ | 385/426 [00:01<00:00, 327.47it/s]Loading weights:  98%|█████████▊| 418/426 [00:01<00:00, 322.63it/s]Loading weights: 100%|██████████| 426/426 [00:01<00:00, 292.61it/s]
+{"written": 700}
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_covo_messages_nbest6_actual_protected_preserve_sft40_x20_full.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cbwhisper_covo_predictions_nbest6_actual_protected_preserve_sft40_x20_full.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/evaluate_correction_jsonl.py --input /root/autodl-tmp/src/logs/cbwhisper_covo_predictions_nbest6_actual_protected_preserve_sft40_x20_full.jsonl --prediction-field prediction --reference-field reference --baseline-field input.asr_top1
+{
+  "samples": 808,
+  "cer": 0.04291812184710904,
+  "baseline_cer": 0.10446255335661622,
+  "improved_samples": 318,
+  "worsened_samples": 40,
+  "unchanged_samples": 450
+}

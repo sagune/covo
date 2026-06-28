@@ -1,0 +1,66 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<01:14,  5.70it/s]Loading weights:   9%|▉         | 40/426 [00:00<00:02, 166.24it/s]Loading weights:  18%|█▊        | 76/426 [00:00<00:01, 238.46it/s]Loading weights:  24%|██▍       | 104/426 [00:00<00:01, 252.26it/s]Loading weights:  34%|███▍      | 145/426 [00:00<00:00, 301.19it/s]Loading weights:  42%|████▏     | 177/426 [00:00<00:00, 303.88it/s]Loading weights:  49%|████▉     | 209/426 [00:00<00:00, 297.53it/s]Loading weights:  58%|█████▊    | 247/426 [00:00<00:00, 317.27it/s]Loading weights:  66%|██████▌   | 280/426 [00:01<00:00, 319.85it/s]Loading weights:  73%|███████▎  | 313/426 [00:01<00:00, 318.50it/s]Loading weights:  82%|████████▏ | 351/426 [00:01<00:00, 331.64it/s]Loading weights:  90%|█████████ | 385/426 [00:01<00:00, 328.22it/s]Loading weights:  98%|█████████▊| 418/426 [00:01<00:00, 321.69it/s]Loading weights: 100%|██████████| 426/426 [00:01<00:00, 292.80it/s]
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<01:04,  6.60it/s]Loading weights:  10%|▉         | 41/426 [00:00<00:01, 196.29it/s]Loading weights:  19%|█▊        | 79/426 [00:00<00:01, 269.61it/s]Loading weights:  28%|██▊       | 118/426 [00:00<00:00, 308.20it/s]Loading weights:  36%|███▌      | 153/426 [00:00<00:00, 316.00it/s]Loading weights:  46%|████▋     | 198/426 [00:00<00:00, 354.10it/s]Loading weights:  55%|█████▌    | 235/426 [00:00<00:00, 358.05it/s]Loading weights:  64%|██████▍   | 274/426 [00:00<00:00, 365.35it/s]Loading weights:  73%|███████▎  | 311/426 [00:00<00:00, 362.29it/s]Loading weights:  83%|████████▎ | 354/426 [00:01<00:00, 374.62it/s]Loading weights:  92%|█████████▏| 392/426 [00:01<00:00, 373.74it/s]Loading weights: 100%|██████████| 426/426 [00:01<00:00, 333.60it/s]
+{"step": 1, "loss": 0.722656, "dpo_loss": 0.691406, "sft_loss": 0.640625, "policy_margin": -0.40625, "preference_acc": 0.0, "lr": 5e-07}
+{"step": 5, "loss": 0.675781, "dpo_loss": 0.667969, "sft_loss": 0.129883, "policy_margin": -1.203125, "preference_acc": 0.0, "lr": 1.9444444444444444e-06}
+{"step": 10, "loss": 0.695312, "dpo_loss": 0.691406, "sft_loss": 0.089844, "policy_margin": -0.1875, "preference_acc": 0.0, "lr": 1.6666666666666667e-06}
+{"step": 15, "loss": 0.714844, "dpo_loss": 0.695312, "sft_loss": 0.416016, "policy_margin": -5.84375, "preference_acc": 0.0, "lr": 1.3888888888888887e-06}
+Traceback (most recent call last):
+  File "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/train_lora_dpo_text.py", line 294, in <module>
+    raise SystemExit(main())
+  File "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/train_lora_dpo_text.py", line 230, in main
+    policy_chosen, chosen_nll = _sequence_logps_and_nll(model, batch["chosen_input_ids"], batch["chosen_labels"])
+  File "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/train_lora_dpo_text.py", line 138, in _sequence_logps_and_nll
+    out = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/peft/peft_model.py", line 1993, in forward
+    return self.base_model(
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/peft/tuners/tuners_utils.py", line 330, in forward
+    return self.model.forward(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/utils/generic.py", line 857, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1827, in forward
+    outputs: BaseModelOutputWithPast = self.model(
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/utils/generic.py", line 931, in wrapper
+    output = func(self, *args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/utils/output_capturing.py", line 248, in wrapper
+    outputs = func(self, *args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 1362, in forward
+    hidden_states = decoder_layer(
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/modeling_layers.py", line 92, in __call__
+    return self._gradient_checkpointing_func(partial(super().__call__, **kwargs), *args)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/_compile.py", line 54, in inner
+    return disable_fn(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/_dynamo/eval_frame.py", line 1181, in _fn
+    return fn(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/utils/checkpoint.py", line 512, in checkpoint
+    ret = function(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 846, in forward
+    hidden_states = self.linear_attn(
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 586, in forward
+    core_attn_out, last_recurrent_state = self.chunk_gated_delta_rule(
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/transformers/models/qwen3_5/modeling_qwen3_5.py", line 388, in torch_chunk_gated_delta_rule
+    attn_inter = (q_i * g[:, :, i, :, None].exp()) @ last_recurrent_state
+  File "/root/autodl-tmp/great/lib/python3.10/site-packages/torch/utils/checkpoint.py", line 1144, in pack_hook
+    def pack_hook(x):
+KeyboardInterrupt

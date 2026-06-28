@@ -1386,3 +1386,48 @@ Lost-hotword audit after targeted supplement, 2026-06-28:
   - Two promising next routes:
     1. Train COVO on protected-hotword preservation failures mined from train predictions, with examples where the output must keep base/prompt hotwords exactly while still fixing other characters.
     2. Continue CB-side targeted supplement for the `candidate_generation_missing` bucket, but add stronger cleanliness filters to avoid false KWS words such as `德郭队`.
+
+Protected-hotword preservation training probe, 2026-06-28:
+
+- Motivation: the user correctly pointed out that the model should learn not to rewrite protected hotwords, rather than relying only on prompt instructions or post-hoc constraints.
+- Added scripts:
+  - `src/analysis/build_covo_protected_preserve_pairs.py`
+    - Mines train-only COVO predictions where ASR top-1 contains a true prompt hotword but the model prediction loses it.
+    - Builds DPO pairs: chosen is the reference, rejected is the model prediction that rewrote the protected hotword.
+  - `src/analysis/build_covo_protected_preserve_sft.py`
+    - Converts those pairs to repeated Qwen-message SFT rows.
+- Train-only mined data:
+  - source predictions: `src/logs/cbwhisper_covo_predictions_train_full_protect_hotword_use_synth_sft80.jsonl`
+  - strict pairs: `64`
+  - loose pairs: `67`
+  - repeated SFT rows with x20: `1280`
+- DPO probes from expanded adapter:
+  - start adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - low-lr DPO: lr `5e-7`, beta `0.05`, 20/40 steps observed, preference accuracy stayed `0.0`; stopped early.
+  - stronger DPO: lr `2e-6`, beta `0.1`, 15/40 steps observed, preference accuracy stayed `0.0`; stopped early.
+  - interpretation: actual protected-preserve pairs are too few / too hard for this lightweight DPO setup; DPO did not learn.
+- Targeted SFT x20 from expanded adapter:
+  - start adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - data: `train_actual_protected_preserve_sft_x20.qwen.jsonl`, `1280` rows
+  - 40-step output adapter: `outputs/qwen35_cbwhisper_actual_protected_preserve_sft40_x20_from_expanded_bf16`
+  - training loss stayed around `0.38` and ended at `0.3723`.
+  - full AISHELL 808 with current CB candidate pool:
+    - CER: `0.04292`
+    - improved / worsened / unchanged: `318 / 40 / 450`
+    - exact matches: `527`
+    - hotword recall: `0.91295`
+    - base-hit hotwords lost by prediction: `40`
+    - base-correct-broken: `28`
+  - 20-step variant:
+    - CER: `0.04307`
+    - hotword recall: `0.91189`
+    - base-hit hotwords lost by prediction: `42`
+    - base-correct-broken: `30`
+    - interpretation: worse than 40-step, rejected.
+- Comparison with previous best combined result:
+  - previous CB-targeted + expanded adapter: CER `0.04284`, recall `0.91083`, base-hit lost `42`, base-correct-broken `30`.
+  - protected-preserve SFT40: CER `0.04292`, recall `0.91295`, base-hit lost `40`, base-correct-broken `28`.
+- Interpretation:
+  - The model can be taught not to rewrite protected/base-present hotwords: recall improved by `+0.00212`, and both base-hit lost hotwords and base-correct-broken counts dropped by `2`.
+  - The current targeted SFT also costs one extra edit overall (`552 -> 553`), so it is recall-best but not CER-best.
+  - This route is no longer "no signal"; it works, but the data is too small and slightly over-specialized. The next version should enlarge train-only protected-preserve cases, preferably by running current best model on train or generating controlled homophone-preservation negatives, then mix with enough general correction/no-op rows to keep CER from drifting.

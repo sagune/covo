@@ -1,0 +1,12 @@
+{
+  "total_mentions": 942,
+  "pred_hits": 860,
+  "pred_recall": 0.9129511677282378,
+  "lost": 82,
+  "categories": {
+    "covo_failed_with_nbest6": 6,
+    "candidate_generation_missing": 26,
+    "kws_context_missing": 10,
+    "covo_lost_base_hotword": 40
+  }
+}
