@@ -1316,3 +1316,40 @@ Recall-priority probes, 2026-06-28:
   - all-hotword setting: CER `0.04292`, hotword recall `0.90870`, exact `524`.
   - hw8/prompt6 all-hotword setting: CER `0.04292`, hotword recall `0.90870`, exact `526`.
 - Interpretation: recall now appears limited by the available evidence/candidate pool rather than simply by COVO training. The n-best oracle recall in the same audit is `0.91720`, so there is only about `0.0085` absolute recall headroom left from final-text correction under the current evidence. Further recall gain likely requires better CB-Whisper candidate/evidence generation or a carefully justified hotword-preservation mechanism, not simply more COVO SFT.
+
+CB-Whisper-side targeted context supplement, 2026-06-28:
+
+- Motivation: after COVO SFT/recall-focused training saturated, inspect whether true hotwords are present in KWS/context but absent from the Whisper candidate pool.
+- Diagnostic on current pool `cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`:
+  - 942 true hotword mentions.
+  - 921/942 are present in KWS/context top8.
+  - 892/942 are present in current n-best10.
+  - 36 mentions are in KWS/context top8 but absent from n-best10, so CB-Whisper candidate generation still has recoverable recall.
+  - top-k oracle curve: top1 recall `0.93631`, top2 `0.94268`, top6 `0.94480`, top10 `0.94586`; top10 oracle CER `0.03019`.
+- Added script support in `src/analysis/targeted_supplement_covo_nbest.py`:
+  - `--target-missing-context`: supplement rows whose context hotword is missing from current candidates.
+  - `--require-single-prompt-target`: conservative mode; only supplement rows with exactly one prompt hotword and that hotword absent from current n-best.
+  - Targeted prompt variants are added before the previous generic prompt variants.
+  - Generated target-hit candidates are inserted after ASR top-1, selected by minimal edit distance to top1, and still passed through the existing quality cleaner.
+- Conservative full run:
+  - input: `cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`
+  - output: `cbwhisper_candidate_pool_v3_context_target_singleprompt.jsonl`
+  - processed rows: `27`
+  - changed rows: `10`
+  - candidate-pool oracle recall: `0.94586 -> 0.95541`
+  - candidate-pool oracle CER: `0.03019 -> 0.02957`
+  - exact reference in n-best: `616 -> 620`
+- COVO full 808 validation with recall-priority expanded adapter:
+  - adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - input pool: `cbwhisper_candidate_pool_v3_context_target_singleprompt.jsonl`
+  - setting: nbest6, all hotwords, protected supported hotwords.
+  - CER: `0.04284`
+  - improved / worsened / unchanged: `320 / 42 / 446`
+  - audit exact matches: `527`
+  - hotword recall: `0.91083`
+  - n-best oracle recall in audit: `0.92463`
+- Comparison:
+  - previous CER-best actual-error mild SFT40: CER `0.04284`, hotword recall `0.90764`, exact `523`.
+  - previous recall-priority expanded adapter: CER `0.04292`, hotword recall `0.90870`, exact `524`.
+  - CB-side targeted supplement + expanded adapter: CER `0.04284`, hotword recall `0.91083`, exact `527`.
+- Interpretation: this is the current best combined AISHELL result. The useful gain comes from candidate generation/evidence, not COVO training. The route is promising but must stay conservative: a broader target-missing-context smoke test produced good candidates such as `姊弟恋`, but also false hotword candidates like `德郭队`; therefore keep `--require-single-prompt-target` as the clean setting unless a better confidence/competition filter is added.

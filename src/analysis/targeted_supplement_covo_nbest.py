@@ -6,14 +6,14 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Iterable, List, Tuple
 
 import torch
 import torchaudio
 from tqdm.auto import tqdm
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
-from clean_covo_nbest_quality import clean_nbest, summarize, unique_texts
+from clean_covo_nbest_quality import char_distance, clean_nbest, norm, summarize, unique_texts
 
 
 def read_jsonl(path: Path) -> List[Dict[str, Any]]:
@@ -57,7 +57,34 @@ def collect_hotwords(input_block: Dict[str, Any], max_hotwords: int) -> List[str
     return output
 
 
-def prompt_variants(hotwords: List[str], max_prompt_chars: int) -> List[Tuple[str, str]]:
+def _contains(text: str, keyword: str) -> bool:
+    key = norm(keyword)
+    return bool(key) and key in norm(text)
+
+
+def _missing_context_hotwords(input_block: Dict[str, Any], max_hotwords: int) -> List[str]:
+    nbest = list(input_block.get("nbest", []) or [])
+    joined = "".join(str(item or "") for item in nbest)
+    return [keyword for keyword in collect_hotwords(input_block, max_hotwords) if not _contains(joined, keyword)]
+
+
+def _single_prompt_missing_hotword(input_block: Dict[str, Any]) -> List[str]:
+    prompts = []
+    for item in input_block.get("prompt_hotwords", []) or []:
+        text = str(item.get("text", "") if isinstance(item, dict) else item).strip()
+        if text and norm(text):
+            prompts.append(text)
+    if len(prompts) != 1:
+        return []
+    joined = "".join(str(item or "") for item in input_block.get("nbest", []) or [])
+    return [] if _contains(joined, prompts[0]) else prompts
+
+
+def prompt_variants(
+    hotwords: List[str],
+    max_prompt_chars: int,
+    target_hotword: str | None = None,
+) -> List[Tuple[str, str]]:
     variants = [("none", "")]
     if not hotwords:
         return variants
@@ -69,9 +96,41 @@ def prompt_variants(hotwords: List[str], max_prompt_chars: int) -> List[Tuple[st
         ("keyword_sentence", "可能出现的专有名词包括：" + "、".join(top6)),
         ("paren_top3", "(" + ",".join(top3) + ")"),
     ]
+    if target_hotword:
+        texts = [
+            ("target_natural", "请特别注意语音中可能出现的专有名词：" + target_hotword),
+            ("target_context", "热词：" + target_hotword + "。请根据语音内容转写完整句子。"),
+            ("target_paren", "(" + target_hotword + ")"),
+        ] + texts
     for name, text in texts:
         variants.append((name, text[:max_prompt_chars]))
     return variants
+
+
+def select_targeted_candidates(
+    anchor: str,
+    generated: Iterable[str],
+    target_hotwords: List[str],
+    max_per_hotword: int,
+) -> List[str]:
+    selected: List[str] = []
+    seen = {norm(anchor)}
+    for keyword in target_hotwords:
+        hits = []
+        for pred in generated:
+            text = str(pred or "").strip()
+            key = norm(text)
+            if not text or not key or key in seen:
+                continue
+            if _contains(text, keyword):
+                hits.append((char_distance(anchor, text), len(key), text))
+        hits.sort(key=lambda item: (item[0], item[1]))
+        for _, _, text in hits[: max(0, int(max_per_hotword))]:
+            key = norm(text)
+            if key not in seen:
+                selected.append(text)
+                seen.add(key)
+    return selected
 
 
 def decode_candidates(
@@ -128,6 +187,11 @@ def main() -> int:
     parser.add_argument("--top-p", type=float, default=0.95)
     parser.add_argument("--num-return-sequences", type=int, default=8)
     parser.add_argument("--max-hotwords", type=int, default=8)
+    parser.add_argument("--target-missing-context", action="store_true")
+    parser.add_argument("--require-single-prompt-target", action="store_true")
+    parser.add_argument("--max-target-hotwords", type=int, default=1)
+    parser.add_argument("--target-insert-after", type=int, default=1)
+    parser.add_argument("--target-max-per-hotword", type=int, default=2)
     parser.add_argument("--max-prompt-chars", type=int, default=100)
     parser.add_argument("--max-new-tokens", type=int, default=0)
     parser.add_argument("--limit-rows", type=int, default=0)
@@ -140,10 +204,20 @@ def main() -> int:
     wav_map = build_wav_map(Path(args.wav_root))
     temperatures = [float(x.strip()) for x in str(args.temperatures).split(",") if x.strip()]
 
-    low_indices = [
-        idx for idx, row in enumerate(rows)
-        if len(unique_texts((row.get("input", {}) or {}).get("nbest", []) or [])) < int(args.max_nbest)
-    ]
+    if bool(args.target_missing_context):
+        low_indices = [
+            idx for idx, row in enumerate(rows)
+            if (
+                _single_prompt_missing_hotword(row.get("input", {}) or {})
+                if bool(args.require_single_prompt_target)
+                else _missing_context_hotwords(row.get("input", {}) or {}, int(args.max_hotwords))
+            )
+        ]
+    else:
+        low_indices = [
+            idx for idx, row in enumerate(rows)
+            if len(unique_texts((row.get("input", {}) or {}).get("nbest", []) or [])) < int(args.max_nbest)
+        ]
     if int(args.limit_rows) > 0:
         low_indices = low_indices[: int(args.limit_rows)]
 
@@ -168,8 +242,15 @@ def main() -> int:
                 raise FileNotFoundError(utt_id)
             audio = load_audio(audio_path)
             hotwords = collect_hotwords(input_block, int(args.max_hotwords))
+            target_hotwords = (
+                _single_prompt_missing_hotword(input_block)
+                if bool(args.require_single_prompt_target)
+                else _missing_context_hotwords(input_block, int(args.max_hotwords))
+            )[: int(args.max_target_hotwords)]
             added_raw = []
-            for prompt_name, prompt_text in prompt_variants(hotwords, int(args.max_prompt_chars)):
+            generated_texts = []
+            target = target_hotwords[0] if bool(args.target_missing_context) and target_hotwords else None
+            for prompt_name, prompt_text in prompt_variants(hotwords, int(args.max_prompt_chars), target_hotword=target):
                 for temp in temperatures:
                     preds = decode_candidates(
                         model=model,
@@ -183,6 +264,7 @@ def main() -> int:
                         num_return_sequences=int(args.num_return_sequences),
                         max_new_tokens=int(args.max_new_tokens),
                     )
+                    generated_texts.extend(preds)
                     current.extend(preds)
                     added_raw.extend({"text": pred, "prompt": prompt_name, "temperature": temp} for pred in preds)
                     cleaned, dropped = clean_nbest(
@@ -193,13 +275,34 @@ def main() -> int:
                         length_slack=8,
                     )
                     current = cleaned
-                    if len(unique_texts(current)) >= int(args.max_nbest):
+                    if not bool(args.target_missing_context) and len(unique_texts(current)) >= int(args.max_nbest):
                         break
-                if len(unique_texts(current)) >= int(args.max_nbest):
+                if not bool(args.target_missing_context) and len(unique_texts(current)) >= int(args.max_nbest):
                     break
+            if bool(args.target_missing_context) and target_hotwords:
+                anchor = str(input_block.get("asr_top1", "") or (before[0] if before else ""))
+                targeted = select_targeted_candidates(
+                    anchor=anchor,
+                    generated=generated_texts,
+                    target_hotwords=target_hotwords,
+                    max_per_hotword=int(args.target_max_per_hotword),
+                )
+                if targeted:
+                    insert_at = max(1, min(int(args.target_insert_after), len(before)))
+                    reordered = list(before[:insert_at]) + targeted + list(before[insert_at:]) + list(current)
+                    current, _ = clean_nbest(
+                        reordered,
+                        max_nbest=int(args.max_nbest),
+                        min_ratio=0.65,
+                        max_ratio=1.35,
+                        length_slack=8,
+                    )
             input_block["nbest"] = current[: int(args.max_nbest)]
             input_block["targeted_supplement"] = {
                 "enabled": True,
+                "target_missing_context": bool(args.target_missing_context),
+                "require_single_prompt_target": bool(args.require_single_prompt_target),
+                "target_hotwords": target_hotwords,
                 "before": before_count,
                 "after": len(unique_texts(input_block["nbest"])),
                 "raw_generated": len(added_raw),
