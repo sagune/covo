@@ -1353,3 +1353,36 @@ CB-Whisper-side targeted context supplement, 2026-06-28:
   - previous recall-priority expanded adapter: CER `0.04292`, hotword recall `0.90870`, exact `524`.
   - CB-side targeted supplement + expanded adapter: CER `0.04284`, hotword recall `0.91083`, exact `527`.
 - Interpretation: this is the current best combined AISHELL result. The useful gain comes from candidate generation/evidence, not COVO training. The route is promising but must stay conservative: a broader target-missing-context smoke test produced good candidates such as `姊弟恋`, but also false hotword candidates like `德郭队`; therefore keep `--require-single-prompt-target` as the clean setting unless a better confidence/competition filter is added.
+
+Lost-hotword audit after targeted supplement, 2026-06-28:
+
+- Prediction file: `src/logs/cbwhisper_covo_predictions_nbest6_context_target_singleprompt.jsonl`
+- Audit files:
+  - `src/logs/covo_lost_hotword_audit_context_target_singleprompt_summary.json`
+  - `src/logs/covo_lost_hotword_audit_context_target_singleprompt.csv`
+- Final recall state:
+  - total mentions: `942`
+  - prediction hits: `858`
+  - lost hotwords: `84`
+  - recall: `0.91083`
+- Lost-hotword categories:
+  - `covo_lost_base_hotword`: `42`
+    - The hotword is already present in ASR top1/base, but COVO rewrites it to a more common homophone or fluent form.
+    - Examples: `今久 -> 金九`, `杨锋 -> 杨峰`, `宋芳 -> 颂芳`.
+    - Important: the prompt already contains protected-hotword instructions and the protected list for cases like `今久整合营销集团,今久`, but the model still disobeys. This is now the largest recall loss source.
+  - `candidate_generation_missing`: `26`
+    - KWS/context contains the true hotword, but CB-Whisper/Whisper n-best still lacks a clean candidate containing it.
+    - Examples: `许玮甯/玮甯`, `马特里亚斯`, `欧帕拉迪尼`, `丰台区域潘家村`.
+    - This remains the main CB-Whisper-side candidate generation target.
+  - `covo_failed_with_nbest6`: `6`
+    - The needed hotword appears in the n-best6 evidence, but COVO does not choose or use it.
+    - Examples: `姊弟恋`, `佟健`, `弗菜戈`, `海珠湖公园`.
+  - `kws_context_missing`: `10`
+    - The true hotword is not present in the KWS/context evidence at all, so CB/COVO cannot recover it without improving KWS or adding an external lexicon/oracle-like source.
+    - Examples: `朱圣祎`, `苹果`, `银联`, `龟趺`.
+- Interpretation:
+  - The next biggest recall gain is not only CB candidate generation. About half of the remaining lost hotwords are caused by COVO rewriting protected/base-present hotwords into common homophones.
+  - A pure prompt instruction is not enough; the model has already ignored explicit protected-hotword text.
+  - Two promising next routes:
+    1. Train COVO on protected-hotword preservation failures mined from train predictions, with examples where the output must keep base/prompt hotwords exactly while still fixing other characters.
+    2. Continue CB-side targeted supplement for the `candidate_generation_missing` bucket, but add stronger cleanliness filters to avoid false KWS words such as `德郭队`.
