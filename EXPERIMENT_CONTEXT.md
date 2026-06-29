@@ -1575,3 +1575,32 @@ Shuili filler-normalized CER diagnostic, 2026-06-29:
   - Even the conservative four-token filler list lowers the base CER to about `0.099`, confirming that the issue is largely evaluation style rather than hotword modeling.
   - COVO still improves over base after filler normalization (`0.09900 -> 0.08965` minimal; `0.09814 -> 0.08903` extended).
   - Expanded SFT120 remains the better Shuili adapter under both filler-normalized metrics.
+
+Shuili pre-strip fillers then COVO, 2026-06-29:
+
+- User hypothesis: remove filler tokens from the evidence first, then let COVO correct the cleaned text.
+- Added script: `src/analysis/strip_covo_fillers.py`
+  - Applies OpenCC `t2s`, removes configured filler tokens from `reference`, `input.asr_top1`, and `input.nbest`.
+  - Default strip list: `这一个, 那么, 的话, 这个, 那个, 我们呢, 就是, 呢, 啊, 呃, 嗯`.
+  - Did not remove `咱们` by default because it is more like a pronoun than a pure filler and may change the transcript subject.
+- Experiment:
+  - stripped evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_filler_stripped_20260629.jsonl`
+  - COVO adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - prediction file: `src/logs/cbwhisper_covo_predictions_shuili_v3_filler_stripped_expanded_sft120_20260629.jsonl`
+- Result after stripping before COVO:
+  - samples: `1149`
+  - base CER: `0.09603`
+  - COVO CER: `0.08976`
+  - base edits: `1271`
+  - COVO edits: `1188`
+  - improved / worsened / unchanged: `114 / 82 / 953`
+  - hotword recall: `0.91147 -> 0.92412`
+  - base-hit hotwords lost by prediction: `2`
+  - n-best oracle CER: `0.04065`
+- Comparison:
+  - original evidence + COVO + filler-normalized scoring had expanded-adapter CER `0.08903`.
+  - pre-strip evidence + COVO has CER `0.08976`.
+- Interpretation:
+  - Pre-stripping fillers is not better than leaving original evidence intact and applying filler-normalized scoring afterward.
+  - It cleans the target but also changes n-best competition and removes context that COVO can use.
+  - Keep this as a rejected route; for reporting, prefer raw CER plus filler-normalized CER rather than modifying COVO input.

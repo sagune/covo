@@ -1,0 +1,33 @@
+{
+  "date": "2026-06-29",
+  "dataset": "shuili",
+  "experiment": "strip filler tokens from COVO evidence first, then run COVO expanded SFT120",
+  "strip_fillers": ["这一个", "那么", "的话", "这个", "那个", "我们呢", "就是", "呢", "啊", "呃", "嗯"],
+  "input_evidence": "src/logs/cbwhisper_covo_evidence_shuili_v3_filler_stripped_20260629.jsonl",
+  "prediction_file": "src/logs/cbwhisper_covo_predictions_shuili_v3_filler_stripped_expanded_sft120_20260629.jsonl",
+  "raw_eval_after_stripping": {
+    "samples": 1149,
+    "base_cer": 0.0960332451832263,
+    "prediction_cer": 0.08976199471099358,
+    "base_edits": 1271,
+    "prediction_edits": 1188,
+    "improved_samples": 114,
+    "worsened_samples": 82,
+    "unchanged_samples": 953
+  },
+  "audit": {
+    "nbest_oracle_cer": 0.040649792217604834,
+    "prediction_or_nbest_oracle_cer": 0.03898753305629014,
+    "hotword_base_recall": 0.9114724480578139,
+    "hotword_prediction_recall": 0.924119241192412,
+    "base_lost_by_prediction": 2,
+    "nbest_exact": 888,
+    "prediction_exact": 632,
+    "base_exact": 610
+  },
+  "comparison": {
+    "original_input_then_filler_normalized_expanded_cer": 0.08903195414932873,
+    "filler_stripped_before_covo_cer": 0.08976199471099358
+  },
+  "decision": "Rejected as main route. Stripping fillers before COVO makes the input cleaner, but slightly hurts CER versus running COVO on the original evidence and applying filler-normalized scoring afterward. The likely reason is that pre-stripping removes useful context and changes n-best competition."
+}
