@@ -1,0 +1,41 @@
+{
+  "date": "2026-06-29",
+  "dataset": "shuili",
+  "samples": 1152,
+  "cbwhisper": {
+    "config": "src/run_cbwhisper_shuili_v3_kws_test.py",
+    "metrics_csv": "src/logs/test_metrics_shuili_v3_current_rerun_20260629.csv",
+    "entity_recall": 0.8715486194477791,
+    "cer": 0.14022205078345482,
+    "hotword_sentence_cer": 0.13962717635591518,
+    "hotword_only_cer": 0.39556962025316456,
+    "wer": 0.7612847222222222
+  },
+  "covo_expanded_sft120": {
+    "adapter": "covo/outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16",
+    "opencc_base_cer": 0.13916576725287283,
+    "opencc_prediction_cer": 0.13142022728715638,
+    "raw_eval_base_cer": 0.15414894292425876,
+    "raw_eval_prediction_cer": 0.13313440416481492,
+    "hotword_base_recall": 0.9015356820234869,
+    "hotword_prediction_recall": 0.9223125564588979,
+    "base_lost_by_prediction": 4,
+    "improved_samples_opencc": 123,
+    "worsened_samples_opencc": 66,
+    "prediction_exact_opencc": 287
+  },
+  "covo_protected_preserve_sft40": {
+    "adapter": "covo/outputs/qwen35_cbwhisper_actual_protected_preserve_sft40_x20_from_expanded_bf16",
+    "opencc_base_cer": 0.13916576725287283,
+    "opencc_prediction_cer": 0.13154720335216813,
+    "raw_eval_base_cer": 0.15414894292425876,
+    "raw_eval_prediction_cer": 0.13332486826233256,
+    "hotword_base_recall": 0.9015356820234869,
+    "hotword_prediction_recall": 0.9223125564588979,
+    "base_lost_by_prediction": 4,
+    "improved_samples_opencc": 118,
+    "worsened_samples_opencc": 63,
+    "prediction_exact_opencc": 285
+  },
+  "decision": "Use expanded_sft120 for Shuili among the tested COVO adapters. Protected-preserve SFT40 has the same hotword recall but slightly worse CER."
+}

@@ -1467,3 +1467,40 @@ Protected-hotword preservation follow-up, 2026-06-28:
   - Keep protected-preserve SFT40 as recall-best only: CER `0.04292`, recall `0.91295`.
   - Do not use the two follow-up adapters as main results.
   - Next useful direction is not simply "more preserve SFT"; it needs a training objective that preserves hotwords while maintaining the existing correction distribution, e.g. harder contrastive examples or a small span-level preference/calibration module.
+
+Shuili transfer test, 2026-06-29:
+
+- Dataset and endpoint:
+  - dataset: `datasets/shuili/data_shuil_largev3`
+  - CB-Whisper runner: `src/run_cbwhisper_shuili_v3_kws_test.py`
+  - KWS checkpoint: `src/outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt`
+  - evidence output: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl` (`1152` rows; not committed because it is large)
+  - metrics CSV: `src/logs/test_metrics_shuili_v3_current_rerun_20260629.csv`
+- CB-Whisper-only result:
+  - samples: `1152`
+  - Entity Recall: `0.87155`
+  - CER: `0.14022`
+  - Hotword Sentence CER: `0.13963`
+  - Hotword Only CER: `0.39557`
+  - WER: `0.76128`
+  - n-best diagnostic aggregate: average n-best size `10.41`; top1 CER `0.14059`; oracle CER `0.04668`; oracle beats top1 on `0.18016` of rows.
+- COVO with current main expanded adapter:
+  - adapter: `outputs/qwen35_cbwhisper_expanded_rewrite60k_noop_sft120_from_mild_bf16`
+  - raw COVO eval, without opencc simplification: base CER `0.15415` -> prediction CER `0.13313`
+  - opencc-aligned CER: base `0.13917` -> prediction `0.13142`
+  - opencc edit counts: `2192 -> 2070`
+  - opencc exact matches: `275 -> 287`
+  - opencc improved / worsened / unchanged: `123 / 66 / 963`
+  - hotword recall in audit: `0.90154 -> 0.92231`
+  - base-hit hotwords lost by prediction: `4`
+- COVO with protected-preserve SFT40 adapter:
+  - adapter: `outputs/qwen35_cbwhisper_actual_protected_preserve_sft40_x20_from_expanded_bf16`
+  - raw COVO eval: base CER `0.15415` -> prediction CER `0.13332`
+  - opencc-aligned CER: base `0.13917` -> prediction `0.13155`
+  - hotword recall in audit: `0.90154 -> 0.92231`
+  - base-hit hotwords lost by prediction: `4`
+- Interpretation:
+  - Shuili transfer is much harder than AISHELL in absolute CER, but COVO is clearly useful on this dataset: the current main expanded adapter reduces opencc-aligned CER by about `0.00775` absolute and improves hotword recall by about `0.02078`.
+  - The protected-preserve SFT40 adapter does not help on Shuili; it has identical hotword recall and slightly worse CER than the expanded adapter.
+  - The n-best oracle CER (`0.04668`) is far below both CB-only and COVO output, so the main remaining opportunity on Shuili is better candidate selection/correction from the existing candidate pool rather than only more KWS recall.
+  - Use expanded SFT120 as the current Shuili COVO adapter among tested options.
