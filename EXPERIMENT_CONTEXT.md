@@ -1504,3 +1504,41 @@ Shuili transfer test, 2026-06-29:
   - The protected-preserve SFT40 adapter does not help on Shuili; it has identical hotword recall and slightly worse CER than the expanded adapter.
   - The n-best oracle CER (`0.04668`) is far below both CB-only and COVO output, so the main remaining opportunity on Shuili is better candidate selection/correction from the existing candidate pool rather than only more KWS recall.
   - Use expanded SFT120 as the current Shuili COVO adapter among tested options.
+
+Shuili COVO error analysis, 2026-06-29:
+
+- Question: why does COVO reduce Shuili CER by only about one percentage point despite a strong n-best oracle?
+- OpenCC-aligned accounting for `expanded_sft120`:
+  - base CER: `0.13917` (`2192` edits)
+  - COVO CER: `0.13142` (`2070` edits)
+  - n-best oracle CER from the same prediction file: `0.05200` (`819` edits)
+  - COVO gain: `122` edits
+  - oracle available gain: `1373` edits
+  - realized oracle gain ratio: `0.0889`
+- Error categories under OpenCC-aligned audit:
+  - `unchanged_error`: `713` rows, `1695` prediction edits.
+    - `599/713` have a better n-best candidate than COVO output.
+    - `416/713` have an exact-reference candidate in n-best, but COVO keeps/normalizes top1 instead.
+    - This is the dominant failure mode.
+  - `improved_partial`: `86` rows.
+  - `fixed_to_exact`: `37` rows.
+  - `worsened_error`: `41` rows.
+  - `base_correct_broken`: `25` rows.
+- Candidate-pool facts:
+  - n-best exact rows: `760/1152`.
+  - n-best better than COVO rows: `711/1152`.
+  - best-candidate rank distribution is not always rank1: rank1 `420`, rank2 `291`, rank3 `171`, rank4 `94`, rank5 `66`, rank6 `47`, rank7 `34`, rank8 `29`.
+  - Therefore the candidate pool is useful, but the COVO adapter is not reliably selecting non-top1 candidates.
+- Linguistic error pattern:
+  - The most frequent missing reference character in COVO output is `呢` (`607` missing edits), followed by `啊` (`84`), `的` (`83`), `个` (`78`), `这` (`71`), `一` (`50`).
+  - Shuili references preserve lecture-style fillers and discourse particles such as `呢/啊/那么/这一个/咱们`.
+  - The current COVO training is biased toward clean ASR correction and minimal edits, so it often refuses to insert these fillers even when an n-best candidate contains them.
+  - It can also delete them from already-correct base text, e.g. `咱们下面呢进入...` -> `咱们下面进入...`.
+- Hotword evidence pattern:
+  - COVO is not mainly failing by losing hotwords on Shuili. Hotword recall improves from `0.90154` to `0.92231`, and only `4` base-hit hotwords are lost.
+  - However, prompts are noisy: false prompt hotwords are extremely common, especially `闸门` (`630` rows where it appears in prompt but not reference), `石方` (`221`), `地基` (`191`), `基坑` (`103`).
+  - This explains why the model cannot simply trust prompt hotwords and tends to stay conservative.
+- Interpretation:
+  - The one-point CER reduction is not caused by lack of n-best diversity; the candidate pool contains many exact answers.
+  - It is mainly a COVO selection/style mismatch: the model was trained to be conservative and clean, while Shuili scoring rewards recovering lecture fillers and longer spoken-form candidates.
+  - Next promising route for Shuili is a candidate-selection/reranking or SFT objective that explicitly teaches choosing the best n-best candidate, including filler-preserving lecture transcripts, instead of only generic ASR correction.
