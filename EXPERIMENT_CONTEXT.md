@@ -1604,3 +1604,50 @@ Shuili pre-strip fillers then COVO, 2026-06-29:
   - Pre-stripping fillers is not better than leaving original evidence intact and applying filler-normalized scoring afterward.
   - It cleans the target but also changes n-best competition and removes context that COVO can use.
   - Keep this as a rejected route; for reporting, prefer raw CER plus filler-normalized CER rather than modifying COVO input.
+
+Shuili COVO n-best selector SFT, 2026-06-29:
+
+- Constraint:
+  - Shuili has no reliable train split, so all COVO capability training in this round uses AISHELL train evidence only.
+  - Shuili is used only as the held-out transfer/evaluation set.
+- Motivation:
+  - Prior Shuili analysis showed the n-best pool has strong oracle quality, but COVO often keeps CB-Whisper/top1.
+  - Therefore this round trains COVO to select the best n-best candidate rather than directly rewrite to the reference.
+- Added script:
+  - `src/analysis/build_covo_nbest_selector_sft.py`
+  - It reads AISHELL train CB-Whisper/COVO evidence, finds the n-best candidate with minimum CER to the reference, and writes Qwen-style SFT messages.
+  - Hard rows where oracle n-best improves top1 are repeated more often; exact-oracle rows get extra weight.
+- Added bridge option:
+  - `src/analysis/cbwhisper_covo_bridge.py --prompt-mode selector`
+  - Selector prompt asks the model to choose or minimally merge n-best candidates, instead of default conservative correction.
+- Training data:
+  - Source evidence: `src/logs/cbwhisper_covo_evidence_train_full.jsonl`
+  - Rows scanned: `17301`
+  - Hard rows: `6609`
+  - Exact hard rows: `4188`
+  - Base/keep rows: `6000`
+  - Written SFT rows after repetition: `40812`
+- Experiment A: selector target, conservative/default prompt.
+  - Adapter: `outputs/qwen35_cbwhisper_nbest_selector_hardx4_sft160_from_expanded_bf16`
+  - Raw Shuili CER: `0.13275` vs expanded SFT120 `0.13313`
+  - Extended filler-normalized CER: `0.08903`
+  - Minimal filler-normalized CER: `0.08938`
+  - Hotword recall: `0.92231`
+  - Interpretation: only tiny gain because train target and inference prompt conflicted; prompt still emphasized preserving CB-Whisper output.
+- Experiment B: selector target plus selector prompt.
+  - Adapter: `outputs/qwen35_cbwhisper_nbest_selector_prompt_hardx4_sft160_from_expanded_bf16`
+  - Raw Shuili CER: `0.13199` vs base/top1 `0.15415`
+  - Extended filler-normalized CER: `0.08778` vs expanded SFT120 `0.08903`
+  - Minimal filler-normalized CER: `0.08844` vs expanded SFT120 `0.08965`
+  - Hotword recall: `0.92322` vs base/top1 `0.90154`
+  - Exact matches under minimal filler normalization: `555 -> 605`
+- Selector-prompt audit:
+  - n-best oracle CER is still much lower: `0.06488`.
+  - n-best exact rows: `688/1152` in the audit script, while prediction exact rows are only `287/1152`.
+  - n-best better than prediction: `664/1152`.
+  - COVO still copies top1 very often: `918/1152`.
+  - It copies the best n-best candidate only `407/1152`; most of those are still rank1.
+- Conclusion:
+  - AISHELL-trained selector SFT transfers positively to Shuili and is the best Shuili COVO result so far under filler-normalized CER.
+  - The improvement is real but small because the model is still too conservative and has not learned to trust non-top1 n-best candidates enough.
+  - Next routes should increase explicit non-top1 selection pressure, for example more rank>1 oracle rows, contrastive/DPO pairs between top1 and oracle n-best, or inference-time n-best selection with a learned lightweight scorer.

@@ -30,6 +30,16 @@ INSTRUCTION = (
     "如果证据不足，保持 ASR top-1 不变。"
 )
 
+SELECTOR_INSTRUCTION = (
+    "任务：从 CB-Whisper 的 ASR top-1、N-best 候选、拼音和 KWS 热词证据中选择最可信的完整中文转写。"
+    "不要默认保留 ASR top-1；如果 N-best 中非 top-1 候选在语义、拼音、上下文或热词上更合理，"
+    "应直接采用该候选并只做必要的小修正。"
+    "N-best 中 trusted_scored 候选通常可信，但 score 不是唯一依据；"
+    "要比较候选是否完整、是否多字漏字、是否包含无关热词、是否符合上下文。"
+    "热词证据来自 CB-Whisper/KWS，不是参考答案；不要因为热词分数高就强行插入无上下文支持的词。"
+    "输出应尽量等于某个高质量 N-best 候选；只有候选存在明显局部错字时才做小幅修正。"
+)
+
 PROTECTED_HOTWORD_INSTRUCTION = (
     "受保护热词是已经出现在 ASR top-1 或 trusted_scored 候选中的 prompt 热词。"
     "最终输出必须逐字保留受保护热词；不要把它改成同音、近音、繁简异体或更常见写法。"
@@ -273,7 +283,8 @@ def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[
 
 def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     input_block = record.get("input", {}) or {}
-    lines = [INSTRUCTION]
+    prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
+    lines = [SELECTOR_INSTRUCTION if prompt_mode == "selector" else INSTRUCTION]
     if bool(getattr(args, "protect_supported_hotwords", False)):
         lines.append(PROTECTED_HOTWORD_INSTRUCTION)
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
@@ -438,6 +449,12 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         help="Which CB-Whisper hotwords to inject into covo prompts.",
     )
     parser.add_argument("--include-pinyin", action="store_true")
+    parser.add_argument(
+        "--prompt-mode",
+        choices=["correction", "selector"],
+        default="correction",
+        help="Prompt style for COVO: conservative correction or n-best selector.",
+    )
     parser.add_argument(
         "--protect-supported-hotwords",
         action="store_true",
