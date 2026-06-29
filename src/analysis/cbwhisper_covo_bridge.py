@@ -18,6 +18,13 @@ SYSTEM_MESSAGE = (
     "格式为 {\"text\":\"...\"}。不要输出解释、推理过程、Markdown 或额外字段。"
 )
 
+SELECTOR_SYSTEM_MESSAGE = (
+    "你是一个中文 ASR N-best 候选选择器。你的首要任务是比较 ASR top-1 与所有 N-best 候选，"
+    "选择最可信、最完整、最符合音频线索和热词证据的中文转写。不要默认保守复制 top-1。"
+    "必须只输出一个合法 JSON 对象，格式为 {\"text\":\"...\"}。"
+    "不要输出解释、推理过程、Markdown 或额外字段。"
+)
+
 INSTRUCTION = (
     "任务：融合 CB-Whisper 的最终输出、N-best 候选和 KWS 热词证据进行中文 ASR 后纠错。"
     "优先保留 CB-Whisper 输出；只有当 N-best、拼音或高置信热词共同支持时才修改。"
@@ -32,12 +39,15 @@ INSTRUCTION = (
 
 SELECTOR_INSTRUCTION = (
     "任务：从 CB-Whisper 的 ASR top-1、N-best 候选、拼音和 KWS 热词证据中选择最可信的完整中文转写。"
-    "不要默认保留 ASR top-1；如果 N-best 中非 top-1 候选在语义、拼音、上下文或热词上更合理，"
-    "应直接采用该候选并只做必要的小修正。"
+    "ASR top-1 只是候选之一，不是默认答案；必须逐条比较 N-best。"
+    "如果非 top-1 候选更完整、少漏字少多字、拼音更接近、上下文更顺，或正确包含受支持热词，"
+    "应优先直接采用该非 top-1 候选。"
     "N-best 中 trusted_scored 候选通常可信，但 score 不是唯一依据；"
     "要比较候选是否完整、是否多字漏字、是否包含无关热词、是否符合上下文。"
+    "当多个候选都合理时，优先选择字符级错误最少且保留自然口语成分的候选。"
     "热词证据来自 CB-Whisper/KWS，不是参考答案；不要因为热词分数高就强行插入无上下文支持的词。"
-    "输出应尽量等于某个高质量 N-best 候选；只有候选存在明显局部错字时才做小幅修正。"
+    "输出应尽量等于某个高质量 N-best 候选；不要为了保守而复制 top-1。"
+    "只有所有候选都存在明显局部错字时，才在最佳候选基础上做小幅修正。"
 )
 
 PROTECTED_HOTWORD_INSTRUCTION = (
@@ -329,6 +339,11 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     return "\n".join(lines)
 
 
+def build_system_message(args: argparse.Namespace) -> str:
+    prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
+    return SELECTOR_SYSTEM_MESSAGE if prompt_mode == "selector" else SYSTEM_MESSAGE
+
+
 def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
     count = 0
     for record in read_jsonl(args.input):
@@ -351,7 +366,7 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
             "reference": reference,
             "input": input_block,
             "messages": [
-                {"role": "system", "content": SYSTEM_MESSAGE},
+                {"role": "system", "content": build_system_message(args)},
                 {"role": "user", "content": build_user_prompt({**record, "input": input_block}, args)},
             ],
         }

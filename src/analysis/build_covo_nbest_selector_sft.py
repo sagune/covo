@@ -16,7 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from cbwhisper_covo_bridge import SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
+from cbwhisper_covo_bridge import SELECTOR_SYSTEM_MESSAGE, SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
 
 DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
 if DEFAULT_COVO_SRC not in sys.path:
@@ -130,7 +130,7 @@ def make_record(row: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]
         "split": row.get("split", ""),
         "reference": reference,
         "messages": [
-            {"role": "system", "content": SYSTEM_MESSAGE},
+            {"role": "system", "content": SELECTOR_SYSTEM_MESSAGE if args.selector_prompt else SYSTEM_MESSAGE},
             {"role": "user", "content": build_user_prompt({**row, "input": input_block}, bridge_args)},
             {
                 "role": "assistant",
