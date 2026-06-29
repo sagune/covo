@@ -1,0 +1,40 @@
+{
+  "date": "2026-06-29",
+  "dataset": "shuili",
+  "description": "Filler-normalized CER diagnostic for lecture-style Shuili transcripts. Metrics use OpenCC t2s, punctuation/space removal, and optional filler-token deletion before edit distance.",
+  "minimal_fillers": ["呢", "啊", "呃", "嗯"],
+  "extended_fillers": ["这一个", "那么", "的话", "这个", "那个", "咱们", "我们呢", "就是", "呢", "啊", "呃", "嗯"],
+  "expanded_sft120_minimal_fillers": {
+    "base_cer": 0.09899791512542874,
+    "prediction_cer": 0.08964960656399219,
+    "base_edits": 1472,
+    "prediction_edits": 1333,
+    "base_exact": 555,
+    "prediction_exact": 599
+  },
+  "protected_preserve_sft40_minimal_fillers": {
+    "base_cer": 0.09899791512542874,
+    "prediction_cer": 0.0897841146008474,
+    "base_edits": 1472,
+    "prediction_edits": 1335,
+    "base_exact": 555,
+    "prediction_exact": 597
+  },
+  "expanded_sft120_extended_fillers": {
+    "base_cer": 0.09813927926513308,
+    "prediction_cer": 0.08903195414932873,
+    "base_edits": 1250,
+    "prediction_edits": 1134,
+    "base_exact": 615,
+    "prediction_exact": 650
+  },
+  "protected_preserve_sft40_extended_fillers": {
+    "base_cer": 0.09813927926513308,
+    "prediction_cer": 0.08918897699615294,
+    "base_edits": 1250,
+    "prediction_edits": 1136,
+    "base_exact": 615,
+    "prediction_exact": 648
+  },
+  "decision": "Expanded SFT120 remains the best tested Shuili COVO adapter. Minimal filler normalization already lowers the base CER from the raw/opencc 0.13917 range to about 0.0990, confirming that lecture fillers dominate raw CER."
+}

@@ -1,0 +1,23 @@
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_covo_predictions_shuili_v3_current_protected_preserve_sft40_20260629.jsonl",
+  "samples": 1152,
+  "reference_chars": 14869,
+  "fillers": [
+    "呃",
+    "呢",
+    "啊",
+    "嗯"
+  ],
+  "base_cer": 0.09899791512542874,
+  "prediction_cer": 0.0897841146008474,
+  "base_edits": 1472,
+  "prediction_edits": 1335,
+  "improved_samples": 115,
+  "worsened_samples": 49,
+  "unchanged_samples": 988,
+  "base_exact": 555,
+  "prediction_exact": 597,
+  "ref_changed_by_filter": 670,
+  "base_changed_by_filter": 92,
+  "pred_changed_by_filter": 84
+}

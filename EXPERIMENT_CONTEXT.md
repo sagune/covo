@@ -1542,3 +1542,36 @@ Shuili COVO error analysis, 2026-06-29:
   - The one-point CER reduction is not caused by lack of n-best diversity; the candidate pool contains many exact answers.
   - It is mainly a COVO selection/style mismatch: the model was trained to be conservative and clean, while Shuili scoring rewards recovering lecture fillers and longer spoken-form candidates.
   - Next promising route for Shuili is a candidate-selection/reranking or SFT objective that explicitly teaches choosing the best n-best candidate, including filler-preserving lecture transcripts, instead of only generic ASR correction.
+
+Shuili filler-normalized CER diagnostic, 2026-06-29:
+
+- Added script: `src/analysis/evaluate_filler_normalized_cer.py`
+  - Applies OpenCC `t2s`, removes punctuation/spaces, then optionally removes a configurable filler list before CER.
+  - This is diagnostic only; raw CER remains reported.
+- Minimal filler list:
+  - `呢, 啊, 呃, 嗯`
+  - expanded adapter:
+    - base CER: `0.09900`
+    - COVO CER: `0.08965`
+    - base edits: `1472`
+    - COVO edits: `1333`
+    - exact matches: `555 -> 599`
+  - protected-preserve SFT40:
+    - COVO CER: `0.08978`
+    - exact matches: `597`
+- Extended lecture filler list:
+  - `这一个, 那么, 的话, 这个, 那个, 咱们, 我们呢, 就是, 呢, 啊, 呃, 嗯`
+  - expanded adapter:
+    - base CER: `0.09814`
+    - COVO CER: `0.08903`
+    - base edits: `1250`
+    - COVO edits: `1134`
+    - exact matches: `615 -> 650`
+  - protected-preserve SFT40:
+    - COVO CER: `0.08919`
+    - exact matches: `648`
+- Interpretation:
+  - The large raw/opencc CER (`~0.139`) is heavily inflated by lecture fillers, especially `呢`.
+  - Even the conservative four-token filler list lowers the base CER to about `0.099`, confirming that the issue is largely evaluation style rather than hotword modeling.
+  - COVO still improves over base after filler normalization (`0.09900 -> 0.08965` minimal; `0.09814 -> 0.08903` extended).
+  - Expanded SFT120 remains the better Shuili adapter under both filler-normalized metrics.
