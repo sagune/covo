@@ -1798,3 +1798,46 @@ Detailed Shuili error analysis for strong selector full-epoch SFT, 2026-06-30:
   - Full strong selector proves that the model can be moved away from top1 copying, but the current objective is unbalanced.
   - Next route should not simply train longer or make the prompt even stronger.
   - The right next route is mixed training: keep the selector objective, add explicit no-break rows for near-correct top1, and add protected-hotword preservation examples/pairs so the model does not delete domain terms while selecting non-top1 candidates.
+
+Shuili content-priority selector prompt-only test, 2026-06-30:
+
+- Motivation:
+  - User asked whether the first problem, over-weighting fillers/discourse particles, can be improved by prompt engineering.
+  - Test is prompt-only: same full-epoch strong selector adapter, no retraining.
+- Code change:
+  - Added `--prompt-mode selector_content` in `src/analysis/cbwhisper_covo_bridge.py`.
+  - The new prompt treats fillers such as `呢/啊/嗯/呃/那么/这个/这一个/的话/就是` as low-priority evidence.
+  - It prioritizes domain terms, named entities, numbers, and main semantics over filler completeness.
+  - It explicitly warns not to change correct domain terms just to add/delete fillers.
+- Adapter/evidence:
+  - Adapter: `outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`
+- Raw CER:
+  - base/top1: `0.15415`
+  - strong selector prompt: `0.11936`
+  - content-priority selector prompt: `0.11428`
+- Filler-normalized CER:
+  - minimal fillers (`呢,啊,呃,嗯`): `0.08003 -> 0.07472` compared with strong selector.
+  - extended fillers: `0.08566 -> 0.07945` compared with strong selector.
+- Error movement:
+  - strong selector improved/worsened/unchanged: `349 / 172 / 631` in the COVO stdout summary.
+  - content-priority prompt improved/worsened/unchanged: `320 / 104 / 728`.
+  - Audit base-correct-broken drops: `73 -> 44`.
+  - Audit worsened-error drops: `99 -> 60`.
+- N-best behavior:
+  - copy top1: `594 -> 717`.
+  - copy any n-best: `1127 -> 1130`.
+  - copy oracle-best n-best: `423 -> 459`.
+  - prediction exact rows: `322 -> 336`.
+  - n-best better than prediction: `630 -> 602`.
+  - prediction worse than base: `187 -> 116` in the relation diagnostic.
+  - Therefore the prompt does not merely revert to top1; it makes selection more selective and reduces harmful edits.
+- Hotword behavior:
+  - strong selector recall: `0.88708`.
+  - content-priority selector recall: `0.90425`.
+  - base recall: `0.90154`.
+  - base-hit hotwords lost by prediction drops: `35 -> 15`.
+- Interpretation:
+  - Yes, prompt engineering can reduce over-attention to fillers and recover much of the hotword loss without retraining.
+  - This is the best Shuili prompt setting so far: it improves raw CER and filler-normalized CER over the strong selector, while keeping hotword recall slightly above base.
+  - Remaining gap to n-best oracle (`0.06488`) still requires training/objective changes, but the next training should use the content-priority prompt as the inference/training style rather than the overly aggressive strong selector prompt.
