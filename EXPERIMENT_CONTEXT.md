@@ -1702,3 +1702,57 @@ Shuili COVO strong selector full-epoch SFT, 2026-06-30:
   - The earlier bottleneck really was COVO's over-conservative top1 copying.
   - Full training plus stronger selector prompt fixes much of that behavior and gives the best Shuili CER so far.
   - The next problem is balancing n-best selection with protected hotword retention. A likely next route is a mixed objective: keep strong selector rows, but add protected-hotword preservation pairs/rows so non-top1 selection does not delete supported domain terms.
+
+AISHELL validation of strong selector full-epoch SFT, 2026-06-30:
+
+- Purpose:
+  - Check whether the Shuili strong selector adapter also improves the AISHELL 808 hotword test.
+  - This uses the rich clean n-best evidence, not the older plain full-test evidence.
+- Input/evidence:
+  - `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`
+  - Candidate-pool summary before COVO:
+    - rows: `808`
+    - avg unique n-best: `8.7859`
+    - exact reference in n-best: `612`
+    - summary top1 corpus CER: `0.07238`
+    - summary oracle corpus CER: `0.02864`
+    - summary top1 hotword recall: `0.93631`
+    - summary oracle hotword recall: `0.94480`
+- Adapter/eval setting:
+  - Adapter: `outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`
+  - Prompt mode: `selector`
+  - Same bridge settings as Shuili validation: n-best max `6`, all hotwords, protected supported hotwords.
+- COVO evaluator result:
+  - base/top1 CER: `0.10446`
+  - prediction CER: `0.07055`
+  - improved / worsened / unchanged: `264 / 104 / 440`
+- Audit result:
+  - base CER: `0.10446`
+  - prediction CER: `0.07055`
+  - n-best oracle CER: `0.05355`
+  - prediction-or-nbest oracle CER: `0.04323`
+  - base exact: `369`
+  - prediction exact: `436`
+  - n-best exact: `513`
+  - n-best better than prediction: `199`
+- N-best utilization:
+  - copy top1: `410/808`
+  - copy any n-best: `759/808`
+  - copy oracle-best n-best: `525/808`
+  - prediction better than base: `231`
+  - prediction worse than base: `118`
+- Hotword tradeoff:
+  - base recall: `0.91507`
+  - prediction recall: `0.87261`
+  - n-best oracle recall: `0.91614`
+  - base-hit hotwords lost by prediction: `62`
+- Comparison to AISHELL main result:
+  - Current AISHELL main combined result remains CB-side targeted supplement + expanded adapter:
+    - CER: `0.04284`
+    - hotword recall: `0.91083`
+    - exact: `527`
+  - Strong selector full epoch is much worse on AISHELL (`0.07055` CER and `0.87261` recall).
+- Interpretation:
+  - The strong selector transfer helps Shuili because Shuili's conservative COVO behavior was the main bottleneck.
+  - On AISHELL, the existing main pipeline is already well calibrated; aggressive n-best selection over-corrects and loses too many hotwords.
+  - Do not promote the strong selector adapter for AISHELL. Keep it as a Shuili-oriented CER-reduction branch and use AISHELL main result for paper-level AISHELL comparison unless a mixed hotword-preserving selector recovers recall.
