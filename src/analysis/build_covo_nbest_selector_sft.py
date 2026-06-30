@@ -16,7 +16,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from cbwhisper_covo_bridge import SELECTOR_SYSTEM_MESSAGE, SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
+from cbwhisper_covo_bridge import (  # noqa: E402
+    CONTENT_SELECTOR_SYSTEM_MESSAGE,
+    SELECTOR_SYSTEM_MESSAGE,
+    SYSTEM_MESSAGE,
+    build_user_prompt,
+)
 
 DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
 if DEFAULT_COVO_SRC not in sys.path:
@@ -94,24 +99,89 @@ def best_candidate(reference: str, candidates: List[str]) -> Tuple[str, int, int
     return best_text, best_distance, best_rank
 
 
-def make_record(row: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any] | None:
-    reference = str(row.get("reference", "")).strip()
-    input_block = dict(row.get("input", {}) or {})
-    asr_top1 = str(input_block.get("asr_top1", "")).strip()
-    if not reference or not asr_top1:
-        return None
-    nbest = unique_texts([asr_top1] + list(input_block.get("nbest", []) or []))[: int(args.max_nbest_source)]
-    if not nbest:
-        return None
-    best_text, best_distance, best_rank = best_candidate(reference, nbest)
-    base_distance = char_distance(asr_top1, reference)
-    if best_distance > base_distance:
-        return None
-    if best_rank == 1 and base_distance > 0 and args.keep_only_oracle_improves:
-        return None
-    if len(norm(best_text)) < int(args.min_target_chars):
-        return None
+def _item_text(item: Any) -> str:
+    if isinstance(item, dict):
+        return str(item.get("text") or item.get("mention") or "").strip()
+    return str(item or "").strip()
 
+
+def reference_hotwords(input_block: Dict[str, Any], reference: str) -> List[str]:
+    ref_norm = norm(reference)
+    seen = set()
+    output = []
+    for key in ("keyword_mentions", "prompt_hotwords", "hotwords"):
+        for item in input_block.get(key, []) or []:
+            text = _item_text(item)
+            text_norm = norm(text)
+            if text_norm and text_norm in ref_norm and text_norm not in seen:
+                seen.add(text_norm)
+                output.append(text)
+    output.sort(key=lambda value: (len(norm(value)), norm(value)), reverse=True)
+    return output
+
+
+def protected_hotwords_for_target(input_block: Dict[str, Any], reference: str, candidates: List[str]) -> List[str]:
+    source_text = norm(" ".join(candidates[: max(1, min(3, len(candidates)))]))
+    protected = []
+    for text in reference_hotwords(input_block, reference):
+        text_norm = norm(text)
+        if text_norm and text_norm in source_text:
+            protected.append(text)
+    return protected
+
+
+def candidate_contains_all(candidate: str, hotwords: List[str]) -> bool:
+    candidate_norm = norm(candidate)
+    return all(norm(word) in candidate_norm for word in hotwords if norm(word))
+
+
+def protected_best_candidate(
+    reference: str,
+    candidates: List[str],
+    protected_hotwords: List[str],
+    margin: int,
+) -> Tuple[str, int, int, bool]:
+    best_text, best_distance, best_rank = best_candidate(reference, candidates)
+    if not protected_hotwords:
+        return best_text, best_distance, best_rank, False
+    protected_options: List[Tuple[int, int, str]] = []
+    for rank, candidate in enumerate(candidates, 1):
+        if candidate_contains_all(candidate, protected_hotwords):
+            protected_options.append((char_distance(candidate, reference), rank, candidate))
+    if not protected_options:
+        return best_text, best_distance, best_rank, False
+    protected_distance, protected_rank, protected_text = min(protected_options, key=lambda item: (item[0], item[1]))
+    if protected_distance <= best_distance + max(0, int(margin)):
+        return protected_text, protected_distance, protected_rank, protected_text != best_text
+    return best_text, best_distance, best_rank, False
+
+
+def _system_message(prompt_mode: str) -> str:
+    if prompt_mode == "selector_content":
+        return CONTENT_SELECTOR_SYSTEM_MESSAGE
+    if prompt_mode == "selector":
+        return SELECTOR_SYSTEM_MESSAGE
+    return SYSTEM_MESSAGE
+
+
+def make_training_record(
+    row: Dict[str, Any],
+    input_block: Dict[str, Any],
+    args: argparse.Namespace,
+    target_text: str,
+    target_distance: int,
+    target_rank: int,
+    base_distance: int,
+    best_distance: int,
+    best_rank: int,
+    kind: str,
+    protected_target_used: bool = False,
+) -> Dict[str, Any] | None:
+    reference = str(row.get("reference", "")).strip()
+    if len(norm(target_text)) < int(args.min_target_chars):
+        return None
+    prompt_mode = str(args.prompt_mode)
+    reference = str(row.get("reference", "")).strip()
     bridge_args = argparse.Namespace(
         max_nbest=args.max_nbest_prompt,
         max_pinyin=args.max_pinyin,
@@ -121,31 +191,99 @@ def make_record(row: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]
         max_candidates_with_scores=0,
         hotword_source="all",
         protect_supported_hotwords=args.protect_supported_hotwords,
-        prompt_mode="selector" if args.selector_prompt else "correction",
+        prompt_mode=prompt_mode,
     )
     return {
-        "id": f"{row.get('split', '')}:{row.get('id', '')}:nbest_selector",
+        "id": f"{row.get('split', '')}:{row.get('id', '')}:nbest_selector:{kind}",
         "source": row.get("source", "cbwhisper"),
         "dataset": row.get("dataset", ""),
         "split": row.get("split", ""),
         "reference": reference,
         "messages": [
-            {"role": "system", "content": SELECTOR_SYSTEM_MESSAGE if args.selector_prompt else SYSTEM_MESSAGE},
+            {"role": "system", "content": _system_message(prompt_mode)},
             {"role": "user", "content": build_user_prompt({**row, "input": input_block}, bridge_args)},
             {
                 "role": "assistant",
-                "content": json.dumps({"text": norm(best_text)}, ensure_ascii=False, separators=(",", ":")),
+                "content": json.dumps({"text": norm(target_text)}, ensure_ascii=False, separators=(",", ":")),
             },
         ],
         "nbest_selector": {
+            "kind": kind,
             "base_distance": base_distance,
             "best_distance": best_distance,
             "best_rank": best_rank,
             "best_is_exact": best_distance == 0,
             "oracle_improves_base": best_distance < base_distance,
-            "unique_nbest": len(nbest),
+            "target_distance": target_distance,
+            "target_rank": target_rank,
+            "target_is_exact": target_distance == 0,
+            "target_improves_base": target_distance < base_distance,
+            "protected_target_used": bool(protected_target_used),
         },
     }
+
+
+def make_records(row: Dict[str, Any], args: argparse.Namespace) -> List[Dict[str, Any]]:
+    reference = str(row.get("reference", "")).strip()
+    input_block = dict(row.get("input", {}) or {})
+    asr_top1 = str(input_block.get("asr_top1", "")).strip()
+    if not reference or not asr_top1:
+        return []
+    nbest = unique_texts([asr_top1] + list(input_block.get("nbest", []) or []))[: int(args.max_nbest_source)]
+    if not nbest:
+        return []
+    base_distance = char_distance(asr_top1, reference)
+    plain_best_text, plain_best_distance, plain_best_rank = best_candidate(reference, nbest)
+    protected_words = protected_hotwords_for_target(input_block, reference, nbest)
+    best_text, best_distance, best_rank, protected_target_used = protected_best_candidate(
+        reference=reference,
+        candidates=nbest,
+        protected_hotwords=protected_words if args.protect_target_hotwords else [],
+        margin=int(args.protect_target_margin),
+    )
+    if best_distance > base_distance:
+        best_text, best_distance, best_rank, protected_target_used = asr_top1, base_distance, 1, False
+    if best_rank == 1 and base_distance > 0 and args.keep_only_oracle_improves:
+        return []
+
+    records = []
+    selector_record = make_training_record(
+        row=row,
+        input_block=input_block,
+        args=args,
+        target_text=best_text,
+        target_distance=best_distance,
+        target_rank=best_rank,
+        base_distance=base_distance,
+        best_distance=plain_best_distance,
+        best_rank=plain_best_rank,
+        kind="protected_selector" if protected_target_used else "selector",
+        protected_target_used=protected_target_used,
+    )
+    if selector_record is not None:
+        selector_record["nbest_selector"]["unique_nbest"] = len(nbest)
+        selector_record["nbest_selector"]["protected_hotwords"] = protected_words
+        records.append(selector_record)
+
+    if int(args.near_correct_distance) >= 0 and base_distance <= int(args.near_correct_distance):
+        no_break_record = make_training_record(
+            row=row,
+            input_block=input_block,
+            args=args,
+            target_text=asr_top1,
+            target_distance=base_distance,
+            target_rank=1,
+            base_distance=base_distance,
+            best_distance=plain_best_distance,
+            best_rank=plain_best_rank,
+            kind="near_correct_no_break",
+            protected_target_used=False,
+        )
+        if no_break_record is not None:
+            no_break_record["nbest_selector"]["unique_nbest"] = len(nbest)
+            no_break_record["nbest_selector"]["protected_hotwords"] = protected_words
+            records.append(no_break_record)
+    return records
 
 
 def parse_args() -> argparse.Namespace:
@@ -161,6 +299,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--include-pinyin", action="store_true")
     parser.add_argument("--protect-supported-hotwords", action="store_true")
     parser.add_argument("--selector-prompt", action="store_true")
+    parser.add_argument("--prompt-mode", choices=["correction", "selector", "selector_content"], default="")
+    parser.add_argument("--protect-target-hotwords", action="store_true")
+    parser.add_argument("--protect-target-margin", type=int, default=2)
+    parser.add_argument("--near-correct-distance", type=int, default=-1)
+    parser.add_argument("--near-correct-repeat", type=int, default=0)
     parser.add_argument("--hard-repeat", type=int, default=4)
     parser.add_argument("--exact-repeat", type=int, default=2)
     parser.add_argument("--base-repeat", type=int, default=1)
@@ -173,29 +316,46 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if not args.prompt_mode:
+        args.prompt_mode = "selector" if args.selector_prompt else "correction"
     rng = random.Random(int(args.seed))
     hard_rows: List[Dict[str, Any]] = []
     exact_rows: List[Dict[str, Any]] = []
     base_rows: List[Dict[str, Any]] = []
+    no_break_rows: List[Dict[str, Any]] = []
+    protected_rows: List[Dict[str, Any]] = []
     skipped = 0
     total = 0
     for row in read_jsonl(args.input):
         total += 1
-        record = make_record(row, args)
-        if record is None:
+        records = make_records(row, args)
+        if not records:
             skipped += 1
             continue
-        info = record["nbest_selector"]
-        if info["oracle_improves_base"]:
-            hard_rows.append(record)
-            if info["best_is_exact"]:
-                exact_rows.append(record)
-        else:
-            base_rows.append(record)
+        for record in records:
+            info = record["nbest_selector"]
+            if info["kind"] == "near_correct_no_break":
+                no_break_rows.append(record)
+            elif info["protected_target_used"]:
+                protected_rows.append(record)
+                if info["target_improves_base"]:
+                    hard_rows.append(record)
+                    if info["target_is_exact"]:
+                        exact_rows.append(record)
+                else:
+                    base_rows.append(record)
+            elif info["target_improves_base"]:
+                hard_rows.append(record)
+                if info["target_is_exact"]:
+                    exact_rows.append(record)
+            else:
+                base_rows.append(record)
 
     rng.shuffle(hard_rows)
     rng.shuffle(exact_rows)
     rng.shuffle(base_rows)
+    rng.shuffle(no_break_rows)
+    rng.shuffle(protected_rows)
     if int(args.max_hard_rows) > 0:
         hard_rows = hard_rows[: int(args.max_hard_rows)]
     if int(args.max_base_rows) > 0:
@@ -211,6 +371,9 @@ def main() -> int:
     for row in base_rows:
         for _ in range(max(0, int(args.base_repeat))):
             output_rows.append(row)
+    for row in no_break_rows:
+        for _ in range(max(0, int(args.near_correct_repeat))):
+            output_rows.append(row)
     rng.shuffle(output_rows)
     written = write_jsonl(args.output, output_rows)
     print(
@@ -223,9 +386,16 @@ def main() -> int:
                 "hard_rows": len(hard_rows),
                 "exact_hard_rows": len(exact_rows),
                 "base_rows": len(base_rows),
+                "near_correct_rows": len(no_break_rows),
+                "protected_rows": len(protected_rows),
+                "prompt_mode": args.prompt_mode,
+                "protect_target_hotwords": bool(args.protect_target_hotwords),
+                "protect_target_margin": int(args.protect_target_margin),
+                "near_correct_distance": int(args.near_correct_distance),
                 "hard_repeat": int(args.hard_repeat),
                 "exact_repeat": int(args.exact_repeat),
                 "base_repeat": int(args.base_repeat),
+                "near_correct_repeat": int(args.near_correct_repeat),
                 "written": written,
             },
             ensure_ascii=False,
