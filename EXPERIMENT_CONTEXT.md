@@ -1756,3 +1756,45 @@ AISHELL validation of strong selector full-epoch SFT, 2026-06-30:
   - The strong selector transfer helps Shuili because Shuili's conservative COVO behavior was the main bottleneck.
   - On AISHELL, the existing main pipeline is already well calibrated; aggressive n-best selection over-corrects and loses too many hotwords.
   - Do not promote the strong selector adapter for AISHELL. Keep it as a Shuili-oriented CER-reduction branch and use AISHELL main result for paper-level AISHELL comparison unless a mixed hotword-preserving selector recovers recall.
+
+Detailed Shuili error analysis for strong selector full-epoch SFT, 2026-06-30:
+
+- Overall behavior:
+  - Raw edits: base `2192` -> prediction `1880`, net gain `312` edits.
+  - Minimal filler-normalized edits: base `1472` -> prediction `1190`, net gain `282` edits.
+  - Extended filler-normalized edits: base `1252` -> prediction `1093`, net gain `159` edits.
+  - Raw sample movement: improved `298`, worsened `187`, unchanged `667`.
+  - Minimal filler-normalized movement: improved `251`, worsened `171`, unchanged `730`.
+  - Extended filler-normalized movement: improved `205`, worsened `160`, unchanged `787`.
+- Why raw CER improvement is smaller than hoped:
+  - The model now uses n-best much more, but it also breaks many already-good sentences.
+  - Raw worsened rows: `187`.
+  - Among worsened rows, `77` had base distance `0`, and `151` had base distance `<=2`; many regressions are on already nearly-correct top1 outputs.
+  - `27` raw regressions disappear under minimal filler normalization, and `43` disappear under extended filler normalization, so some regressions are just deleting lecture fillers such as `呢`.
+  - But `160` regressions remain even after minimal filler normalization, so over-correction is a real issue, not only evaluation style.
+- Hotword/content regressions:
+  - Worsened rows with lost prompt/reference hotword: `21`.
+  - Frequent lost hotwords: `水利`, `施工`, `运输`, `施工过程`, `水利工程`, `浇筑`.
+  - Examples:
+    - `地基处理方法来解决` -> `立即处理方法来解决`: loses `地基/地基处理`.
+    - `水闸的施工...` -> `水灾的时空...`: loses `水闸`.
+    - `水利工程的` -> `水滴工程的`: loses `水利工程`.
+  - This explains the recall drop from `0.92322` in the short selector to `0.88708` in full strong selector.
+- Filler/style pattern:
+  - Most frequent missing reference characters in prediction remain `呢` (`641`), `的` (`93`), `啊` (`86`), `这` (`50`), `个` (`49`).
+  - Many base-correct examples are worsened by deleting lecture particles:
+    - `咱们下面呢进入...` -> `咱们下面进入...`
+    - `我们目前呢...` -> `我们目前...`
+    - `组织呢` -> `组织`
+  - This means Shuili scoring rewards preserving spoken lecture style, while the model has a strong normalization/cleanup bias.
+- Remaining oracle space:
+  - n-best oracle CER is `0.06488`, while strong selector CER is `0.11936`.
+  - n-best better than prediction: `630/1152`.
+  - n-best exact rows: `688/1152`, while prediction exact rows are only `322/1152`.
+  - Remaining high-gap examples often have an oracle candidate that preserves omitted lecture context:
+    - ref `那么以及呢咱们的这一个呢相关的质量检查`, base/pred omit the beginning and fillers, oracle is exact.
+    - ref `水利工程咱们的水利工程啊`, base/pred output only `水利工程`, oracle contains the longer phrase.
+- Conclusion:
+  - Full strong selector proves that the model can be moved away from top1 copying, but the current objective is unbalanced.
+  - Next route should not simply train longer or make the prompt even stronger.
+  - The right next route is mixed training: keep the selector objective, add explicit no-break rows for near-correct top1, and add protected-hotword preservation examples/pairs so the model does not delete domain terms while selecting non-top1 candidates.
