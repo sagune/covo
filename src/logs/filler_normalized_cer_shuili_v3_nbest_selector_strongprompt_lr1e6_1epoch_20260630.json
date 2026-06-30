@@ -1,0 +1,31 @@
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_covo_predictions_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl",
+  "samples": 1149,
+  "reference_chars": 12737,
+  "fillers": [
+    "我们呢",
+    "这一个",
+    "咱们",
+    "就是",
+    "的话",
+    "这个",
+    "那个",
+    "那么",
+    "呃",
+    "呢",
+    "啊",
+    "嗯"
+  ],
+  "base_cer": 0.09813927926513308,
+  "prediction_cer": 0.08565596294260815,
+  "base_edits": 1250,
+  "prediction_edits": 1091,
+  "improved_samples": 205,
+  "worsened_samples": 160,
+  "unchanged_samples": 784,
+  "base_exact": 615,
+  "prediction_exact": 632,
+  "ref_changed_by_filter": 884,
+  "base_changed_by_filter": 596,
+  "pred_changed_by_filter": 639
+}

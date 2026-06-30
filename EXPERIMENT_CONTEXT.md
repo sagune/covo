@@ -1651,3 +1651,54 @@ Shuili COVO n-best selector SFT, 2026-06-29:
   - AISHELL-trained selector SFT transfers positively to Shuili and is the best Shuili COVO result so far under filler-normalized CER.
   - The improvement is real but small because the model is still too conservative and has not learned to trust non-top1 n-best candidates enough.
   - Next routes should increase explicit non-top1 selection pressure, for example more rank>1 oracle rows, contrastive/DPO pairs between top1 and oracle n-best, or inference-time n-best selection with a learned lightweight scorer.
+
+Shuili COVO strong selector full-epoch SFT, 2026-06-30:
+
+- User correction:
+  - For established routes, do full training by default instead of judging from very short 100-step runs.
+- Prompt/training changes:
+  - Strengthened selector system message and instruction so the model is an `ASR N-best candidate selector`, not a conservative post-corrector.
+  - The prompt explicitly says ASR top-1 is only one candidate and should not be copied by default.
+  - Rebuilt AISHELL train selector SFT data with the stronger selector system prompt.
+  - Continued from `outputs/qwen35_cbwhisper_nbest_selector_prompt_hardx4_sft160_from_expanded_bf16`.
+  - Learning rate: `1e-6`, constant.
+  - Full training: `1 epoch`, `10203/10203` optimizer steps.
+  - Final training loss: `0.2769`.
+  - Output adapter: `outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`.
+- Shuili validation:
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`
+  - Prompt mode: `selector`
+  - Samples: `1152`
+  - Raw CER:
+    - base/top1: `0.15415`
+    - strong selector: `0.11936`
+    - previous selector-prompt SFT160: `0.13199`
+  - Extended filler-normalized CER:
+    - base/top1: `0.09814`
+    - strong selector: `0.08566`
+    - previous selector-prompt SFT160: `0.08778`
+  - Minimal filler-normalized CER (`呢,啊,呃,嗯`):
+    - base/top1: `0.09900`
+    - strong selector: `0.08003`
+    - previous selector-prompt SFT160: `0.08844`
+  - Exact matches under minimal filler normalization:
+    - base/top1: `555`
+    - strong selector: `607`
+- N-best utilization:
+  - copy top1: `918 -> 594` compared with selector-prompt SFT160.
+  - copy any n-best: `1080 -> 1127`.
+  - copy oracle-best n-best: `407 -> 423`.
+  - prediction exact rows: `289 -> 322`.
+  - prediction better than base: `134 -> 298`.
+  - prediction worse than base: `68 -> 187`.
+- Hotword tradeoff:
+  - Hotword recall drops:
+    - base/top1: `0.90154`
+    - previous selector-prompt SFT160: `0.92322`
+    - strong selector full epoch: `0.88708`
+  - base-hit hotwords lost by prediction increases to `35`.
+  - This means full-epoch strong selector finally learned to use n-best and lowers CER substantially, but it over-corrects and weakens hotword preservation.
+- Interpretation:
+  - The earlier bottleneck really was COVO's over-conservative top1 copying.
+  - Full training plus stronger selector prompt fixes much of that behavior and gives the best Shuili CER so far.
+  - The next problem is balancing n-best selection with protected hotword retention. A likely next route is a mixed objective: keep strong selector rows, but add protected-hotword preservation pairs/rows so non-top1 selection does not delete supported domain terms.

@@ -1,0 +1,24 @@
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cbwhisper_covo_messages_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl",
+  "written": 1152
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py --input /root/autodl-tmp/src/logs/cbwhisper_covo_messages_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl --output /root/autodl-tmp/src/logs/cbwhisper_covo_predictions_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl --model-name-or-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B --adapter-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16 --batch-size 7 --max-new-tokens 128 --temperature 0.0 --top-p 1.0 --device auto --progress-every 100 --disable-thinking
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<03:32,  2.00it/s]Loading weights:   5%|▌         | 22/426 [00:00<00:08, 47.23it/s]Loading weights:   9%|▊         | 37/426 [00:00<00:05, 70.75it/s]Loading weights:  12%|█▏        | 50/426 [00:00<00:04, 80.50it/s]Loading weights:  16%|█▌        | 67/426 [00:00<00:03, 98.65it/s]Loading weights:  20%|█▉        | 85/426 [00:01<00:02, 115.59it/s]Loading weights:  23%|██▎       | 99/426 [00:01<00:02, 119.09it/s]Loading weights:  28%|██▊       | 118/426 [00:01<00:02, 137.59it/s]Loading weights:  31%|███▏      | 134/426 [00:01<00:02, 130.82it/s]Loading weights:  35%|███▌      | 151/426 [00:01<00:01, 137.71it/s]Loading weights:  40%|███▉      | 170/426 [00:01<00:01, 150.89it/s]Loading weights:  44%|████▎     | 186/426 [00:01<00:01, 144.77it/s]Loading weights:  47%|████▋     | 201/426 [00:01<00:01, 140.43it/s]Loading weights:  52%|█████▏    | 221/426 [00:01<00:01, 154.30it/s]Loading weights:  56%|█████▌    | 238/426 [00:02<00:01, 154.23it/s]Loading weights:  60%|█████▉    | 254/426 [00:02<00:01, 144.29it/s]Loading weights:  64%|██████▍   | 273/426 [00:02<00:01, 152.44it/s]Loading weights:  68%|██████▊   | 291/426 [00:02<00:00, 151.42it/s]Loading weights:  72%|███████▏  | 307/426 [00:02<00:00, 149.06it/s]Loading weights:  77%|███████▋  | 326/426 [00:02<00:00, 150.18it/s]Loading weights:  81%|████████  | 344/426 [00:02<00:00, 154.13it/s]Loading weights:  85%|████████▍ | 360/426 [00:02<00:00, 145.64it/s]Loading weights:  89%|████████▉ | 379/426 [00:03<00:00, 154.06it/s]Loading weights:  93%|█████████▎| 395/426 [00:03<00:00, 149.70it/s]Loading weights:  96%|█████████▋| 411/426 [00:03<00:00, 148.66it/s]Loading weights: 100%|██████████| 426/426 [00:03<00:00, 143.86it/s]Loading weights: 100%|██████████| 426/426 [00:03<00:00, 126.86it/s]
+{"written": 700}
+{
+  "input": "/root/autodl-tmp/src/logs/cbwhisper_covo_messages_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cbwhisper_covo_predictions_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl",
+  "written": 1152
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/evaluate_correction_jsonl.py --input /root/autodl-tmp/src/logs/cbwhisper_covo_predictions_shuili_v3_nbest_selector_strongprompt_lr1e6_1epoch_20260630.jsonl --prediction-field prediction --reference-field reference --baseline-field input.asr_top1
+{
+  "samples": 1152,
+  "cer": 0.11935750111104057,
+  "baseline_cer": 0.15414894292425876,
+  "improved_samples": 349,
+  "worsened_samples": 172,
+  "unchanged_samples": 631
+}
