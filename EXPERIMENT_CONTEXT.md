@@ -1841,3 +1841,42 @@ Shuili content-priority selector prompt-only test, 2026-06-30:
   - Yes, prompt engineering can reduce over-attention to fillers and recover much of the hotword loss without retraining.
   - This is the best Shuili prompt setting so far: it improves raw CER and filler-normalized CER over the strong selector, while keeping hotword recall slightly above base.
   - Remaining gap to n-best oracle (`0.06488`) still requires training/objective changes, but the next training should use the content-priority prompt as the inference/training style rather than the overly aggressive strong selector prompt.
+
+Content-priority protected/near-correct selector SFT, 2026-07-01:
+
+- Motivation:
+  - Train with the better `selector_content` prompt style instead of only using it at inference.
+  - Add two stabilizers to the selector data: protected-hotword rows and near-correct no-break rows, so the model is less likely to damage correct domain terms or nearly-correct top1 outputs.
+- Training data:
+  - `covo/data/processed/chinesehp_aishell1/train_nbest_selector_content_protect_near2_hardx4_exactx2_base6k_noopx2.qwen.jsonl`
+  - Source rows: `17301`; written rows: `69514`.
+  - hard rows `6561`, exact-hard rows `4188`, base rows `6000`, near-correct rows `14447`, protected rows `130`.
+  - Prompt mode: `selector_content`; protected target margin `2`; near-correct distance `2`.
+- Training:
+  - Continued from `outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`.
+  - Output adapter: `outputs/qwen35_cbwhisper_selector_content_protect_near2_lr5e7_bs2_1epoch_from_strong_bf16`.
+  - Stable setting was batch size `2`, grad accumulation `2`; batch size `4` OOMed.
+  - Full epoch completed: `17379/17379` steps, train loss `0.2478`.
+- Shuili validation:
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`.
+  - Raw CER: base/top1 `0.15415` -> prediction `0.12088`.
+  - COVO movement: improved / worsened / unchanged `234 / 60 / 858`.
+  - Audit CER: base `0.15415`, prediction `0.12088`, n-best oracle `0.06488`, prediction-or-nbest oracle `0.05689`.
+  - Exact rows: base `257`, prediction `320`, n-best oracle `688`.
+  - Hotword recall: base `0.90154`, prediction `0.90786`, n-best oracle `0.88708`.
+  - Lost base-hit hotwords: `10`; gained over base: `17`; false prompt insertions drop `44 -> 30`.
+  - Extended filler-normalized CER: base `0.09814`, prediction `0.08534`.
+  - This is better than the strong selector on recall, but worse than the prompt-only content selector on Shuili raw CER (`0.11428`) and extended filler-normalized CER (`0.07945`).
+- AISHELL 808 validation:
+  - Evidence: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`.
+  - Raw CER: base/top1 `0.10446` -> prediction `0.06698`.
+  - COVO movement: improved / worsened / unchanged `213 / 28 / 567`.
+  - Audit CER: base `0.10446`, prediction `0.06698`, n-best oracle `0.05355`, prediction-or-nbest oracle `0.04354`.
+  - Exact rows: base `369`, prediction `468`, n-best oracle `513`.
+  - Hotword recall: base `0.91507`, prediction `0.91189`, n-best oracle `0.91614`.
+  - Lost base-hit hotwords: `24`; gained over base: `21`; false prompt insertions drop `30 -> 13`.
+  - Filler-normalized CER: base `0.08995`, prediction `0.06676`.
+- Interpretation:
+  - The new training clearly improves AISHELL versus the previous strong selector validation (`0.07055` CER and `0.87261` recall), especially hotword preservation.
+  - It does not improve Shuili over the prompt-only content selector, likely because all training rows come from AISHELL and teach AISHELL-style selection rather than Shuili lecture-style/domain errors.
+  - Keep this adapter as an AISHELL selector-improvement checkpoint, but do not promote it as the best Shuili model. For Shuili, the best current COVO setting remains the prompt-only content selector on the previous strong selector adapter.
