@@ -1981,3 +1981,9 @@ ChineseHP-style + hotword-aware COVO SFT data, 2026-07-01:
     - `outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
   - Use `max_length=4096` because token estimates show 3072 may truncate the long evidence prompts.
   - Use conservative LR `5e-7` to add evidence usage without destroying hotword-preservation behavior.
+- Training run:
+  - Started in tmux session `covo_hotword_aware_train`.
+  - Log: `src/logs/train_covo_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_stdout.log`
+  - Output adapter: `covo/outputs/qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16`
+  - Settings: `max_length=4096`, batch size `2`, grad accumulation `2`, LR `5e-7`, constant scheduler, bf16, gradient checkpointing.
+  - Initial runtime check: about `7.5s/step`, `4326` total steps, GPU memory about `30.2/32.6GB`, utilization about `83%`.
