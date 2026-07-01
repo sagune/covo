@@ -13,6 +13,13 @@ from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
+try:
+    from opencc import OpenCC
+
+    _OPENCC = OpenCC("t2s")
+except Exception:
+    _OPENCC = None
+
 
 SYSTEM_MESSAGE = (
     "你是一个保守的中文 ASR 后纠错器。根据 CB-Whisper 输出、N-best 候选、"
@@ -83,6 +90,13 @@ CHINESEHP_EVIDENCE_INSTRUCTION = (
     "Confusable candidates 是与 top-1 很像但局部不同的候选，可能包含正确改法，也可能是同音误导。"
 )
 
+HOTWORD_AWARE_EVIDENCE_INSTRUCTION = (
+    "下面额外给出结构化热词证据。protected_hotwords 必须保留；prompt_hotwords 是本轮提示热词；"
+    "kws_hotwords 是 KWS 预测热词，可能包含误报。variant_keeps_hotword 表示该候选保留的热词，"
+    "variant_drops_hotword 表示该候选相对 top-1/受保护集合丢掉的热词；"
+    "false_hotword_warning=yes 表示候选可能只是被热词误导，不能仅凭热词出现就采用。"
+)
+
 
 def read_jsonl(path: str | Path) -> Iterable[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -127,7 +141,10 @@ _PUNCT_RE = re.compile(r"[\s,，。.!！？?；;：:“”\"'‘’、（）()\[
 
 
 def normalize_text(text: Any) -> str:
-    return _PUNCT_RE.sub("", str(text or "").strip())
+    value = str(text or "").strip()
+    if _OPENCC is not None:
+        value = _OPENCC.convert(value)
+    return _PUNCT_RE.sub("", value)
 
 
 def _repetition_ratio(text: str) -> float:
@@ -369,8 +386,100 @@ def build_nbest_consensus(
     }
 
 
-def format_consensus_spans(consensus: Dict[str, Any]) -> List[str]:
+def _hotword_texts(rows: List[Dict[str, Any]], prompt_only: bool = False) -> List[str]:
+    output = []
+    seen = set()
+    for item in rows:
+        if prompt_only and not bool(item.get("in_prompt", False)):
+            continue
+        text = str(item.get("text", "")).strip()
+        key = normalize_text(text)
+        if text and key and key not in seen:
+            output.append(text)
+            seen.add(key)
+    return output
+
+
+def _hotword_delta_for_text(
+    text: str,
+    top1: str,
+    hotword_rows: List[Dict[str, Any]],
+    protected_hotwords: List[str],
+) -> Dict[str, Any]:
+    text_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=False)
+    prompt_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=True)
+    top_hits = _matched_hotword_texts(top1, hotword_rows, prompt_only=False)
+    protected_norms = {normalize_text(item) for item in protected_hotwords if normalize_text(item)}
+    text_norms = {normalize_text(item) for item in text_hits}
+    top_norms = {normalize_text(item) for item in top_hits}
+
+    dropped = []
+    for item in _hotword_texts(hotword_rows, prompt_only=False):
+        key = normalize_text(item)
+        if not key:
+            continue
+        if (key in top_norms or key in protected_norms) and key not in text_norms:
+            dropped.append(item)
+
+    inserted = []
+    for item in text_hits:
+        key = normalize_text(item)
+        if key and key not in top_norms and key not in protected_norms:
+            inserted.append(item)
+
+    protected_dropped = [
+        item for item in protected_hotwords
+        if normalize_text(item) and normalize_text(item) not in text_norms
+    ]
+    false_warning = bool(inserted) and not bool(prompt_hits)
+    return {
+        "variant_keeps_hotword": text_hits,
+        "variant_drops_hotword": dropped,
+        "protected_dropped": protected_dropped,
+        "inserted_hotwords": inserted,
+        "false_hotword_warning": false_warning,
+    }
+
+
+def _variant_hotword_delta(
+    variant: str,
+    span_text: str,
+    hotword_rows: List[Dict[str, Any]],
+    protected_hotwords: List[str],
+) -> Dict[str, Any]:
+    variant_norm = normalize_text(variant)
+    span_norm = normalize_text(span_text)
+    keeps = []
+    drops = []
+    inserted = []
+    for item in _hotword_texts(hotword_rows, prompt_only=False):
+        key = normalize_text(item)
+        if not key:
+            continue
+        in_variant = key in variant_norm
+        in_span = key in span_norm
+        if in_variant:
+            keeps.append(item)
+            if not in_span:
+                inserted.append(item)
+        elif in_span:
+            drops.append(item)
+    return {
+        "text": variant,
+        "variant_keeps_hotword": keeps,
+        "variant_drops_hotword": drops,
+        "false_hotword_warning": bool(inserted),
+    }
+
+
+def format_consensus_spans(
+    consensus: Dict[str, Any],
+    hotword_rows: List[Dict[str, Any]] | None = None,
+    protected_hotwords: List[str] | None = None,
+) -> List[str]:
     output: List[str] = []
+    hotword_rows = hotword_rows or []
+    protected_hotwords = protected_hotwords or []
     stable = list(consensus.get("stable_spans", []) or [])
     uncertain = list(consensus.get("uncertain_spans", []) or [])
     if stable:
@@ -386,7 +495,19 @@ def format_consensus_spans(consensus: Dict[str, Any]) -> List[str]:
             variants = list(item.get("variants", []) or [])
             suffix = ""
             if variants:
-                suffix = " variants=" + json.dumps(variants, ensure_ascii=False, separators=(",", ":"))
+                if hotword_rows:
+                    variants_for_prompt = [
+                        _variant_hotword_delta(
+                            variant=str(variant),
+                            span_text=str(item.get("text", "")),
+                            hotword_rows=hotword_rows,
+                            protected_hotwords=protected_hotwords,
+                        )
+                        for variant in variants
+                    ]
+                else:
+                    variants_for_prompt = variants
+                suffix = " variants=" + json.dumps(variants_for_prompt, ensure_ascii=False, separators=(",", ":"))
             output.append(
                 f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
                 f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}{suffix}"
@@ -397,6 +518,7 @@ def format_consensus_spans(consensus: Dict[str, Any]) -> List[str]:
 def format_confusable_candidates(
     nbest: List[str],
     hotword_rows: List[Dict[str, Any]],
+    protected_hotwords: List[str],
     max_items: int,
 ) -> List[str]:
     if max_items <= 0 or len(nbest) <= 1:
@@ -418,15 +540,23 @@ def format_confusable_candidates(
             continue
         prompt_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=True)
         top_prompt_hits = _matched_hotword_texts(top1, hotword_rows, prompt_only=True)
-        rows.append((distance, -sim, rank, text, prompt_hits, top_prompt_hits))
+        delta = _hotword_delta_for_text(
+            text=text,
+            top1=top1,
+            hotword_rows=hotword_rows,
+            protected_hotwords=protected_hotwords,
+        )
+        rows.append((distance, -sim, rank, text, prompt_hits, top_prompt_hits, delta))
     rows.sort(key=lambda item: (item[0], item[1], item[2]))
     output = []
-    for distance, neg_sim, rank, text, prompt_hits, top_prompt_hits in rows[:max_items]:
+    for distance, neg_sim, rank, text, prompt_hits, top_prompt_hits, delta in rows[:max_items]:
         keeps = ",".join(prompt_hits) if prompt_hits else "none"
         top_keeps = ",".join(top_prompt_hits) if top_prompt_hits else "none"
+        delta_json = json.dumps(delta, ensure_ascii=False, separators=(",", ":"))
         output.append(
             f"- cand#{rank} sim={-neg_sim:.3f} dist={distance}: {text} | "
-            f"diff={_diff_summary(top1, text)} keeps_prompt_hotwords={keeps} top1_keeps={top_keeps}"
+            f"diff={_diff_summary(top1, text)} keeps_prompt_hotwords={keeps} "
+            f"top1_keeps={top_keeps} hotword_delta={delta_json}"
         )
     return output
 
@@ -602,6 +732,68 @@ def format_nbest(
     return output
 
 
+def build_hotword_aware_evidence(
+    nbest: List[str],
+    hotword_rows: List[Dict[str, Any]],
+    protected_hotwords: List[str],
+    max_items: int,
+) -> Dict[str, Any]:
+    top1 = str(nbest[0]).strip() if nbest else ""
+    prompt_hotwords = _hotword_texts(hotword_rows, prompt_only=True)
+    kws_hotwords = _hotword_texts(hotword_rows, prompt_only=False)
+    rows = []
+    conflicts = []
+    for idx, text in enumerate(nbest[: max(1, int(max_items))], 1):
+        delta = _hotword_delta_for_text(
+            text=str(text),
+            top1=top1,
+            hotword_rows=hotword_rows,
+            protected_hotwords=protected_hotwords,
+        )
+        row = {
+            "candidate": int(idx),
+            "variant_keeps_hotword": delta["variant_keeps_hotword"],
+            "variant_drops_hotword": delta["variant_drops_hotword"],
+            "protected_dropped": delta["protected_dropped"],
+            "inserted_hotwords": delta["inserted_hotwords"],
+            "false_hotword_warning": bool(delta["false_hotword_warning"]),
+        }
+        rows.append(row)
+        if row["protected_dropped"] or row["inserted_hotwords"] or row["false_hotword_warning"]:
+            conflicts.append(row)
+    return {
+        "prompt_hotwords": prompt_hotwords,
+        "kws_hotwords": kws_hotwords,
+        "protected_hotwords": protected_hotwords,
+        "hotword_conflict": conflicts,
+        "candidate_hotword_status": rows,
+    }
+
+
+def format_hotword_aware_evidence(evidence: Dict[str, Any]) -> List[str]:
+    output = ["Hotword-aware evidence:"]
+    for key in ("protected_hotwords", "prompt_hotwords", "kws_hotwords"):
+        output.append(f"- {key}=" + json.dumps(evidence.get(key, []), ensure_ascii=False, separators=(",", ":")))
+    conflicts = list(evidence.get("hotword_conflict", []) or [])
+    output.append(
+        "- hotword_conflict="
+        + (json.dumps(conflicts, ensure_ascii=False, separators=(",", ":")) if conflicts else "none")
+    )
+    rows = list(evidence.get("candidate_hotword_status", []) or [])
+    if rows:
+        output.append("Candidate hotword status:")
+        for row in rows:
+            output.append(
+                f"- cand#{int(row.get('candidate', 0))} "
+                f"variant_keeps_hotword={json.dumps(row.get('variant_keeps_hotword', []), ensure_ascii=False, separators=(',', ':'))} "
+                f"variant_drops_hotword={json.dumps(row.get('variant_drops_hotword', []), ensure_ascii=False, separators=(',', ':'))} "
+                f"protected_dropped={json.dumps(row.get('protected_dropped', []), ensure_ascii=False, separators=(',', ':'))} "
+                f"inserted_hotwords={json.dumps(row.get('inserted_hotwords', []), ensure_ascii=False, separators=(',', ':'))} "
+                f"false_hotword_warning={'yes' if row.get('false_hotword_warning', False) else 'no'}"
+            )
+    return output
+
+
 def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[str]:
     output = []
     for item in candidates[:max_items]:
@@ -632,6 +824,8 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines.append(PROTECTED_HOTWORD_INSTRUCTION)
     if bool(getattr(args, "include_consensus_spans", False)) or int(getattr(args, "max_confusables", 0)) > 0:
         lines.append(CHINESEHP_EVIDENCE_INSTRUCTION)
+    if bool(getattr(args, "include_hotword_evidence", False)):
+        lines.append(HOTWORD_AWARE_EVIDENCE_INSTRUCTION)
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
     hotword_rows = build_context_hotwords(input_block, args)
@@ -661,13 +855,29 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
                 max_uncertain=int(getattr(args, "max_uncertain_spans", 8)),
                 max_variants=int(getattr(args, "max_span_variants", 6)),
             )
-        consensus_lines = format_consensus_spans(consensus)
+        consensus_lines = format_consensus_spans(
+            consensus,
+            hotword_rows=hotword_rows if bool(getattr(args, "include_hotword_evidence", False)) else None,
+            protected_hotwords=protected_hotwords,
+        )
         if consensus_lines:
             lines.extend(consensus_lines)
+
+    if bool(getattr(args, "include_hotword_evidence", False)) and nbest:
+        evidence = input_block.get("hotword_aware_evidence")
+        if not isinstance(evidence, dict):
+            evidence = build_hotword_aware_evidence(
+                nbest=nbest,
+                hotword_rows=hotword_rows,
+                protected_hotwords=protected_hotwords,
+                max_items=max(1, int(args.max_nbest)),
+            )
+        lines.extend(format_hotword_aware_evidence(evidence))
 
     confusable_lines = format_confusable_candidates(
         nbest=nbest,
         hotword_rows=hotword_rows,
+        protected_hotwords=protected_hotwords,
         max_items=int(getattr(args, "max_confusables", 0)),
     )
     if confusable_lines:
@@ -757,6 +967,16 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
                 max_variants=int(getattr(args, "max_span_variants", 6)),
             )
         input_block["covo_hotwords"] = build_context_hotwords(input_block, args)
+        if bool(getattr(args, "include_hotword_evidence", False)):
+            input_block["hotword_aware_evidence"] = build_hotword_aware_evidence(
+                nbest=list(input_block.get("nbest", []) or []),
+                hotword_rows=list(input_block.get("covo_hotwords", []) or []),
+                protected_hotwords=build_protected_hotwords(
+                    input_block,
+                    list(input_block.get("covo_hotwords", []) or []),
+                ),
+                max_items=max(1, int(args.max_nbest)),
+            )
         output = {
             "id": str(record.get("id", "")),
             "source": record.get("source", "cbwhisper"),
@@ -888,6 +1108,11 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         "--include-consensus-spans",
         action="store_true",
         help="Add ChineseHP-style stable/uncertain n-best span evidence to the prompt.",
+    )
+    parser.add_argument(
+        "--include-hotword-evidence",
+        action="store_true",
+        help="Add structured hotword-aware evidence fields for candidate keep/drop/conflict status.",
     )
     parser.add_argument("--consensus-span-threshold", type=float, default=0.75)
     parser.add_argument("--max-stable-spans", type=int, default=8)

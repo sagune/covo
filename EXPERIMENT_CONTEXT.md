@@ -1929,3 +1929,55 @@ ChineseHP-style clean/consensus/hard-negative evidence preparation, 2026-07-01:
 - Decision:
   - Keep this as the next clean COVO training input format.
   - Do not train yet until comparing whether starting from the current hotword-preserving adapter or the original ChineseHP hard-negative adapter is preferred.
+
+ChineseHP-style + hotword-aware COVO SFT data, 2026-07-01:
+
+- Motivation:
+  - The first consensus/hard-negative bridge still expressed hotword information mostly as inline text.
+  - User clarified the desired route: keep ChineseHP text-rewrite hard-negative style, but explicitly expose hotword fields so the model learns:
+    - use n-best to fix true ASR errors;
+    - reject false hotwords;
+    - preserve already-correct hotwords;
+    - keep top1 when evidence is insufficient.
+- Code change:
+  - Extended `src/analysis/cbwhisper_covo_bridge.py` with `--include-hotword-evidence`.
+  - Added structured prompt fields:
+    - `protected_hotwords`
+    - `prompt_hotwords`
+    - `kws_hotwords`
+    - `hotword_conflict`
+    - per-candidate `variant_keeps_hotword`
+    - per-candidate `variant_drops_hotword`
+    - `false_hotword_warning`
+  - Added OpenCC t2s normalization inside `normalize_text`, so traditional Whisper outputs like `經濟` match simplified hotwords like `经济`.
+  - Confusable candidates now include a `hotword_delta` JSON block.
+  - Uncertain span variants include local keep/drop/false-warning hotword annotations.
+- Generated data:
+  - Train:
+    - `covo/data/processed/chinesehp_aishell1/train_full_cbwhisper_chinesehp_hotword_aware.qwen.jsonl`
+    - rows: `17301`
+    - size: `280.47 MB`
+    - prompt token estimate on first 1000 rows: p50 `2122.5`, p90 `2652`, p95 `2758`, p99 `3089`, max `3308`
+    - prompt char stats: p50 `5739`, p95 `7495`, p99 `8114`, max `9018`
+    - protected rows: `13952`
+    - hotword conflict rows: `5025`
+    - rows changed by n-best cleaning: `273`
+    - dropped candidates: `587`
+    - avg stable spans: `1.060`
+    - avg uncertain spans: `1.145`
+  - AISHELL 808 validation messages:
+    - `covo/data/processed/chinesehp_aishell1/test808_cbwhisper_chinesehp_hotword_aware.qwen.jsonl`
+    - rows: `808`
+    - size: `17.71 MB`
+    - prompt char stats: p50 `7015`, p95 `8591`, p99 `9132`, max `9561`
+    - protected rows: `754`
+    - hotword conflict rows: `303`
+    - rows changed by n-best cleaning: `19`
+    - dropped candidates: `55`
+    - avg stable spans: `1.212`
+    - avg uncertain spans: `1.271`
+- Training plan:
+  - Start from the current best hotword-preserving adapter:
+    - `outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - Use `max_length=4096` because token estimates show 3072 may truncate the long evidence prompts.
+  - Use conservative LR `5e-7` to add evidence usage without destroying hotword-preservation behavior.
