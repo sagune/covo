@@ -8,8 +8,10 @@ import json
 import re
 import subprocess
 import sys
+from collections import Counter
+from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Tuple
 
 
 SYSTEM_MESSAGE = (
@@ -75,6 +77,12 @@ PROTECTED_HOTWORD_INSTRUCTION = (
     "如果受保护热词附近还有其他明显 ASR 错误，只能修改热词之外的字符。"
 )
 
+CHINESEHP_EVIDENCE_INSTRUCTION = (
+    "下面额外给出 N-best 共识片段和易混候选。Stable spans 是多数候选一致支持的内容，"
+    "应优先保留；Uncertain spans 是候选分歧大的位置，应结合 variants、拼音、上下文和热词证据判断。"
+    "Confusable candidates 是与 top-1 很像但局部不同的候选，可能包含正确改法，也可能是同音误导。"
+)
+
 
 def read_jsonl(path: str | Path) -> Iterable[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -120,6 +128,307 @@ _PUNCT_RE = re.compile(r"[\s,，。.!！？?；;：:“”\"'‘’、（）()\[
 
 def normalize_text(text: Any) -> str:
     return _PUNCT_RE.sub("", str(text or "").strip())
+
+
+def _repetition_ratio(text: str) -> float:
+    key = normalize_text(text)
+    if not key:
+        return 1.0
+    counts = Counter(key)
+    return max(counts.values()) / max(len(key), 1)
+
+
+def _unique_texts(values: Iterable[Any]) -> List[Tuple[str, str]]:
+    output: List[Tuple[str, str]] = []
+    seen = set()
+    for value in values:
+        raw = str(value or "").strip()
+        key = normalize_text(raw)
+        if raw and key and key not in seen:
+            output.append((raw, key))
+            seen.add(key)
+    return output
+
+
+def clean_nbest_for_prompt(
+    nbest: List[Any],
+    max_nbest: int,
+    min_ratio: float,
+    max_ratio: float,
+    length_slack: int,
+    anchor_suffix_filter: bool,
+    drop_polluted_top1: bool,
+) -> Tuple[List[str], List[Dict[str, Any]]]:
+    unique = _unique_texts(nbest)
+    if len(unique) <= 1:
+        return [item[0] for item in unique[:max_nbest]], []
+
+    pollution_markers = (
+        "请不吝点赞", "订阅", "转发", "打赏", "明镜", "点点栏目",
+        "优优独播", "YoYo", "Television", "Exclusive", "Series",
+    )
+
+    def severe_reason(raw: str, key: str) -> str:
+        if any(marker in raw for marker in pollution_markers):
+            return "bad_phrase"
+        if "�" in raw:
+            return "replacement_char"
+        latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
+        if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.20:
+            return "latin_tail"
+        if _repetition_ratio(raw) > 0.45 and len(key) >= 8:
+            return "repeat_heavy"
+        return ""
+
+    dropped: List[Dict[str, Any]] = []
+    severe_clean: List[Tuple[str, str, int]] = []
+    for rank, (raw, key) in enumerate(unique, start=1):
+        reason = severe_reason(raw, key)
+        if reason and (rank > 1 or drop_polluted_top1):
+            dropped.append({"rank": rank, "text": raw, "reason": reason, "norm_len": len(key)})
+            continue
+        severe_clean.append((raw, key, rank))
+    if not severe_clean:
+        raw, key = unique[0]
+        severe_clean = [(raw, key, 1)]
+
+    lengths = sorted(len(key) for _, key, _ in severe_clean if key)
+    median_len = lengths[len(lengths) // 2] if lengths else len(unique[0][1])
+    min_len = max(2, int(median_len * float(min_ratio)))
+    max_len = max(int(median_len * float(max_ratio)), median_len + max(0, int(length_slack)))
+    shortest_key = min((key for _, key, _ in severe_clean if key), key=len, default="")
+    use_short_anchor = (
+        bool(anchor_suffix_filter)
+        and len(shortest_key) >= 8
+        and len(shortest_key) >= int(max(1, median_len) * 0.55)
+    )
+
+    kept: List[str] = []
+    for raw, key, rank in severe_clean:
+        key_len = len(key)
+        reason = ""
+        if key_len < min_len:
+            reason = "too_short"
+        elif key_len > max_len:
+            reason = "too_long"
+        elif (
+            use_short_anchor
+            and key != shortest_key
+            and key.startswith(shortest_key)
+            and key_len - len(shortest_key) >= max(5, int(length_slack) // 2)
+        ):
+            reason = "short_anchor_long_suffix"
+        elif _repetition_ratio(raw) > 0.45 and key_len >= 8:
+            reason = "repeat_heavy"
+        else:
+            latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
+            if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.25:
+                reason = "latin_tail"
+
+        if reason:
+            dropped.append({"rank": rank, "text": raw, "reason": reason, "norm_len": key_len})
+            continue
+        kept.append(raw)
+        if len(kept) >= max_nbest:
+            break
+    if not kept:
+        kept = [unique[0][0]]
+    return kept, dropped
+
+
+def _char_distance(left: str, right: str) -> int:
+    a = list(normalize_text(left))
+    b = list(normalize_text(right))
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        current = [i] + [0] * len(b)
+        for j, cb in enumerate(b, 1):
+            current[j] = min(
+                previous[j] + 1,
+                current[j - 1] + 1,
+                previous[j - 1] + int(ca != cb),
+            )
+        previous = current
+    return int(previous[-1])
+
+
+def _diff_summary(base: str, candidate: str, max_parts: int = 4) -> str:
+    base_norm = normalize_text(base)
+    cand_norm = normalize_text(candidate)
+    parts: List[str] = []
+    for tag, i1, i2, j1, j2 in SequenceMatcher(a=base_norm, b=cand_norm).get_opcodes():
+        if tag == "equal":
+            continue
+        src = base_norm[i1:i2] or "∅"
+        dst = cand_norm[j1:j2] or "∅"
+        parts.append(f"{i1}:{i2} {src}->{dst}")
+        if len(parts) >= max_parts:
+            break
+    return "; ".join(parts)
+
+
+def _span_variant(base: str, candidate: str, start: int, end: int) -> str:
+    base_norm = normalize_text(base)
+    cand_norm = normalize_text(candidate)
+    pieces: List[str] = []
+    for tag, i1, i2, j1, j2 in SequenceMatcher(a=base_norm, b=cand_norm).get_opcodes():
+        if tag == "insert":
+            if start <= i1 <= end:
+                pieces.append(cand_norm[j1:j2])
+            continue
+        if i2 <= start or i1 >= end:
+            continue
+        if tag == "equal":
+            overlap_start = max(start, i1)
+            overlap_end = min(end, i2)
+            cand_start = j1 + (overlap_start - i1)
+            cand_end = j1 + (overlap_end - i1)
+            pieces.append(cand_norm[cand_start:cand_end])
+        else:
+            pieces.append(cand_norm[j1:j2])
+    return "".join(pieces)
+
+
+def _merge_support_spans(
+    base: str,
+    support_ratios: List[float],
+    threshold: float,
+    stable: bool,
+    max_spans: int,
+) -> List[Dict[str, Any]]:
+    base_norm = normalize_text(base)
+    spans: List[Dict[str, Any]] = []
+    start = None
+    values: List[float] = []
+    for idx, ratio in enumerate(support_ratios + [2.0 if stable else -1.0]):
+        selected = (ratio >= threshold) if stable else (ratio < threshold)
+        if selected and start is None:
+            start = idx
+            values = [ratio]
+        elif selected:
+            values.append(ratio)
+        elif start is not None:
+            end = idx
+            text = base_norm[start:end]
+            if text:
+                spans.append({
+                    "start": int(start),
+                    "end": int(end),
+                    "text": text,
+                    "support": float(sum(values) / max(len(values), 1)),
+                })
+            start = None
+            values = []
+    spans.sort(key=lambda row: (-(int(row["end"]) - int(row["start"])), int(row["start"])))
+    return spans[: max(0, int(max_spans))]
+
+
+def build_nbest_consensus(
+    nbest: List[str],
+    threshold: float,
+    max_stable: int,
+    max_uncertain: int,
+    max_variants: int,
+) -> Dict[str, Any]:
+    cleaned = [str(item).strip() for item in nbest if str(item).strip()]
+    if not cleaned:
+        return {"threshold": threshold, "stable_spans": [], "uncertain_spans": []}
+    base = normalize_text(cleaned[0])
+    if not base:
+        return {"threshold": threshold, "stable_spans": [], "uncertain_spans": []}
+
+    equal_counts = [0 for _ in base]
+    normalized_candidates = [normalize_text(item) for item in cleaned if normalize_text(item)]
+    for candidate in normalized_candidates:
+        for tag, i1, i2, _j1, _j2 in SequenceMatcher(a=base, b=candidate).get_opcodes():
+            if tag != "equal":
+                continue
+            for idx in range(i1, i2):
+                if 0 <= idx < len(equal_counts):
+                    equal_counts[idx] += 1
+    denom = max(1, len(normalized_candidates))
+    support_ratios = [count / denom for count in equal_counts]
+    stable = _merge_support_spans(base, support_ratios, threshold, True, max_stable)
+    uncertain = _merge_support_spans(base, support_ratios, threshold, False, max_uncertain)
+    enriched_uncertain = []
+    for span in uncertain:
+        variants = []
+        seen = set()
+        for candidate in normalized_candidates:
+            variant = _span_variant(base, candidate, int(span["start"]), int(span["end"]))
+            if variant and variant not in seen:
+                variants.append(variant)
+                seen.add(variant)
+            if len(variants) >= max(1, int(max_variants)):
+                break
+        enriched_uncertain.append({**span, "variants": variants})
+    return {
+        "threshold": float(threshold),
+        "stable_spans": stable,
+        "uncertain_spans": enriched_uncertain,
+    }
+
+
+def format_consensus_spans(consensus: Dict[str, Any]) -> List[str]:
+    output: List[str] = []
+    stable = list(consensus.get("stable_spans", []) or [])
+    uncertain = list(consensus.get("uncertain_spans", []) or [])
+    if stable:
+        output.append("Stable spans:")
+        for item in stable:
+            output.append(
+                f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
+                f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}"
+            )
+    if uncertain:
+        output.append("Uncertain spans:")
+        for item in uncertain:
+            variants = list(item.get("variants", []) or [])
+            suffix = ""
+            if variants:
+                suffix = " variants=" + json.dumps(variants, ensure_ascii=False, separators=(",", ":"))
+            output.append(
+                f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
+                f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}{suffix}"
+            )
+    return output
+
+
+def format_confusable_candidates(
+    nbest: List[str],
+    hotword_rows: List[Dict[str, Any]],
+    max_items: int,
+) -> List[str]:
+    if max_items <= 0 or len(nbest) <= 1:
+        return []
+    top1 = str(nbest[0]).strip()
+    rows = []
+    seen = {normalize_text(top1)}
+    for rank, candidate in enumerate(nbest[1:], start=2):
+        text = str(candidate).strip()
+        key = normalize_text(text)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        sim = SequenceMatcher(a=normalize_text(top1), b=key).ratio()
+        if sim < 0.55:
+            continue
+        distance = _char_distance(top1, text)
+        if distance <= 0:
+            continue
+        prompt_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=True)
+        top_prompt_hits = _matched_hotword_texts(top1, hotword_rows, prompt_only=True)
+        rows.append((distance, -sim, rank, text, prompt_hits, top_prompt_hits))
+    rows.sort(key=lambda item: (item[0], item[1], item[2]))
+    output = []
+    for distance, neg_sim, rank, text, prompt_hits, top_prompt_hits in rows[:max_items]:
+        keeps = ",".join(prompt_hits) if prompt_hits else "none"
+        top_keeps = ",".join(top_prompt_hits) if top_prompt_hits else "none"
+        output.append(
+            f"- cand#{rank} sim={-neg_sim:.3f} dist={distance}: {text} | "
+            f"diff={_diff_summary(top1, text)} keeps_prompt_hotwords={keeps} top1_keeps={top_keeps}"
+        )
+    return output
 
 
 def _candidate_score_index(candidates: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -321,6 +630,8 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines = [INSTRUCTION]
     if bool(getattr(args, "protect_supported_hotwords", False)):
         lines.append(PROTECTED_HOTWORD_INSTRUCTION)
+    if bool(getattr(args, "include_consensus_spans", False)) or int(getattr(args, "max_confusables", 0)) > 0:
+        lines.append(CHINESEHP_EVIDENCE_INSTRUCTION)
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
     hotword_rows = build_context_hotwords(input_block, args)
@@ -339,6 +650,29 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
             "(trusted_scored=CB-Whisper scored beam, supplemental_unscored=extra diversity candidate):"
         )
         lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest))))
+
+    if bool(getattr(args, "include_consensus_spans", False)) and nbest:
+        consensus = input_block.get("nbest_consensus")
+        if not isinstance(consensus, dict):
+            consensus = build_nbest_consensus(
+                nbest=nbest,
+                threshold=float(getattr(args, "consensus_span_threshold", 0.75)),
+                max_stable=int(getattr(args, "max_stable_spans", 8)),
+                max_uncertain=int(getattr(args, "max_uncertain_spans", 8)),
+                max_variants=int(getattr(args, "max_span_variants", 6)),
+            )
+        consensus_lines = format_consensus_spans(consensus)
+        if consensus_lines:
+            lines.extend(consensus_lines)
+
+    confusable_lines = format_confusable_candidates(
+        nbest=nbest,
+        hotword_rows=hotword_rows,
+        max_items=int(getattr(args, "max_confusables", 0)),
+    )
+    if confusable_lines:
+        lines.append("Confusable candidates:")
+        lines.extend(confusable_lines)
 
     if bool(args.include_pinyin):
         pinyin = list(input_block.get("nbest_pinyin", []) or [])[: max(1, int(args.max_pinyin))]
@@ -383,6 +717,45 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
             input_block["nbest"] = list(record.get("nbest", []) or [])
         if not input_block.get("nbest") and input_block.get("asr_top1"):
             input_block["nbest"] = [str(input_block.get("asr_top1", "")).strip()]
+        if bool(getattr(args, "clean_nbest", False)):
+            original_nbest = list(input_block.get("nbest", []) or [])
+            original_pinyin = list(input_block.get("nbest_pinyin", []) or [])
+            pinyin_by_key = {
+                normalize_text(text): str(original_pinyin[idx])
+                for idx, text in enumerate(original_nbest)
+                if idx < len(original_pinyin) and normalize_text(text)
+            }
+            cleaned_nbest, dropped = clean_nbest_for_prompt(
+                nbest=original_nbest,
+                max_nbest=max(1, int(args.max_nbest)),
+                min_ratio=float(args.clean_min_length_ratio),
+                max_ratio=float(args.clean_max_length_ratio),
+                length_slack=int(args.clean_length_slack),
+                anchor_suffix_filter=bool(args.clean_anchor_suffix_filter),
+                drop_polluted_top1=bool(args.clean_drop_polluted_top1),
+            )
+            input_block["nbest"] = cleaned_nbest
+            if original_pinyin:
+                input_block["nbest_pinyin"] = [
+                    pinyin_by_key.get(normalize_text(text), "")
+                    for text in cleaned_nbest
+                    if pinyin_by_key.get(normalize_text(text), "") != ""
+                ]
+            input_block["nbest_cleaning"] = {
+                "enabled": True,
+                "before": len(_unique_texts(original_nbest)),
+                "after": len(_unique_texts(cleaned_nbest)),
+                "dropped": dropped[:20],
+                "dropped_count": len(dropped),
+            }
+        if bool(getattr(args, "include_consensus_spans", False)):
+            input_block["nbest_consensus"] = build_nbest_consensus(
+                nbest=list(input_block.get("nbest", []) or []),
+                threshold=float(getattr(args, "consensus_span_threshold", 0.75)),
+                max_stable=int(getattr(args, "max_stable_spans", 8)),
+                max_uncertain=int(getattr(args, "max_uncertain_spans", 8)),
+                max_variants=int(getattr(args, "max_span_variants", 6)),
+            )
         input_block["covo_hotwords"] = build_context_hotwords(input_block, args)
         output = {
             "id": str(record.get("id", "")),
@@ -500,6 +873,31 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         "--protect-supported-hotwords",
         action="store_true",
         help="Add a hard prompt constraint to preserve prompt hotwords already present in ASR/trusted candidates.",
+    )
+    parser.add_argument(
+        "--clean-nbest",
+        action="store_true",
+        help="Deduplicate and remove polluted/length-outlier n-best candidates before prompting.",
+    )
+    parser.add_argument("--clean-min-length-ratio", type=float, default=0.65)
+    parser.add_argument("--clean-max-length-ratio", type=float, default=1.35)
+    parser.add_argument("--clean-length-slack", type=int, default=8)
+    parser.add_argument("--clean-anchor-suffix-filter", action="store_true")
+    parser.add_argument("--clean-drop-polluted-top1", action="store_true", default=True)
+    parser.add_argument(
+        "--include-consensus-spans",
+        action="store_true",
+        help="Add ChineseHP-style stable/uncertain n-best span evidence to the prompt.",
+    )
+    parser.add_argument("--consensus-span-threshold", type=float, default=0.75)
+    parser.add_argument("--max-stable-spans", type=int, default=8)
+    parser.add_argument("--max-uncertain-spans", type=int, default=8)
+    parser.add_argument("--max-span-variants", type=int, default=6)
+    parser.add_argument(
+        "--max-confusables",
+        type=int,
+        default=0,
+        help="Add up to N ChineseHP-style confusable candidates with local diff summaries.",
     )
     parser.add_argument("--limit", type=int, default=0)
 

@@ -1880,3 +1880,52 @@ Content-priority protected/near-correct selector SFT, 2026-07-01:
   - The new training clearly improves AISHELL versus the previous strong selector validation (`0.07055` CER and `0.87261` recall), especially hotword preservation.
   - It does not improve Shuili over the prompt-only content selector, likely because all training rows come from AISHELL and teach AISHELL-style selection rather than Shuili lecture-style/domain errors.
   - Keep this adapter as an AISHELL selector-improvement checkpoint, but do not promote it as the best Shuili model. For Shuili, the best current COVO setting remains the prompt-only content selector on the previous strong selector adapter.
+
+ChineseHP-style clean/consensus/hard-negative evidence preparation, 2026-07-01:
+
+- Motivation:
+  - ChineseHP succeeds partly because the model sees structured evidence: stable spans, uncertain spans, variants, and hard-negative/confusable candidates.
+  - Our CB-Whisper -> COVO bridge previously exposed mostly whole-sentence n-best candidates plus scores/hotword labels, leaving the model to infer all local candidate structure by itself.
+  - User asked to first clean two gaps: candidate pollution/outliers and missing ChineseHP-style hard-negative/confusable evidence.
+- Code change:
+  - Extended `src/analysis/cbwhisper_covo_bridge.py` with optional prompt-time n-best cleaning:
+    - `--clean-nbest`
+    - removes duplicates, obvious pollution tails, replacement characters, long Latin tails, repeat-heavy strings, and length outliers.
+  - Added optional structured evidence:
+    - `--include-consensus-spans`
+    - `Stable spans`: majority-supported top1 spans.
+    - `Uncertain spans`: low-support top1 spans with candidate variants.
+    - `--max-confusables`: ChineseHP-style local diff summaries for similar but divergent candidates.
+  - Added a short instruction explaining how to use stable/uncertain/confusable evidence while still respecting hotword evidence.
+- Generated data:
+  - Train:
+    - `covo/data/processed/chinesehp_aishell1/train_full_cbwhisper_consensus_hotword_clean.qwen.jsonl`
+    - rows: `17301`
+    - size: `216.45 MB`
+    - rows changed by cleaning: `273`
+    - dropped candidates: `587`
+    - avg stable spans: `1.2691`
+    - avg uncertain spans: `1.3523`
+    - avg confusable candidates: `3.6559`
+    - avg hotwords: `8.0`
+    - avg prompt chars: `3351`
+  - AISHELL 808 validation messages:
+    - `covo/data/processed/chinesehp_aishell1/test808_cbwhisper_consensus_hotword_clean.qwen.jsonl`
+    - rows: `808`
+    - size: `13.50 MB`
+    - rows changed by cleaning: `19`
+    - dropped candidates: `55`
+    - avg stable spans: `1.3428`
+    - avg uncertain spans: `1.3923`
+    - avg confusable candidates: `4.7079`
+    - avg hotwords: `5.3032`
+    - avg prompt chars: `3860`
+- Example behavior:
+  - For `国务院发展研究钟欣市场经济研修所...`, the bridge now exposes:
+    - stable spans: `国务院发展研究`, `市场经济`.
+    - uncertain span `钟欣` with variants `钟欣/中心`.
+    - uncertain span `研修` with variants such as `研修/研教/研求/学院/研作`.
+    - confusable candidates with local diffs and hotword preservation tags.
+- Decision:
+  - Keep this as the next clean COVO training input format.
+  - Do not train yet until comparing whether starting from the current hotword-preserving adapter or the original ChineseHP hard-negative adapter is preferred.
