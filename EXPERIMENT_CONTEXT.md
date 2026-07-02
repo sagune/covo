@@ -1987,3 +1987,26 @@ ChineseHP-style + hotword-aware COVO SFT data, 2026-07-01:
   - Output adapter: `covo/outputs/qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16`
   - Settings: `max_length=4096`, batch size `2`, grad accumulation `2`, LR `5e-7`, constant scheduler, bf16, gradient checkpointing.
   - Initial runtime check: about `7.5s/step`, `4326` total steps, GPU memory about `30.2/32.6GB`, utilization about `83%`.
+  - Completed full epoch on 2026-07-02: `4326/4326` steps, train loss `0.2478`, runtime about `8h43m50s`.
+- AISHELL 808 validation:
+  - Messages: `src/logs/cbwhisper_covo_messages_aishell_v3_chinesehp_hotword_aware_20260702.jsonl`
+  - Final checkpoint predictions: `src/logs/cbwhisper_covo_predictions_aishell_v3_chinesehp_hotword_aware_20260702.jsonl`
+  - Final checkpoint COVO evaluator: base CER `0.10446` -> prediction CER `0.04967`, improved / worsened / unchanged `330 / 83 / 395`.
+  - Final checkpoint audit:
+    - CER: base `0.10446`, prediction `0.04967`, n-best oracle `0.05363`, prediction-or-nbest oracle `0.02864`.
+    - Exact rows: base `369`, prediction `500`, n-best oracle `513`.
+    - Hotword recall: base `0.91507`, prediction `0.84395`, n-best oracle `0.91614`.
+    - Base-hit hotwords lost by prediction: `98`; gained over base: `31`.
+    - Base-correct-broken rows: `53`; worsened-error rows: `30`.
+  - Checkpoint-1000 early-stop probe:
+    - Predictions: `src/logs/cbwhisper_covo_predictions_aishell_v3_chinesehp_hotword_aware_ckpt1000_20260702.jsonl`
+    - COVO evaluator: base CER `0.10446` -> prediction CER `0.04463`, improved / worsened / unchanged `322 / 52 / 434`.
+    - Audit CER: base `0.10446`, prediction `0.04463`, n-best oracle `0.05363`, prediction-or-nbest oracle `0.02895`.
+    - Exact rows: base `369`, prediction `524`, n-best oracle `513`.
+    - Hotword recall: base `0.91507`, prediction `0.88323`, n-best oracle `0.91614`.
+    - Base-hit hotwords lost by prediction: `61`; gained over base: `31`.
+- Interpretation:
+  - Reject this route as a main result.
+  - The full-epoch model overfits/over-rewrites badly: it improves generic CER over base but destroys hotword preservation, often changing already-correct protected names into common homophones, e.g. `王晔君 -> 王艳君`, `宋芳 -> 颂芳`, `今久 -> 金九`, `刘澄 -> 刘成`.
+  - Checkpoint-1000 is much safer than the final checkpoint but still worse than the current main AISHELL result (`CER 0.04284`, recall `0.91083`) and worse than protected-preserve recall-best (`CER 0.04292`, recall `0.91295`).
+  - Likely cause: long ChineseHP-style evidence + reference SFT teaches the model to trust fluent correction/reference normalization more than exact hotword preservation. Structured fields alone are not enough; future attempts need loss masking/targeting only uncertain spans, or explicit contrastive/protected-hotword objectives, rather than full reference SFT on the whole long prompt.
