@@ -2173,3 +2173,66 @@ Shuili high-quality n-best candidate-pool audit, 2026-07-04:
     - `short-margin=1` is slightly better than `strict-clean` on raw CER and exact rows, so the whole-utterance length-consistency direction is reasonable.
     - However, both cleaned 10-best pools regress relative to original selector_spoken COVO output. The current COVO selector adapter does not exploit the richer/cleaner Shuili candidate pool yet.
     - Do not regenerate the whole Shuili multiprompt pool immediately. The next useful step is either targeted regeneration for rows with low unique/oracle miss, or COVO training/adaptation on this cleaner Shuili-style evidence.
+
+Shuili regenerated conservative candidate pool + 4.35 COVO, 2026-07-04:
+
+- Motivation:
+  - The first Shuili cleaned-pool COVO check reused the previously generated `t046` multiprompt pool.
+  - Re-ran the candidate generation itself with a more conservative temperature set before judging the 4.35 COVO adapter.
+- Regenerated multiprompt generation:
+  - File: `src/logs/shuili_hotword_multiprompt_nbest_t035_full_20260704.jsonl`
+  - Whisper: `openai/whisper-large-v3`
+  - Temperatures: `0,0.3,0.5`; beams/return: `5/5`; max auxiliary n-best: `20`.
+  - Summary: average unique n-best `5.7934`, top1 corpus CER `0.12133`, oracle corpus CER `0.06457`, top1 hotword recall `0.66464`, oracle hotword recall `0.93223`.
+  - Interpretation: the auxiliary pool alone is not a good final recognizer, but it adds useful alternatives for the union pool.
+- CB-Whisper + regenerated multiprompt union:
+  - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t035_keep5_20260704.jsonl`
+  - Policy: keep CB-Whisper top1, keep first 5 CB n-best, insert multiprompt alternatives, then fill remaining slots with later CB candidates.
+  - Metrics:
+    - Average unique n-best: `9.0087`
+    - Rows with 10 unique candidates: `777/1152`
+    - Exact reference in pool: `787/1152`
+    - Top1 corpus CER: `0.13910`
+    - Oracle corpus CER: `0.04400`
+    - Top1 hotword recall: `0.91147`
+    - Oracle hotword recall: `0.93857`
+- Short-margin cleanup:
+  - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t035_keep5_clean_shortmargin1_20260704.jsonl`
+  - Cleaning removed `570` candidates:
+    - `short_len_mismatch=362`
+    - `repeat_noise=111`
+    - `too_short=67`
+    - `too_long=16`
+    - `latin_tail=7`
+    - `unusual_unicode=4`
+    - `bad_phrase=3`
+  - Cleaned metrics:
+    - Average unique n-best: `8.5139`
+    - Rows with 10 unique candidates: `652/1152`
+    - Exact reference in pool: `760/1152`
+    - Top1 corpus CER: `0.13040`
+    - Oracle corpus CER: `0.04825`
+    - Top1 hotword recall: `0.91057`
+    - Oracle hotword recall: `0.93496`
+- 4.35 COVO result:
+  - Adapter: `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - Predictions: `src/logs/cbwhisper_covo_predictions_shuili_v3_regen_t035_clean_shortmargin1_preserve2_noop_bs7_20260704.jsonl`
+  - Raw evaluator result:
+    - COVO CER: `0.13377`
+    - Baseline CER from `input.asr_top1`: `0.15415`
+    - Improved/worsened/unchanged samples: `165/62/925`
+  - Error audit:
+    - Base CER: `0.15415`
+    - Prediction CER: `0.13377`
+    - N-best oracle CER: `0.05796`
+    - Best of prediction and n-best oracle CER: `0.05244`
+    - Delta counts: `fixed_to_exact=48`, `improved_partial=117`, `worsened_error=41`, `base_correct_broken=21`, `unchanged_error=689`, `base_correct_kept=236`.
+    - Hotword recall: base `0.90154`, prediction `0.92051`, n-best oracle `0.90515`; COVO gained `27` hotword hits and lost `6` base hits.
+  - Filler-normalized CER:
+    - Extended filler list: base `0.09814`, prediction `0.08676`.
+    - Minimal filler list (`呃,呢,啊,嗯`): base `0.09900`, prediction `0.08797`.
+- Interpretation:
+  - Regenerating and cleaning the candidate pool improved the candidate-side upper bound: cleaned oracle CER is `0.04825`, much lower than the final COVO CER.
+  - The 4.35 adapter increases hotword recall, but it does not select or rewrite toward the oracle candidates well enough on Shuili.
+  - The largest remaining error bucket is `unchanged_error=689`, so the model often keeps the input even when the n-best pool contains better evidence.
+  - This route proves the bottleneck is no longer only candidate availability; the downstream COVO model needs Shuili-style evidence adaptation or a stronger ChineseHP-style training format before the richer n-best pool can translate into sub-10 CER.
