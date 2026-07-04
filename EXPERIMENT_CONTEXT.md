@@ -2105,3 +2105,43 @@ Shuili spoken-style selector prompt-only ablation, 2026-07-04:
   - It improves raw CER from `0.11428` to `0.11206` and exact rows from `336` to `356` while keeping recall unchanged at `0.90425`.
   - The improvement is consistent with the diagnosis: preserving spoken lecture style recovers some raw-CER errors that the content-priority prompt still deleted.
   - Extended filler-normalized CER is slightly worse than selector_content (`0.07985` vs `0.07945`) because this metric removes many of the recovered words; raw CER should be the main metric for this ablation.
+
+Shuili high-quality n-best candidate-pool audit, 2026-07-04:
+
+- Motivation:
+  - The previous Shuili COVO runs used the existing CB-Whisper evidence directly.
+  - A normalized audit showed this was not equivalent to the AISHELL `nbest10` work: Shuili had average unique n-best only about `7.49`, and no rows with 10 unique candidates.
+  - Therefore the Shuili pipeline needed a candidate-pool construction step before judging COVO.
+- Generation:
+  - Ran multi-prompt Whisper large-v3 candidate generation on all `1152` Shuili rows.
+  - Prompts: no prompt, parenthesized top-3 hotwords, natural top-3, natural top-6.
+  - Temperatures: `0`, `0.4`, `0.6`; beam/return: `5/5`.
+  - Output: `src/logs/shuili_hotword_multiprompt_nbest_t046_full_20260704.jsonl`.
+  - The auxiliary multiprompt pool alone had average unique n-best `6.8819`, oracle corpus CER `0.05911`, and oracle hotword recall `0.93658`; its top1 hotword recall was poor (`0.66464`), so it is useful only as a complementary candidate source.
+- CB-Whisper + multiprompt union:
+  - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_20260704.jsonl`.
+  - Policy: keep CB-Whisper top1 first, keep the first 5 CB n-best candidates, insert multiprompt candidates, then fill remaining slots with later CB candidates.
+  - Metrics:
+    - Average unique n-best: `9.0634`
+    - Rows with 10 unique candidates: `798/1152`
+    - Exact reference in pool: `789/1152`
+    - Oracle corpus CER: `0.04330`
+    - Oracle hotword recall: `0.93496`
+  - This is much better than the previous Shuili evidence pool, but not yet as clean as the AISHELL strict `9.8+` candidate pool.
+- Strict cleanliness audit:
+  - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_audit_20260704.jsonl`.
+  - Strict cleaning removed `245` candidates:
+    - `repeat_noise=122`
+    - `too_short=73`
+    - `too_long=26`
+    - `unusual_unicode=13`
+    - `latin_tail=8`
+    - `bad_phrase=3`
+  - Cleaned metrics:
+    - Average unique n-best: `8.8507`
+    - Rows with 10 unique candidates: `702/1152`
+    - Exact reference in pool: `776/1152`
+    - Oracle corpus CER: `0.04647`
+    - Oracle hotword recall: `0.93315`
+  - Representative clean candidates are meaningful spoken-ASR variants such as missing/keeping `呢`, `这个/这一个`, homophones, and phrase-boundary variants.
+  - Remaining conclusion: the cleaned Shuili pool is COVO-usable and clearly better than the original pool, but it does not yet reach ChineseHP/AISHELL-level `9.8+` clean unique n-best. Prefer the strict-clean file for downstream COVO unless the goal is explicitly to test sensitivity to noisier high-diversity candidates.
