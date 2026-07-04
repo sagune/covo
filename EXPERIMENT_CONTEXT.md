@@ -2145,3 +2145,14 @@ Shuili high-quality n-best candidate-pool audit, 2026-07-04:
     - Oracle hotword recall: `0.93315`
   - Representative clean candidates are meaningful spoken-ASR variants such as missing/keeping `呢`, `这个/这一个`, homophones, and phrase-boundary variants.
   - Remaining conclusion: the cleaned Shuili pool is COVO-usable and clearly better than the original pool, but it does not yet reach ChineseHP/AISHELL-level `9.8+` clean unique n-best. Prefer the strict-clean file for downstream COVO unless the goal is explicitly to test sensitivity to noisier high-diversity candidates.
+- Short-utterance length-consistency follow-up:
+  - Problem: strict clean still allowed fragment-like candidates such as `那么这个 / 那么这个呢 / 这个呢`; these are not ideal whole-utterance n-best alternatives.
+  - Added optional length-consistency filtering for short utterances in `clean_covo_nbest_quality.py`.
+  - Exact same-length filtering is too aggressive:
+    - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shortlen_v2_20260704.jsonl`
+    - Average unique n-best `8.2179`, exact ref in pool `726`, oracle corpus CER `0.05270`.
+  - A softer one-character margin is a better compromise:
+    - File: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shortmargin1_v2_20260704.jsonl`
+    - Average unique n-best `8.5113`, exact ref in pool `758`, oracle corpus CER `0.04850`.
+    - Example `那么这个 / 那么这个呢 / 这个呢` becomes `那么这个 / 那么这个呢`, removing the obvious fragment while retaining a plausible filler-drop variant.
+  - Recommendation: use `--short-length-margin 1` for Shuili short-utterance cleanup if the goal is cleaner whole-utterance candidates; avoid `--short-exact-length` unless the evaluation explicitly requires equal-length hypotheses.

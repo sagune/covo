@@ -109,6 +109,8 @@ def clean_nbest(
     length_slack: int,
     anchor_suffix_filter: bool = False,
     drop_polluted_top1: bool = True,
+    short_exact_length: bool = False,
+    short_length_margin: int = -1,
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
     unique = unique_texts(candidates)
     if len(unique) <= 1:
@@ -152,6 +154,13 @@ def clean_nbest(
     min_len = max(2, int(median_len * min_ratio))
     local_slack = min(max(0, length_slack), 3 if median_len <= 8 else length_slack)
     max_len = max(int(median_len * max_ratio), median_len + local_slack)
+    plausible_lengths = [length for length in lengths if min_len <= length <= max_len]
+    short_target_len = (
+        max(plausible_lengths or lengths)
+        if (bool(short_exact_length) or int(short_length_margin) >= 0) and median_len <= 8
+        else 0
+    )
+    short_min_len = short_target_len - max(0, int(short_length_margin)) if short_target_len else 0
     shortest_key = min((key for _, key, _ in severe_clean if key), key=len, default="")
     use_short_anchor = (
         bool(anchor_suffix_filter)
@@ -163,7 +172,11 @@ def clean_nbest(
     for raw, key, rank in severe_clean:
         reason = ""
         key_len = len(key)
-        if key_len < min_len:
+        if bool(short_exact_length) and short_target_len and key_len != short_target_len:
+            reason = "short_len_mismatch"
+        elif short_min_len and key_len < short_min_len:
+            reason = "short_len_mismatch"
+        elif key_len < min_len:
             reason = "too_short"
         elif key_len > max_len:
             reason = "too_long"
@@ -272,6 +285,8 @@ def main() -> int:
     parser.add_argument("--length-slack", type=int, default=8)
     parser.add_argument("--anchor-suffix-filter", action="store_true")
     parser.add_argument("--keep-polluted-top1", action="store_true")
+    parser.add_argument("--short-exact-length", action="store_true")
+    parser.add_argument("--short-length-margin", type=int, default=-1)
     args = parser.parse_args()
 
     rows = list(read_jsonl(Path(args.input)))
@@ -287,6 +302,8 @@ def main() -> int:
             length_slack=int(args.length_slack),
             anchor_suffix_filter=bool(args.anchor_suffix_filter),
             drop_polluted_top1=not bool(args.keep_polluted_top1),
+            short_exact_length=bool(args.short_exact_length),
+            short_length_margin=int(args.short_length_margin),
         )
         input_block["nbest"] = cleaned
         input_block["nbest_quality_filter"] = {
