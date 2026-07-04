@@ -2156,3 +2156,20 @@ Shuili high-quality n-best candidate-pool audit, 2026-07-04:
     - Average unique n-best `8.5113`, exact ref in pool `758`, oracle corpus CER `0.04850`.
     - Example `那么这个 / 那么这个呢 / 这个呢` becomes `那么这个 / 那么这个呢`, removing the obvious fragment while retaining a plausible filler-drop variant.
   - Recommendation: use `--short-length-margin 1` for Shuili short-utterance cleanup if the goal is cleaner whole-utterance candidates; avoid `--short-exact-length` unless the evaluation explicitly requires equal-length hypotheses.
+- Downstream COVO check on cleaned Shuili pools:
+  - Adapter: `qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`
+  - Prompt mode: `selector_spoken`
+  - `strict-clean` input:
+    - Predictions: `src/logs/cbwhisper_covo_predictions_shuili_v3_strict_selector_spoken_20260704.jsonl`
+    - Raw CER `0.11745`, recall `0.91057`, exact rows `329`, base-hit lost `16`
+    - Extended filler CER `0.08102`, minimal filler CER `0.07613`
+  - `short-margin=1` input:
+    - Predictions: `src/logs/cbwhisper_covo_predictions_shuili_v3_shortmargin1_selector_spoken_20260704.jsonl`
+    - Raw CER `0.11669`, recall `0.90967`, exact rows `331`, base-hit lost `16`
+    - Extended filler CER `0.08126`, minimal filler CER `0.07600`
+  - Comparison to previous best Shuili selector_spoken on original evidence:
+    - Previous best raw CER `0.11206`, recall `0.90425`, exact rows `356`, base-hit lost `16`
+  - Interpretation:
+    - `short-margin=1` is slightly better than `strict-clean` on raw CER and exact rows, so the whole-utterance length-consistency direction is reasonable.
+    - However, both cleaned 10-best pools regress relative to original selector_spoken COVO output. The current COVO selector adapter does not exploit the richer/cleaner Shuili candidate pool yet.
+    - Do not regenerate the whole Shuili multiprompt pool immediately. The next useful step is either targeted regeneration for rows with low unique/oracle miss, or COVO training/adaptation on this cleaner Shuili-style evidence.
