@@ -137,7 +137,12 @@ def count_hits(text: str, keywords: Iterable[str]) -> int:
     return sum(1 for keyword in keywords if norm(keyword) and norm(keyword) in text_key)
 
 
-def build_pool(cb_row: Dict[str, Any], mp_row: Dict[str, Any], max_nbest: int) -> List[Dict[str, Any]]:
+def build_pool(
+    cb_row: Dict[str, Any],
+    mp_row: Dict[str, Any],
+    max_nbest: int,
+    max_cb_nbest_before_aux: int = 0,
+) -> List[Dict[str, Any]]:
     input_block = cb_row.get("input", {}) or {}
     anchor = str(input_block.get("asr_top1", "") or "")
     if not anchor:
@@ -149,18 +154,16 @@ def build_pool(cb_row: Dict[str, Any], mp_row: Dict[str, Any], max_nbest: int) -
 
     unique_append(pool, seen, anchor, "cbwhisper_top1", {"priority": 0})
 
-    for idx, cand in enumerate(input_block.get("nbest", []) or []):
-        unique_append(pool, seen, cand, "cbwhisper_nbest", {"priority": 1, "rank": idx + 1})
+    cb_nbest = list(input_block.get("nbest", []) or [])
+    if int(max_cb_nbest_before_aux) > 0:
+        early_cb = cb_nbest[: int(max_cb_nbest_before_aux)]
+        late_cb = cb_nbest[int(max_cb_nbest_before_aux):]
+    else:
+        early_cb = cb_nbest
+        late_cb = []
 
-    for idx, cand in enumerate((input_block.get("cbwhisper", {}) or {}).get("candidates", []) or []):
-        if isinstance(cand, dict):
-            unique_append(
-                pool,
-                seen,
-                cand.get("text", ""),
-                "cbwhisper_scored",
-                {"priority": 2, "rank": cand.get("rank", idx + 1), "total_score": cand.get("total_score")},
-            )
+    for idx, cand in enumerate(early_cb):
+        unique_append(pool, seen, cand, "cbwhisper_nbest", {"priority": 1, "rank": idx + 1})
 
     mp_nbest = mp_row.get("nbest", []) or []
     mp_sources = mp_row.get("nbest_sources", []) or []
@@ -176,6 +179,23 @@ def build_pool(cb_row: Dict[str, Any], mp_row: Dict[str, Any], max_nbest: int) -
             "multiprompt_whisper",
             {"priority": 3, "rank": idx + 1, "prompt": src.get("prompt"), "temperature": src.get("temperature")},
         )
+        if len(pool) >= max_nbest:
+            break
+
+    for offset, cand in enumerate(late_cb, start=len(early_cb) + 1):
+        unique_append(pool, seen, cand, "cbwhisper_nbest", {"priority": 4, "rank": offset})
+        if len(pool) >= max_nbest:
+            break
+
+    for idx, cand in enumerate((input_block.get("cbwhisper", {}) or {}).get("candidates", []) or []):
+        if isinstance(cand, dict):
+            unique_append(
+                pool,
+                seen,
+                cand.get("text", ""),
+                "cbwhisper_scored",
+                {"priority": 5, "rank": cand.get("rank", idx + 1), "total_score": cand.get("total_score")},
+            )
         if len(pool) >= max_nbest:
             break
 
@@ -279,6 +299,7 @@ def main() -> int:
     parser.add_argument("--output", default="src/logs/cbwhisper_candidate_pool_test808_t04.jsonl")
     parser.add_argument("--summary", default="src/logs/cbwhisper_candidate_pool_test808_t04_summary.json")
     parser.add_argument("--max-nbest", type=int, default=10)
+    parser.add_argument("--max-cb-nbest-before-aux", type=int, default=0)
     args = parser.parse_args()
 
     cb_rows = read_jsonl(Path(args.cb_evidence))
@@ -297,7 +318,12 @@ def main() -> int:
         row = json.loads(json.dumps(cb_row, ensure_ascii=False))
         row["id"] = utt_id
         row["source"] = "cbwhisper_candidate_pool"
-        pool = build_pool(row, mp_row, int(args.max_nbest))
+        pool = build_pool(
+            row,
+            mp_row,
+            int(args.max_nbest),
+            max_cb_nbest_before_aux=int(args.max_cb_nbest_before_aux),
+        )
         input_block = row.setdefault("input", {})
         input_block["nbest"] = [item["text"] for item in pool]
         input_block["nbest_sources"] = pool
@@ -316,6 +342,7 @@ def main() -> int:
             "multiprompt": str(args.multiprompt),
             "output": str(args.output),
             "max_nbest": int(args.max_nbest),
+            "max_cb_nbest_before_aux": int(args.max_cb_nbest_before_aux),
         }
     )
 

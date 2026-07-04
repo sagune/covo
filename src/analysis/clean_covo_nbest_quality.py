@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
@@ -56,6 +57,38 @@ def repetition_ratio(text: str) -> float:
     return max(counts.values()) / max(len(key), 1)
 
 
+def has_unusual_unicode(text: str) -> bool:
+    for ch in str(text or ""):
+        category = unicodedata.category(ch)
+        if category in {"Co", "Cs"}:
+            return True
+        if category == "Cf" and ch not in {"\u200b", "\ufeff"}:
+            return True
+        name = unicodedata.name(ch, "")
+        if "ARABIC" in name or "PRIVATE USE" in name:
+            return True
+    return False
+
+
+def has_short_repeat_noise(text: str) -> bool:
+    key = norm(text)
+    if len(key) < 4:
+        return False
+    for pos in range(len(key) - 2):
+        if key[pos] == key[pos + 1] == key[pos + 2]:
+            return True
+    counts = Counter(key)
+    if max(counts.values(), default=0) >= 4 and repetition_ratio(text) > 0.55:
+        return True
+    for unit in range(2, min(8, len(key) // 2 + 1)):
+        for start in range(0, len(key) - unit * 2 + 1):
+            piece = key[start:start + unit]
+            if piece and key[start:start + unit * 2] == piece * 2:
+                if len(set(piece)) > 1 or key.count(piece) >= 2:
+                    return True
+    return False
+
+
 def unique_texts(values: Iterable[Any]) -> List[Tuple[str, str]]:
     output = []
     seen = set()
@@ -91,6 +124,10 @@ def clean_nbest(
             return "bad_phrase"
         if "�" in raw:
             return "replacement_char"
+        if has_unusual_unicode(raw):
+            return "unusual_unicode"
+        if has_short_repeat_noise(raw):
+            return "repeat_noise"
         latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
         if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.20:
             return "latin_tail"
@@ -113,7 +150,8 @@ def clean_nbest(
     lengths = sorted(len(key) for _, key, _ in severe_clean)
     median_len = lengths[len(lengths) // 2]
     min_len = max(2, int(median_len * min_ratio))
-    max_len = max(int(median_len * max_ratio), median_len + max(0, length_slack))
+    local_slack = min(max(0, length_slack), 3 if median_len <= 8 else length_slack)
+    max_len = max(int(median_len * max_ratio), median_len + local_slack)
     shortest_key = min((key for _, key, _ in severe_clean if key), key=len, default="")
     use_short_anchor = (
         bool(anchor_suffix_filter)

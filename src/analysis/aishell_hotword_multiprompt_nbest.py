@@ -36,7 +36,7 @@ def load_evidence(path: Path) -> List[dict]:
 
 
 def build_wav_map(wav_root: Path) -> Dict[str, str]:
-    return {path.stem: str(path) for path in wav_root.glob("*/*.wav")}
+    return {path.stem: str(path) for path in wav_root.rglob("*.wav")}
 
 
 def collect_hotwords(input_block: dict, max_hotwords: int) -> List[str]:
@@ -44,7 +44,7 @@ def collect_hotwords(input_block: dict, max_hotwords: int) -> List[str]:
     seen = set()
     for key in ("prompt_hotwords", "hotwords"):
         for item in input_block.get(key, []) or []:
-            text = str(item.get("text", "")).strip()
+            text = str(item.get("text", "") if isinstance(item, dict) else item).strip()
             if text and text not in seen:
                 out.append(text)
                 seen.add(text)
@@ -89,6 +89,8 @@ def decode_one(
     prompt_text: str,
     num_beams: int,
     num_return_sequences: int,
+    num_beam_groups: int,
+    diversity_penalty: float,
     temperature: float,
     top_p: float,
     max_new_tokens: int,
@@ -113,6 +115,9 @@ def decode_one(
         "num_return_sequences": num_return_sequences,
         "do_sample": temperature > 0.0,
     }
+    if int(num_beam_groups) > 1:
+        kwargs["num_beam_groups"] = int(num_beam_groups)
+        kwargs["diversity_penalty"] = float(diversity_penalty)
     if int(max_new_tokens) > 0:
         kwargs["max_new_tokens"] = int(max_new_tokens)
     if temperature > 0.0:
@@ -148,6 +153,8 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--num-beams", type=int, default=5)
     parser.add_argument("--num-return-sequences", type=int, default=5)
+    parser.add_argument("--num-beam-groups", type=int, default=1)
+    parser.add_argument("--diversity-penalty", type=float, default=0.0)
     parser.add_argument("--temperatures", default="0,0.4,0.6")
     parser.add_argument("--top-p", type=float, default=0.95)
     parser.add_argument("--max-hotwords", type=int, default=8)
@@ -215,6 +222,8 @@ def main() -> int:
                         prompt_text=prompt_text,
                         num_beams=max(int(args.num_beams), int(args.num_return_sequences)),
                         num_return_sequences=int(args.num_return_sequences),
+                        num_beam_groups=int(args.num_beam_groups),
+                        diversity_penalty=float(args.diversity_penalty),
                         temperature=temp,
                         top_p=float(args.top_p),
                         max_new_tokens=int(args.max_new_tokens),
@@ -293,6 +302,8 @@ def main() -> int:
         "temperatures": temperatures,
         "num_beams": int(args.num_beams),
         "num_return_sequences": int(args.num_return_sequences),
+        "num_beam_groups": int(args.num_beam_groups),
+        "diversity_penalty": float(args.diversity_penalty),
         "max_nbest": int(args.max_nbest),
         "whisper_ckpt": args.whisper_ckpt,
         "output_jsonl": str(output),

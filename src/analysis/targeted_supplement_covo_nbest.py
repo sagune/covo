@@ -31,7 +31,7 @@ def read_uttids(path: Path) -> List[str]:
 
 
 def build_wav_map(root: Path) -> Dict[str, str]:
-    return {path.stem: str(path) for path in root.glob("*/*.wav")}
+    return {path.stem: str(path) for path in root.rglob("*.wav")}
 
 
 def load_audio(path: str) -> torch.Tensor:
@@ -229,6 +229,7 @@ def main() -> int:
     model.eval()
 
     supplement_stats = []
+    dropped_by_row = {}
     with torch.inference_mode():
         for idx in tqdm(low_indices, desc="supplement low-nbest"):
             row = rows[idx]
@@ -274,6 +275,8 @@ def main() -> int:
                         max_ratio=1.35,
                         length_slack=8,
                     )
+                    if dropped:
+                        dropped_by_row.setdefault(idx, []).extend(dropped)
                     current = cleaned
                     if not bool(args.target_missing_context) and len(unique_texts(current)) >= int(args.max_nbest):
                         break
@@ -311,7 +314,6 @@ def main() -> int:
             }
             supplement_stats.append(input_block["targeted_supplement"])
 
-    dropped_by_row = {}
     summary = summarize(rows, dropped_by_row)
     summary.update(
         {
