@@ -2010,3 +2010,53 @@ ChineseHP-style + hotword-aware COVO SFT data, 2026-07-01:
   - The full-epoch model overfits/over-rewrites badly: it improves generic CER over base but destroys hotword preservation, often changing already-correct protected names into common homophones, e.g. `王晔君 -> 王艳君`, `宋芳 -> 颂芳`, `今久 -> 金九`, `刘澄 -> 刘成`.
   - Checkpoint-1000 is much safer than the final checkpoint but still worse than the current main AISHELL result (`CER 0.04284`, recall `0.91083`) and worse than protected-preserve recall-best (`CER 0.04292`, recall `0.91295`).
   - Likely cause: long ChineseHP-style evidence + reference SFT teaches the model to trust fluent correction/reference normalization more than exact hotword preservation. Structured fields alone are not enough; future attempts need loss masking/targeting only uncertain spans, or explicit contrastive/protected-hotword objectives, rather than full reference SFT on the whole long prompt.
+
+Shuili model sweep after stopping AISHELL work, 2026-07-04:
+
+- User direction:
+  - Stop working on AISHELL for now.
+  - Switch to the Shuili dataset and evaluate the currently useful COVO models.
+- Dataset/evidence:
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`
+  - Rows: `1152`
+  - Baseline CB-Whisper top1:
+    - Raw CER `0.15415`
+    - Extended filler-normalized CER `0.09814`
+    - Minimal filler-normalized CER `0.09900`
+    - Hotword recall `0.90154`
+    - Exact rows `257`
+- Newly evaluated models on 2026-07-04:
+  - `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - `qwen35_cbwhisper_actual_hard_mild_sft40_from_synth_bf16`
+  - `qwen35_cbwhisper_protected_positive6k_lostx40_anchor2k_sft100_from_expanded_bf16`
+  - `qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16/checkpoint-1000`
+- Results table:
+
+| Model / setting | Raw CER | Extended filler CER | Minimal filler CER | Hotword recall | Exact rows | Base-hit lost | Improved / worsened / unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| CB-Whisper top1/base | 0.15415 | 0.09814 | 0.09900 | 0.90154 | 257 | - | - |
+| preserve2 no-op bs7 | 0.13402 | 0.09013 | 0.09059 | 0.91960 | 280 | 4 | 151 / 45 / 956 |
+| actual-error mild SFT40 | 0.13244 | 0.08911 | 0.08918 | 0.92141 | 284 | 4 | 173 / 56 / 923 |
+| expanded rewrite60k+noop SFT120 | 0.13313 | 0.08903 | 0.08965 | 0.92231 | 284 | 4 | 171 / 58 / 923 |
+| protected-preserve SFT40 | 0.13332 | 0.08919 | 0.08978 | 0.92231 | 281 | 4 | 165 / 55 / 932 |
+| protected-positive SFT100 | 0.13225 | 0.08872 | 0.08898 | 0.92141 | 285 | 4 | 170 / 54 / 928 |
+| selector hardx4 SFT160 | 0.13275 | 0.08903 | 0.08938 | 0.92231 | 284 | 4 | 172 / 58 / 922 |
+| selector-prompt hardx4 SFT160 | 0.13199 | 0.08778 | 0.08844 | 0.92322 | 287 | 4 | 182 / 60 / 910 |
+| strong selector 1epoch | 0.11936 | 0.08566 | 0.08003 | 0.88708 | 322 | 35 | 349 / 172 / 631 |
+| strong selector + content prompt | 0.11428 | 0.07945 | 0.07472 | 0.90425 | 336 | 15 | 320 / 104 / 728 |
+| content-protect-near selector | 0.12088 | 0.08534 | 0.08084 | 0.90786 | 320 | 10 | 234 / 60 / 858 |
+| hotword-aware checkpoint-1000 | 0.13009 | 0.08652 | 0.08635 | 0.92322 | 276 | 2 | 186 / 70 / 896 |
+
+- Interpretation:
+  - Best raw CER and best filler-normalized CER remain `strong selector + content prompt`:
+    - Raw CER `0.11428`
+    - Extended filler CER `0.07945`
+    - Minimal filler CER `0.07472`
+  - Best hotword recall is tied by `selector-prompt hardx4 SFT160` and `hotword-aware checkpoint-1000`, both `0.92322`.
+  - `hotword-aware checkpoint-1000` transfers better to Shuili than it did to AISHELL recall-wise, losing only `2` base-hit hotwords, but its raw CER/exact rows are not competitive with the selector route.
+  - `protected-positive SFT100` slightly improves over expanded/protected-preserve in raw CER and filler-normalized CER, but it is still far behind the Shuili selector-content route.
+  - For Shuili, the bottleneck is still candidate selection / lecture-style output, not only hotword preservation. Selector-style behavior is much more important than the AISHELL-style conservative correction adapters.
+- Current Shuili recommendations:
+  - Main Shuili CER result: `strong selector + content prompt`.
+  - Recall-oriented Shuili ablation: `selector-prompt hardx4 SFT160` or `hotword-aware checkpoint-1000`.
+  - Balanced fallback with low hotword loss and moderate CER: `protected-positive SFT100` or `actual-error mild SFT40`.
