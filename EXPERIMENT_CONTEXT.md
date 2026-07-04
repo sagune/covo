@@ -2236,3 +2236,57 @@ Shuili regenerated conservative candidate pool + 4.35 COVO, 2026-07-04:
   - The 4.35 adapter increases hotword recall, but it does not select or rewrite toward the oracle candidates well enough on Shuili.
   - The largest remaining error bucket is `unchanged_error=689`, so the model often keeps the input even when the n-best pool contains better evidence.
   - This route proves the bottleneck is no longer only candidate availability; the downstream COVO model needs Shuili-style evidence adaptation or a stronger ChineseHP-style training format before the richer n-best pool can translate into sub-10 CER.
+
+MagicData-RAMC oral data inspection, 2026-07-04:
+
+- Source:
+  - Downloaded OpenSLR 123 `MagicData-RAMC.tar.gz` to `datasets/magicdata_ramc/MagicData-RAMC.tar.gz`.
+  - Size: `15G`; downloaded from the CN mirror with `wget --no-check-certificate` because the mirror certificate was expired.
+  - Full extraction was not performed because the workspace had only about `33G` free after download.
+- Extracted inspection subsets:
+  - `datasets/magicdata_ramc/sample_extract/MDT2021S003/{SPKINFO.txt,UTTERANCEINFO.txt,TXT/CTS-CN-F2F-2019-11-15-506.txt,WAV/CTS-CN-F2F-2019-11-15-506.wav}`
+  - `datasets/magicdata_ramc/text_only/MDT2021S003/{SPKINFO.txt,UTTERANCEINFO.txt,TXT/*.txt}`
+- Structure:
+  - Root directory: `MDT2021S003`
+  - Metadata: `SPKINFO.txt`, `UTTERANCEINFO.txt`
+  - Audio: `WAV/*.wav`, each file is a long conversation recording.
+  - Transcript: `TXT/*.txt`, with segment-level timestamps and speaker ids.
+  - Example transcript row format: `[start,end]\tspeaker\tgender,accent\ttext`
+- Audio sample:
+  - Example file `CTS-CN-F2F-2019-11-15-506.wav`
+  - `16000 Hz`, mono, signed 16-bit PCM.
+  - Duration `1867.475s` (`31.12 min`), size about `60M`.
+- Corpus text statistics from extracted `TXT/*.txt`:
+  - Sessions: `351`
+  - Valid hours from `UTTERANCEINFO.txt`: `150.73h`
+  - Total hours from `UTTERANCEINFO.txt`: `180.18h`
+  - Text files: `351`
+  - All transcript rows: `219325`
+  - Valid text rows: `204399`
+  - Special/noise rows (`[*]`, `[+]`): `14926`
+  - Segment duration: mean `2.54s`, median `1.91s`, p90 `5.75s`
+  - Normalized chars per segment: mean `12.91`, median `10`, p90 `28`
+- Oral markers:
+  - `就是`: `32626`
+  - `嗯`: `25996`
+  - `然后`: `25222`
+  - `那个`: `20757`
+  - `啊`: `16948`
+  - `吧`: `11348`
+  - `这个`: `10534`
+  - `嘛`: `8758`
+  - `呀`: `7189`
+  - `儿`: `6434`
+  - `呢`: `6205`
+  - `的话`: `6161`
+  - `呃`: `5808`
+  - `咱`: `2868`
+  - `那么`: `1782`
+- Suitability judgment:
+  - This dataset is highly suitable for Shuili-style oral COVO training.
+  - It contains real spontaneous Mandarin conversation, short timestamped utterances, and abundant filler/oral discourse markers.
+  - The most useful path is not to train a new ASR model immediately, but to use the text segments to synthesize oral-style COVO SFT pairs:
+    - complete oral reference as target;
+    - simulated top1 with deleted fillers, shortened spans, and false hotword insertions;
+    - n-best candidates containing both short/wrong and complete/oral variants.
+  - Because audio is long conversation-level WAV, full audio preprocessing would require segment cutting from timestamps; this is feasible but should be done only after deciding whether we need Whisper/KWS hidden states from RAMC.
