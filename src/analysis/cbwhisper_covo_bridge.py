@@ -41,6 +41,13 @@ CONTENT_SELECTOR_SYSTEM_MESSAGE = (
     "不要输出解释、推理过程、Markdown 或额外字段。"
 )
 
+SPOKEN_SELECTOR_SYSTEM_MESSAGE = (
+    "你是一个中文课堂讲授 ASR N-best 候选选择器。你的首要任务是选择最符合口语课堂转写风格、"
+    "同时保留领域词和主要语义的完整中文转写。不要把自然口语改写成书面摘要。"
+    "必须只输出一个合法 JSON 对象，格式为 {\"text\":\"...\"}。"
+    "不要输出解释、推理过程、Markdown 或额外字段。"
+)
+
 INSTRUCTION = (
     "任务：融合 CB-Whisper 的最终输出、N-best 候选和 KWS 热词证据进行中文 ASR 后纠错。"
     "优先保留 CB-Whisper 输出；只有当 N-best、拼音或高置信热词共同支持时才修改。"
@@ -74,6 +81,18 @@ CONTENT_SELECTOR_INSTRUCTION = (
     "不要主动插入语气词；也不要为了删除语气词而改变主体内容。"
     "如果非 top-1 候选明显补全了缺失的主体内容，或修正了领域词/数字/专名，应采用该候选。"
     "受支持的水利/施工领域词优先级高于语气词，例如水利工程、地基、水闸、施工、运输、浇筑、导流、坝体等。"
+    "热词证据来自 CB-Whisper/KWS，不是参考答案；不要强行插入无上下文支持的词，也不要把已正确出现的领域词改成同音常见词。"
+    "输出应尽量等于某个高质量 N-best 候选；只有候选存在明显局部错字时才做小幅修正。"
+)
+
+SPOKEN_SELECTOR_INSTRUCTION = (
+    "任务：从 CB-Whisper 的 ASR top-1、N-best 候选、拼音和 KWS 热词证据中选择最可信的课堂口语转写。"
+    "ASR top-1 只是候选之一，但输出必须保持课堂讲授的口语风格，不要主动书面化、摘要化或删去自然停顿词。"
+    "如果 top-1 或多个可信 N-best 候选中包含自然口语词（如：呢、啊、嗯、呃、那么、这个、这一个、的话、就是、咱们、我们），"
+    "且这些词不破坏语义，应优先保留。不要为了让句子更书面、更简洁而删除这些词。"
+    "当多个候选主体内容相近时，优先选择既保留领域词/数字/专名，又保留自然口语成分的候选。"
+    "如果候选之间只在明显无意义重复、乱码或污染尾巴上不同，可以选择更干净的候选；但普通课堂语气词不是污染。"
+    "受支持的水利/施工领域词仍然必须优先保留，不要把水利工程、施工、浇筑、运输、地基、基坑、闸门、导流、坝体等改成同音常见词。"
     "热词证据来自 CB-Whisper/KWS，不是参考答案；不要强行插入无上下文支持的词，也不要把已正确出现的领域词改成同音常见词。"
     "输出应尽量等于某个高质量 N-best 候选；只有候选存在明显局部错字时才做小幅修正。"
 )
@@ -814,7 +833,9 @@ def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[
 def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     input_block = record.get("input", {}) or {}
     prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
-    if prompt_mode == "selector_content":
+    if prompt_mode == "selector_spoken":
+        lines = [SPOKEN_SELECTOR_INSTRUCTION]
+    elif prompt_mode == "selector_content":
         lines = [CONTENT_SELECTOR_INSTRUCTION]
     elif prompt_mode == "selector":
         lines = [SELECTOR_INSTRUCTION]
@@ -909,6 +930,8 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
 
 def build_system_message(args: argparse.Namespace) -> str:
     prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
+    if prompt_mode == "selector_spoken":
+        return SPOKEN_SELECTOR_SYSTEM_MESSAGE
     if prompt_mode == "selector_content":
         return CONTENT_SELECTOR_SYSTEM_MESSAGE
     return SELECTOR_SYSTEM_MESSAGE if prompt_mode == "selector" else SYSTEM_MESSAGE
@@ -1085,7 +1108,7 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--include-pinyin", action="store_true")
     parser.add_argument(
         "--prompt-mode",
-        choices=["correction", "selector", "selector_content"],
+        choices=["correction", "selector", "selector_content", "selector_spoken"],
         default="correction",
         help="Prompt style for COVO: conservative correction or n-best selector.",
     )

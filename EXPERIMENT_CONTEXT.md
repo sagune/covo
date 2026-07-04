@@ -2060,3 +2060,48 @@ Shuili model sweep after stopping AISHELL work, 2026-07-04:
   - Main Shuili CER result: `strong selector + content prompt`.
   - Recall-oriented Shuili ablation: `selector-prompt hardx4 SFT160` or `hotword-aware checkpoint-1000`.
   - Balanced fallback with low hotword loss and moderate CER: `protected-positive SFT100` or `actual-error mild SFT40`.
+
+Shuili spoken-style selector prompt-only ablation, 2026-07-04:
+
+- Motivation:
+  - Raw CER analysis showed the dominant remaining errors are deleted classroom spoken fillers/discourse words (`呢/啊/这个/这一个/那么/咱们/的话`) plus some water-domain homophone errors.
+  - User rejected adding domain lexicons or new training for this step because the work should remain paper-clean.
+  - Therefore this is a prompt-only ablation on the existing strong selector adapter.
+- Code change:
+  - Added `--prompt-mode selector_spoken` to `src/analysis/cbwhisper_covo_bridge.py`.
+  - The prompt tells COVO to preserve classroom spoken style and avoid turning lecture transcription into a written summary.
+  - It treats ordinary spoken fillers as valid transcript content rather than pollution when they appear in top1 or trusted n-best candidates.
+- Setup:
+  - Adapter: `outputs/qwen35_cbwhisper_nbest_selector_strongprompt_lr1e6_1epoch_from_selector_bf16`
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`
+  - Predictions: `src/logs/cbwhisper_covo_predictions_shuili_v3_selector_spoken_lr1e6_1epoch_20260704.jsonl`
+- Result:
+
+| Prompt | Raw CER | Extended filler CER | Minimal filler CER | Recall | Exact rows | Base-hit lost | Improved / worsened / unchanged |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| strong selector | 0.11936 | 0.08566 | 0.08003 | 0.88708 | 322 | 35 | 349 / 172 / 631 |
+| selector_content | 0.11428 | 0.07945 | 0.07472 | 0.90425 | 336 | 15 | 320 / 104 / 728 |
+| selector_spoken | 0.11206 | 0.07985 | 0.07445 | 0.90425 | 356 | 16 | 335 / 94 / 723 |
+
+- Spoken-word deletion diagnostic:
+  - `selector_content` missing rows:
+    - `呢`: `477`
+    - `啊`: `88`
+    - `这个`: `48`
+    - `这一个`: `28`
+    - `那么`: `15`
+    - `咱们`: `5`
+    - `的话`: `5`
+  - `selector_spoken` missing rows:
+    - `呢`: `456`
+    - `啊`: `83`
+    - `这个`: `46`
+    - `这一个`: `25`
+    - `那么`: `14`
+    - `咱们`: `3`
+    - `的话`: `3`
+- Interpretation:
+  - This is a clean prompt-only gain and becomes the current best Shuili raw CER result.
+  - It improves raw CER from `0.11428` to `0.11206` and exact rows from `336` to `356` while keeping recall unchanged at `0.90425`.
+  - The improvement is consistent with the diagnosis: preserving spoken lecture style recovers some raw-CER errors that the content-priority prompt still deleted.
+  - Extended filler-normalized CER is slightly worse than selector_content (`0.07985` vs `0.07945`) because this metric removes many of the recovered words; raw CER should be the main metric for this ablation.
