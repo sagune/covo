@@ -2290,3 +2290,43 @@ MagicData-RAMC oral data inspection, 2026-07-04:
     - simulated top1 with deleted fillers, shortened spans, and false hotword insertions;
     - n-best candidates containing both short/wrong and complete/oral variants.
   - Because audio is long conversation-level WAV, full audio preprocessing would require segment cutting from timestamps; this is feasible but should be done only after deciding whether we need Whisper/KWS hidden states from RAMC.
+
+ChineseHP coverage check and RAMC direct-training setup, 2026-07-04:
+
+- User asked whether ChineseHP has n-best candidates for MagicData-RAMC and suggested training without CB-Whisper if needed.
+- Public and local checks:
+  - ChineseHP official repo: `https://github.com/tzyll/ChineseHP`
+  - Repo file tree contains n-best/text/pinyin for:
+    - `aishell-1`
+    - `aishell-4`
+    - `kespeech`
+    - `wenetspeech`
+  - No `MagicData-RAMC`, `RAMC`, `MDT2021S003`, or OpenSLR 123 split is present.
+  - Conclusion: ChineseHP does not provide RAMC n-best candidates. RAMC n-best must be generated or synthesized.
+- Direct RAMC synthetic oral-rewrite data:
+  - Added script: `src/analysis/build_ramc_oral_rewrite_data.py`
+  - Input: `datasets/magicdata_ramc/text_only/MDT2021S003/TXT`
+  - Output raw files:
+    - `covo/data/processed/ramc_oral/ramc_oral_synthetic_raw.jsonl`
+    - `covo/data/processed/ramc_oral/train_raw.jsonl`
+    - `covo/data/processed/ramc_oral/dev_raw.jsonl`
+  - Available filtered RAMC text records: `162059`
+  - First split used for pilot:
+    - train: `50000`
+    - dev: `3000`
+  - Synthetic corruption types:
+    - delete one or multiple oral/filler words;
+    - shorten prefix/suffix/middle spans;
+    - duplicate local spans;
+    - insert Shuili-like false domain words such as `水利工程`, `闸门`, `地基`, `石方`, `施工技术`;
+    - include no-op rows where ASR top1 is already correct.
+  - Qwen message exports:
+    - `covo/data/processed/ramc_oral/train_oral_rewrite_50k.qwen.jsonl`
+    - `covo/data/processed/ramc_oral/dev_oral_rewrite_3k.qwen.jsonl`
+  - Export mode: final-text rewrite with n-best, pinyin, and hard-negative/confusable candidates.
+  - Dry-run passed with `train_rows=50000`, `eval_rows=3000`.
+- Planned pilot training:
+  - Start adapter: original ChineseHP text-rewrite hard-negative model `covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch`, not a CB-Whisper adapter.
+  - Base model: `covo_migration/.../models/Qwen3.5-4B`.
+  - Training target: teach the model to recover full oral-style text from synthetic ASR top1/n-best evidence without relying on CB-Whisper.
+  - First run should be capped around `200` steps to verify loss/format before scaling.
