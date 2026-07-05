@@ -2494,3 +2494,86 @@ Shuili candidate-pool distribution check, 2026-07-05:
   - However, the current RAMC oral adapter does not convert that better ceiling into better raw CER: raw CER worsens from `0.11180` to `0.11593`.
   - The model becomes more conservative on the richer/more oral pool: fewer broken-correct and worsened-error samples, but many more unchanged errors.
   - For filler-normalized CER the selected pool is slightly better (`0.08326 -> 0.08245`), which supports the idea that this pool is distributionally closer to oral Shuili, but the adapter still needs training/objective changes to use these candidates for raw CER.
+
+Shuili COVO hotword-recall training probes, 2026-07-05:
+
+- User requirement:
+  - Hotword recall should also be solved through training, not only by prompt/gating/rerank patches.
+  - Small-step training first; only extend training if the direction is effective.
+- New data builder:
+  - Added `src/analysis/build_shuili_style_oral_sft.py`.
+  - It builds Shuili-style oral COVO SFT rows from RAMC raw text, synthesizing 8-10 n-best candidates with short fragments, filler deletion, natural repetition, false domain insertions, and no-op rows.
+  - It can mix external AISHELL/CB-Whisper hotword/no-op Qwen-message rows.
+  - Added `--hotword-aware-ramc` so synthetic RAMC rows also expose `protected_hotwords`, `prompt_hotwords`, false hotword warnings, and per-candidate keep/drop hotword support.
+- Probe A: RAMC oral + external hotword mix.
+  - Training data:
+    - `train_shuili_style_oral_hotword_mix30k_20260705.qwen.jsonl`
+    - `30000` train / `1500` dev rows.
+    - RAMC rewrite `15357`, RAMC no-op `5118`, external hotword/no-op `11025`.
+  - Start adapter:
+    - `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Output adapter:
+    - `outputs/qwen35_ramc_shuili_style_hotword_mix_sft160_from_ramc_oral_bf16`
+  - Training:
+    - `160` steps, final eval loss `0.83793`.
+  - Shuili selected-pool validation:
+    - Raw CER: `0.11587`
+    - Minimal filler-normalized CER: `0.08198`
+    - Hotword recall: `0.86721`
+    - Base-hit hotwords lost: `44`
+    - `unchanged_error=329`, `base_correct_broken=76`, `worsened_error=89`
+  - Interpretation:
+    - Generic/oral CER is essentially tied with the RAMC oral selected-pool result (`0.11593 -> 0.11587`), and minimal filler CER is slightly better (`0.08245 -> 0.08198`).
+    - It does not solve hotword recall: recall remains around `0.867`.
+- Probe B: hotword-first.
+  - Training data:
+    - `train_shuili_style_hotwordfirst_mix30k_20260705.qwen.jsonl`
+    - `30000` train / `1500` dev rows.
+    - RAMC rewrite `10080`, RAMC no-op `2520`, external hotword/no-op `18900`.
+  - Start adapter:
+    - `outputs/qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16/checkpoint-1000`
+  - Output adapter:
+    - `outputs/qwen35_ramc_shuili_style_hotwordfirst_sft160_from_hotwordaware_ckpt1000_bf16`
+  - Training:
+    - `160` steps, final eval loss `0.39357`.
+  - Shuili selected-pool validation:
+    - Raw CER: `0.13523`
+    - Minimal filler-normalized CER: `0.09012`
+    - Hotword recall: `0.91238`
+    - Base-hit hotwords lost: `7`
+    - Hotwords gained over base: `19`
+    - `unchanged_error=683`, `base_correct_broken=23`, `worsened_error=47`
+  - Interpretation:
+    - This proves training can improve hotword recall: recall rises above the CB-Whisper base (`0.90154 -> 0.91238`) and base-hit loss drops sharply.
+    - But it is far too conservative and weak at candidate use, so raw CER and filler-normalized CER regress badly.
+    - Do not promote this adapter as a main Shuili model.
+- Probe C: RAMC-hotword-aware balanced mix.
+  - Code path:
+    - Enable `--hotword-aware-ramc` so the RAMC oral synthetic rows themselves carry hotword evidence, rather than relying mainly on external hotword rows.
+  - Training data:
+    - `train_shuili_style_ramc_hotwordaware_mix30k_20260705.qwen.jsonl`
+    - `30000` train / `1500` dev rows.
+    - RAMC rewrite `17640`, RAMC no-op `4410`, external hotword/no-op `9450`.
+  - Start adapter:
+    - `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Output adapter:
+    - `outputs/qwen35_ramc_oral_hotwordaware_mix_sft160_from_ramc_oral_bf16`
+  - Training:
+    - `160` steps, final eval loss `1.21155`.
+  - Shuili selected-pool validation:
+    - Raw CER: `0.11644`
+    - Minimal filler-normalized CER: `0.08286`
+    - Hotword recall: `0.86721`
+    - Base-hit hotwords lost: `45`
+    - `unchanged_error=317`, `base_correct_broken=79`, `worsened_error=95`
+  - Interpretation:
+    - The balanced mix keeps the oral behavior close to RAMC oral, but still does not improve hotword recall.
+    - Starting from the RAMC oral adapter seems to preserve its hotword-loss tendency; merely adding structured hotword evidence for 160 steps is insufficient.
+- Current conclusion:
+  - The recall/CER tradeoff is now well isolated:
+    - Hotword-aware start solves recall but becomes conservative and leaves too many errors unchanged.
+    - RAMC oral start solves oral candidate use better but loses hotwords.
+  - A longer run of Probe A or C is not justified yet because the recall signal did not move.
+  - The next paper-clean route should either:
+    - start from the hotword-aware checkpoint and explicitly train candidate selection on harder RAMC oral rows to reduce `unchanged_error`; or
+    - use a contrastive/preference objective where chosen outputs both lower CER and preserve protected hotwords, instead of full reference SFT that optimizes only one side of the tradeoff.
