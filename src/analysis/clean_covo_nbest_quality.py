@@ -70,7 +70,7 @@ def has_unusual_unicode(text: str) -> bool:
     return False
 
 
-def has_short_repeat_noise(text: str) -> bool:
+def has_short_repeat_noise(text: str, allow_natural_repeats: bool = False) -> bool:
     key = norm(text)
     if len(key) < 4:
         return False
@@ -84,6 +84,8 @@ def has_short_repeat_noise(text: str) -> bool:
         for start in range(0, len(key) - unit * 2 + 1):
             piece = key[start:start + unit]
             if piece and key[start:start + unit * 2] == piece * 2:
+                if allow_natural_repeats and len(set(piece)) > 1:
+                    continue
                 if len(set(piece)) > 1 or key.count(piece) >= 2:
                     return True
     return False
@@ -111,6 +113,7 @@ def clean_nbest(
     drop_polluted_top1: bool = True,
     short_exact_length: bool = False,
     short_length_margin: int = -1,
+    allow_natural_repeats: bool = False,
 ) -> Tuple[List[str], List[Dict[str, Any]]]:
     unique = unique_texts(candidates)
     if len(unique) <= 1:
@@ -128,7 +131,7 @@ def clean_nbest(
             return "replacement_char"
         if has_unusual_unicode(raw):
             return "unusual_unicode"
-        if has_short_repeat_noise(raw):
+        if has_short_repeat_noise(raw, allow_natural_repeats=allow_natural_repeats):
             return "repeat_noise"
         latin_alpha = sum(1 for ch in raw if ("A" <= ch <= "Z") or ("a" <= ch <= "z"))
         if latin_alpha >= 8 and latin_alpha / max(len(raw), 1) > 0.20:
@@ -287,6 +290,11 @@ def main() -> int:
     parser.add_argument("--keep-polluted-top1", action="store_true")
     parser.add_argument("--short-exact-length", action="store_true")
     parser.add_argument("--short-length-margin", type=int, default=-1)
+    parser.add_argument(
+        "--allow-natural-repeats",
+        action="store_true",
+        help="Keep adjacent multi-character repetitions such as 土石土石 or 一层一层, which are common in spoken Shuili lectures.",
+    )
     args = parser.parse_args()
 
     rows = list(read_jsonl(Path(args.input)))
@@ -304,6 +312,7 @@ def main() -> int:
             drop_polluted_top1=not bool(args.keep_polluted_top1),
             short_exact_length=bool(args.short_exact_length),
             short_length_margin=int(args.short_length_margin),
+            allow_natural_repeats=bool(args.allow_natural_repeats),
         )
         input_block["nbest"] = cleaned
         input_block["nbest_quality_filter"] = {
@@ -314,6 +323,7 @@ def main() -> int:
             "min_ratio": float(args.min_ratio),
             "max_ratio": float(args.max_ratio),
             "length_slack": int(args.length_slack),
+            "allow_natural_repeats": bool(args.allow_natural_repeats),
         }
         if dropped:
             dropped_by_row[idx] = dropped

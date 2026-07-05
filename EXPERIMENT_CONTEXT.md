@@ -2420,3 +2420,77 @@ Shuili validation with RAMC oral adapter, 2026-07-05:
   - The RAMC oral training direction is effective for Shuili oral-style incompleteness and unchanged errors.
   - The pure RAMC adapter is too aggressive and not hotword-aware because it starts from the ChineseHP rewrite adapter rather than the hotword-preserving CB-Whisper adapter.
   - This is a useful intermediate result, not a final model: next likely route is RAMC oral data mixed with hotword-preserve/no-op data, or continuing from the strongest hotword-preserving adapter so that oral completion does not sacrifice hotword recall.
+
+Shuili candidate-pool distribution check, 2026-07-05:
+
+- Motivation:
+  - The RAMC oral adapter still had `unchanged_error=241` on Shuili, so the next question was whether the n-best pool was mismatched to Shuili's oral lecture distribution.
+- Full-label audit of the previous RAMC Shuili run:
+  - `unchanged_error=241`
+  - Among those unchanged errors, `154` had a better n-best candidate than the model output.
+  - `84` had an exact-reference candidate in n-best.
+  - `138` had candidates longer than baseline, and `100` had candidates that added oral markers/fillers over baseline.
+  - Interpretation: the candidate pool still contains useful evidence, but the model often refuses to use it.
+- Candidate-pool comparison:
+  - Previous pool used for RAMC validation:
+    - `cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t035_keep5_clean_shortmargin1_20260704.jsonl`
+    - Avg n-best: `8.576`
+    - Exact refs in n-best: `701`
+    - Oracle CER: `0.05796`
+    - Oral marker coverage: `0.9151`
+  - Raw `t046` pool:
+    - Avg n-best: `9.063`
+    - Exact refs in n-best: `720`
+    - Oracle CER: `0.05263`
+    - Oral marker coverage: `0.9231`
+    - But it retains some severe pollution/noise.
+  - `t046 clean_audit` pool:
+    - Avg n-best: `8.865`
+    - Exact refs in n-best: `709`
+    - Oracle CER: `0.05574`
+    - Severe pollution is nearly removed, but useful oral repetition is over-cleaned.
+- Cleaning issue found:
+  - The existing repeat cleaner incorrectly removed Shuili-natural repetitions such as:
+    - `土石土石`
+    - `一层一层`
+    - `浇筑浇筑`
+    - `施工组织施工组织`
+    - `怎么选怎么选`
+  - These repetitions are natural in the Shuili classroom speech style and sometimes are the exact reference.
+- Code change:
+  - Added optional `--allow-natural-repeats` to `src/analysis/clean_covo_nbest_quality.py`.
+  - Default behavior is unchanged.
+  - With the option enabled, adjacent multi-character repetitions are kept unless they are still caught by other severe quality filters.
+- Selected Shuili-distribution pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+  - Generated from raw `t046` using:
+    - `--allow-natural-repeats`
+    - `--max-ratio 1.8`
+  - Summary:
+    - Avg n-best: about `8.963`
+    - Exact refs in n-best: `720`
+    - Oracle CER: `0.05333`
+    - Oral marker coverage: `0.9225`
+    - Severe pollution rate: effectively `0`
+    - For the old `241` unchanged-error samples: `85` exact refs, `157` better candidates, `103` oral-marker-adding candidates.
+- RAMC oral adapter validation on the selected pool:
+  - Predictions:
+    - `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_ramc_oral_predictions_20260705.jsonl`
+  - Raw result:
+    - Baseline CER: `0.15415`
+    - COVO CER: `0.11593`
+    - Improved/worsened/unchanged: `479/169/504`
+    - N-best oracle CER: `0.05333`
+  - Audit:
+    - `unchanged_error=321`
+    - `base_correct_broken=74`
+    - `worsened_error=95`
+    - Hotword recall: baseline `0.90154`, prediction `0.86631`, oracle `0.90063`
+  - Minimal filler-normalized CER, removing only `呃/呢/啊/嗯`:
+    - Baseline CER: `0.09900`
+    - Prediction CER: `0.08245`
+- Interpretation:
+  - The selected pool is more Shuili-like and has a better oracle ceiling than the previous pool.
+  - However, the current RAMC oral adapter does not convert that better ceiling into better raw CER: raw CER worsens from `0.11180` to `0.11593`.
+  - The model becomes more conservative on the richer/more oral pool: fewer broken-correct and worsened-error samples, but many more unchanged errors.
+  - For filler-normalized CER the selected pool is slightly better (`0.08326 -> 0.08245`), which supports the idea that this pool is distributionally closer to oral Shuili, but the adapter still needs training/objective changes to use these candidates for raw CER.
