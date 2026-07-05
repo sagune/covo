@@ -2593,10 +2593,13 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Dev file for periodic eval:
   - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/splits/train_nbest_selector_content_protect_near2_from435_dev1000.qwen.jsonl`
 - Full training command state:
-  - `tmux` session: `covo_435_selector_full`
-  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_selector_content_from_435_full1epoch_bf16`
-  - Log: `src/logs/train_covo_selector_content_from_435_full1epoch_20260705_stdout.log`
-  - Key hyperparameters: `epochs=1.0`, `lr=5e-7`, `max_length=1536`, `bf16`, `batch=4`, `grad_accum=7`, `save/eval every 500 steps`.
+  - Initial `batch=4, grad_accum=7` run was stopped at about step `43/2483` because GPU memory reached about `30.5G/32.6G`, leaving too little OOM margin for long samples/eval.
+  - Restarted safer full run:
+    - `tmux` session: `covo_435_selector_full_bs3`
+    - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_selector_content_from_435_full1epoch_bs3ga9_bf16`
+    - Log: `src/logs/train_covo_selector_content_from_435_full1epoch_bs3ga9_20260705_stdout.log`
+    - Key hyperparameters: `epochs=1.0`, `lr=5e-7`, `max_length=1536`, `bf16`, `batch=3`, `grad_accum=9`, `save/eval every 500 steps`.
+    - Effective batch remains close to the original (`27` vs `28` sequences per optimizer step), with lower memory pressure.
 - Status at launch:
   - Model and adapter loaded successfully.
   - Dataset mapping started normally.
