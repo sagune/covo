@@ -2330,3 +2330,93 @@ ChineseHP coverage check and RAMC direct-training setup, 2026-07-04:
   - Base model: `covo_migration/.../models/Qwen3.5-4B`.
   - Training target: teach the model to recover full oral-style text from synthetic ASR top1/n-best evidence without relying on CB-Whisper.
   - First run should be capped around `200` steps to verify loss/format before scaling.
+
+RAMC direct oral-rewrite full SFT result, 2026-07-05:
+
+- User asked to run full training after the pilot.
+- Pilot issue:
+  - The first capped `200` step run used `max_length=1536`, batch `7`, grad accumulation `4`.
+  - It reached step `23/200` and then failed with CUDA OOM while allocating about `6.98 GiB`.
+  - The first logged loss before OOM was about `1.037`.
+  - Fix for full run: reduce `max_length` to `1024`, reduce batch to `4`, use grad accumulation `7`, and set `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
+- Full synthetic RAMC data:
+  - Raw full file: `covo/data/processed/ramc_oral/ramc_oral_synthetic_full_raw.jsonl`
+  - Train raw: `covo/data/processed/ramc_oral/train_full_raw.jsonl`
+  - Dev raw: `covo/data/processed/ramc_oral/dev_full_raw.jsonl`
+  - Train messages: `covo/data/processed/ramc_oral/train_oral_rewrite_full157k_hn2.qwen.jsonl`
+  - Dev messages: `covo/data/processed/ramc_oral/dev_oral_rewrite_full5k_hn2.qwen.jsonl`
+  - Train/dev sizes: `157000/5000`.
+  - Hard-negative/confusable candidates capped at `2` for length stability.
+- Full SFT setup:
+  - Start adapter: `covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch`
+  - Output adapter: `covo/outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Base model: `covo_migration/.../models/Qwen3.5-4B`
+  - Epochs: `1`
+  - Steps: `5608`
+  - Batch/accumulation: `4 x 7`
+  - Max length: `1024`
+  - Learning rate: `5e-6`, linear schedule
+  - Precision: bf16
+  - Train runtime: about `16:51:19`
+  - Final train loss: `0.2206`
+  - Final dev eval loss: `0.1733`
+  - Output size: about `1.7G` including checkpoints.
+- RAMC synthetic dev inference:
+  - Predictions: `src/logs/ramc_oral_dev_predictions_full1epoch_from_chinesehp_20260705.jsonl`
+  - Log: `src/logs/eval_ramc_oral_dev_full1epoch_from_chinesehp_20260705_stdout.log`
+  - Metrics: `src/logs/eval_ramc_oral_dev_full1epoch_from_chinesehp_20260705_metrics.log`
+  - Samples: `5000`
+  - Baseline CER from synthetic ASR top1: `0.16486`
+  - Model CER: `0.00084`
+  - Improved/worsened/unchanged: `4083/5/912`
+  - Changed predictions: `4089/5000`
+  - Parse warnings: none.
+- Interpretation:
+  - The full RAMC direct SFT cleanly learned the synthetic oral-rewrite task.
+  - It can restore deleted oral words such as `就是`, remove duplicate spans, and reject false Shuili-like insertions when the correct variant appears in n-best.
+  - This result is not yet a real Shuili test improvement, because the dev set is synthetic RAMC and the n-best is constructed from text.
+  - However, it confirms that the model capacity/training objective can learn the exact behavior missing in Shuili: using n-best evidence to recover complete oral-style utterances instead of keeping an over-short top1.
+  - Next useful validation is to run this RAMC oral adapter on Shuili cleaned/re-generated n-best and compare against the previous 4.35 COVO result (`raw CER 0.13377`, minimal filler CER `0.08797`).
+
+Shuili validation with RAMC oral adapter, 2026-07-05:
+
+- User asked to test the RAMC oral-rewrite adapter on Shuili.
+- Input candidate pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t035_keep5_clean_shortmargin1_20260704.jsonl`
+- Prepared COVO messages:
+  - `src/logs/shuili_v3_regen_t035_clean_shortmargin1_textrewrite_messages_20260705.jsonl`
+- Adapter:
+  - `covo/outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+- Predictions and metrics:
+  - Predictions: `src/logs/shuili_v3_regen_t035_clean_shortmargin1_ramc_oral_predictions_20260705.jsonl`
+  - Eval metrics: `src/logs/eval_shuili_ramc_oral_20260705_metrics.log`
+  - Audit summary: `src/logs/covo_error_audit_shuili_v3_regen_t035_clean_shortmargin1_ramc_oral_20260705_summary.json`
+  - Minimal filler-normalized metrics: `src/logs/filler_normalized_cer_shuili_v3_regen_t035_clean_shortmargin1_ramc_oral_minfillers_20260705.json`
+- Raw Shuili result:
+  - Samples: `1152`
+  - Baseline CER: `0.15415`
+  - COVO CER: `0.11180`
+  - Improved/worsened/unchanged samples: `540/218/394`
+  - N-best oracle CER: `0.05796`
+- Minimal filler-normalized result, removing only `呃/呢/啊/嗯`:
+  - Baseline CER: `0.09900`
+  - COVO CER: `0.08326`
+  - Improved/worsened/unchanged samples: `265/231/656`
+- Compared with previous Shuili 4.35 preserve/no-op adapter on the same regenerated clean pool:
+  - Previous raw CER: about `0.13377`
+  - Previous minimal filler-normalized CER: about `0.08797`
+  - Previous unchanged_error was about `689`.
+  - RAMC oral adapter raw CER is much better: `0.13377 -> 0.11180`.
+  - RAMC oral adapter minimal filler-normalized CER is also better: `0.08797 -> 0.08326`.
+  - RAMC oral adapter reduces unchanged_error sharply: `689 -> 241`.
+- Main problem:
+  - Hotword recall drops badly.
+  - Baseline hotword recall in this run: `0.90154`
+  - RAMC adapter hotword recall: `0.85366`
+  - N-best oracle hotword recall: `0.90515`
+  - The model loses `61` hotword mentions that baseline had, and gains only `8`.
+  - It also breaks correct baseline outputs often: `base_correct_broken=104`, `worsened_error=114`.
+- Interpretation:
+  - The RAMC oral training direction is effective for Shuili oral-style incompleteness and unchanged errors.
+  - The pure RAMC adapter is too aggressive and not hotword-aware because it starts from the ChineseHP rewrite adapter rather than the hotword-preserving CB-Whisper adapter.
+  - This is a useful intermediate result, not a final model: next likely route is RAMC oral data mixed with hotword-preserve/no-op data, or continuing from the strongest hotword-preserving adapter so that oral completion does not sacrifice hotword recall.
