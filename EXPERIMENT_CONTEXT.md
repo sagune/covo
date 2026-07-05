@@ -2577,3 +2577,30 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The next paper-clean route should either:
     - start from the hotword-aware checkpoint and explicitly train candidate selection on harder RAMC oral rows to reduce `unchanged_error`; or
     - use a contrastive/preference objective where chosen outputs both lower CER and preserve protected hotwords, instead of full reference SFT that optimizes only one side of the tradeoff.
+
+### 2026-07-05 4.35 起点继续训练：ChineseHP-style n-best selector/content-protect 全量
+
+- User correction:
+  - Do not run only small-step probing for this route.
+  - Use the 4.35 hotword-preserve model as the starting point and run a full training pass.
+  - Keep the data format close to the previous ChineseHP-style evidence format.
+- Start adapter:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+- Training data:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_nbest_selector_content_protect_near2_hardx4_exactx2_base6k_noopx2.qwen.jsonl`
+  - `69514` Qwen-message rows.
+  - ChineseHP-style selector/content-protect format: exposes n-best candidates, protected hotwords, near-correct no-break rows, hard/exact repeats, and no-op anchors.
+- Dev file for periodic eval:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/splits/train_nbest_selector_content_protect_near2_from435_dev1000.qwen.jsonl`
+- Full training command state:
+  - `tmux` session: `covo_435_selector_full`
+  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_selector_content_from_435_full1epoch_bf16`
+  - Log: `src/logs/train_covo_selector_content_from_435_full1epoch_20260705_stdout.log`
+  - Key hyperparameters: `epochs=1.0`, `lr=5e-7`, `max_length=1536`, `bf16`, `batch=4`, `grad_accum=7`, `save/eval every 500 steps`.
+- Status at launch:
+  - Model and adapter loaded successfully.
+  - Dataset mapping started normally.
+  - At the earlier 160-step probe settings, one optimizer step was about `20-21s`; full 1 epoch is expected to be a long run.
+- Planned validation after training:
+  - Evaluate on Shuili clean n-best candidate pool first, especially the `t046_keep5_clean_shuili_repeat_len18` pool.
+  - Compare against the 4.35 base adapter and RAMC oral/hotword-aware probes on raw CER, minimal filler-normalized CER, hotword recall, base-hit hotword loss, and `unchanged_error`.
