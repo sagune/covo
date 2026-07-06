@@ -2860,3 +2860,9 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/mixed/dev_aishell_unused_phonetic_plus_oral_unused_20260706.qwen.jsonl`
   - Rows: `58636` train / `2270` dev.
   - Intended use: continue from a strong Shuili/COVO checkpoint to teach local phonetic hotword recovery without repeating old RAMC full training data.
+- Training run started:
+  - tmux session: `covo_unused_phonetic_0706`.
+  - Base adapter: `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`.
+  - Output adapter: `outputs/qwen35_ramc_oral_unused_phonetic_mix_full1epoch_bf16`.
+  - Log: `src/logs/train_covo_ramc_oral_unused_phonetic_mix_full1epoch_20260706_stdout.log`.
+  - Settings: 1 epoch, `2095` steps, LR `1e-6`, max length `1024`, batch `4`, grad accumulation `7`, bf16, gradient checkpointing.
