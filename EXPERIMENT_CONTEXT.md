@@ -2671,3 +2671,34 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Same Shuili pool as previous run:
     - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
   - Same metrics: raw CER, minimal filler-normalized CER, hotword recall, base-hit hotword loss, `unchanged_error`.
+
+#### Completed validation
+
+- Final training status:
+  - Completed full `1.0` epoch: `1112/1112` steps.
+  - Final eval loss: `0.268509`.
+  - Train loss: `0.4006`.
+  - Runtime: about `6h03m`.
+- Validation files:
+  - Messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_from435_oral_hotword_mix_full1epoch_messages_20260706.jsonl`
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_from435_oral_hotword_mix_full1epoch_predictions_20260706.jsonl`
+  - Eval log: `src/logs/eval_shuili_t046_clean_shuili_repeat_len18_from435_oral_hotword_mix_full1epoch_20260706_stdout.log`
+  - Filler CER: `src/logs/filler_normalized_cer_shuili_v3_t046_clean_shuili_repeat_len18_from435_oral_hotword_mix_full1epoch_minfillers_20260706.json`
+  - Error audit: `src/logs/covo_error_audit_shuili_v3_t046_clean_shuili_repeat_len18_from435_oral_hotword_mix_full1epoch_20260706_summary.json`
+- Main metrics:
+  - Raw CER: `0.13345`
+  - Minimal filler-normalized CER: `0.08652`
+  - Hotword recall: `0.91960`
+  - Base-hit hotwords lost: `4`
+  - Hotwords gained over base: `24`
+  - `unchanged_error=702`, `fixed_to_exact=43`, `improved_partial=121`, `base_correct_broken=23`, `worsened_error=29`.
+- Comparison vs previous full 4.35 selector:
+  - Raw CER: `0.13479 -> 0.13345`
+  - Minimal filler-normalized CER: `0.08723 -> 0.08652`
+  - Hotword recall: `0.92141 -> 0.91960`
+  - `unchanged_error: 726 -> 702`
+  - Base-hit hotword loss remains `4`.
+- Interpretation:
+  - Continuing on rewrite-heavy Shuili-style oral data does reduce no-op behavior, but only modestly.
+  - The hotword-preserve prior is still dominant; the model remains much more conservative than the RAMC oral adapter (`unchanged_error=321`, raw CER `0.11593`).
+  - This route alone is insufficient for the desired Shuili CER drop. A stronger intervention is needed: either more Shuili-like rewrite data with less no-op anchoring, or a staged/merged approach that starts from RAMC oral and adds targeted hotword preservation without reintroducing no-op dominance.
