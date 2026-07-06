@@ -55,10 +55,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dev-output", required=True, help="Dev JSONL output")
     parser.add_argument("--train-size", type=int, default=50000)
     parser.add_argument("--dev-size", type=int, default=3000)
+    parser.add_argument(
+        "--exclude-jsonl",
+        action="append",
+        default=[],
+        help="JSONL files whose base ids should be excluded; can be provided multiple times",
+    )
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--min-chars", type=int, default=4)
     parser.add_argument("--max-chars", type=int, default=48)
     return parser.parse_args()
+
+
+def load_excluded_ids(paths: Iterable[str]) -> set[str]:
+    ids: set[str] = set()
+    for raw_path in paths:
+        path = Path(raw_path)
+        if not path.exists():
+            raise FileNotFoundError(path)
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                record = json.loads(line)
+                ids.add(str(record.get("id", "")).split("#", 1)[0])
+    return ids
 
 
 def norm(text: str) -> str:
@@ -220,8 +242,11 @@ def write_jsonl(path: Path, records: Iterable[dict]) -> int:
 def main() -> int:
     args = parse_args()
     rng = random.Random(args.seed)
+    excluded_ids = load_excluded_ids(args.exclude_jsonl)
     records = []
     for seg in iter_segments(Path(args.text_root)):
+        if seg["id"] in excluded_ids:
+            continue
         ref = norm(seg["text"])
         if not (args.min_chars <= len(ref) <= args.max_chars):
             continue
@@ -229,8 +254,9 @@ def main() -> int:
         if record is not None:
             records.append(record)
     rng.shuffle(records)
-    train = records[: args.train_size]
-    dev = records[args.train_size : args.train_size + args.dev_size]
+    dev = records[: args.dev_size]
+    remaining = records[args.dev_size :]
+    train = remaining if args.train_size <= 0 else remaining[: args.train_size]
     for record in train:
         record["split"] = "train"
     for record in dev:
@@ -245,6 +271,7 @@ def main() -> int:
                 "raw_output": args.raw_output,
                 "train_output": args.train_output,
                 "dev_output": args.dev_output,
+                "excluded_ids": len(excluded_ids),
                 "available_records": len(records),
                 "raw_written": raw_count,
                 "train_written": train_count,

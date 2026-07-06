@@ -2826,3 +2826,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Recommended training use:
   - Use `focused_large` as the high-volume phonetic local-correction set.
   - Mix with previous no-op/hotword-preserve data rather than training on it alone; otherwise the model may become too eager to rewrite numbers/traditional forms.
+
+### 2026-07-06 Non-overlap data expansion after duplication check
+
+- User correction:
+  - Do not simply reuse the earlier partially/full-trained data; generate from other data where possible.
+- Duplication audit:
+  - `train_oral_rewrite_full157k_hn2.qwen.jsonl` has `157000` base ids.
+  - `train_full_raw.jsonl` also has `157000` base ids; they are the same RAMC oral source rows.
+  - `dev_oral_rewrite_full5k_hn2.qwen.jsonl` and `dev_full_raw.jsonl` likewise both have `5000` base ids.
+  - Therefore the previously generated `train_aishell_phonetic_oral_local_mix100k_20260706.qwen.jsonl` would have repeated the old full RAMC oral training source; it was deleted and should not be used.
+- Script changes:
+  - Added `src/analysis/build_aishell_synthetic_phonetic_sft.py`.
+  - Extended `src/analysis/build_ramc_oral_rewrite_data.py` with `--exclude-jsonl`; `--train-size <= 0` now means use all remaining records after dev split.
+  - Added `src/analysis/build_oral_diff_span_sft.py` for local oral insert/delete/replace evidence.
+- New AISHELL synthetic phonetic/hotword data:
+  - Source: full AISHELL transcript `datasets/aishell/data_aishell/transcript/aishell_transcript_v0.8.txt`.
+  - Exclusions: previous `aishell_train_hotword_noop.qwen.jsonl` plus hotword dev/test text ids.
+  - Construction: mine same-pinyin word pairs from unused AISHELL train text, replace one reference word with a confusable word, then expose `protected_hotwords`, `prompt_hotwords`, `kws_hotwords`, and local pinyin evidence.
+  - Clean version uses `--min-word-freq 3` to avoid rare/noisy words.
+  - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_aishell_unused_synthetic_phonetic_hotword_freq3_20260706.qwen.jsonl`
+  - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_aishell_unused_synthetic_phonetic_hotword_freq3_20260706.qwen.jsonl`
+  - Rows: `58000` train / `2000` dev.
+  - Overlap with previous AISHELL no-op ids: `0`.
+  - Example pairs: `注意 -> 主意`, `就业 -> 酒业`, `回乡 -> 回想`, `作为 -> 座位`, `工具 -> 共聚`.
+- Truly unused RAMC oral supplement:
+  - Excluding old RAMC train/dev leaves very little usable text: only `328` records when allowing up to `160` normalized chars.
+  - Local-edit SFT rows from that non-overlap subset:
+    - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/train_oral_unused_len160_local_edit_20260706.qwen.jsonl` (`636` rows).
+    - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/dev_oral_unused_len160_local_edit_20260706.qwen.jsonl` (`270` rows).
+- Mixed non-overlap training set:
+  - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/mixed/train_aishell_unused_phonetic_plus_oral_unused_20260706.qwen.jsonl`
+  - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/mixed/dev_aishell_unused_phonetic_plus_oral_unused_20260706.qwen.jsonl`
+  - Rows: `58636` train / `2270` dev.
+  - Intended use: continue from a strong Shuili/COVO checkpoint to teach local phonetic hotword recovery without repeating old RAMC full training data.
