@@ -2715,3 +2715,47 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Status:
   - Stopped early at user request before any usable checkpoint/validation.
   - Reason for stopping: analyze RAMC oral errors first. Lowering `unchanged_error` blindly is risky because RAMC oral already edits aggressively and its main errors include hotword loss, base-correct breakage, hallucinated prefixes/fillers, and occasional repeated-span generation.
+
+### 2026-07-06 Phonetic hotword-span evidence probe on Shuili
+
+- Motivation:
+  - RAMC oral errors show many professional-term and near-homophone mistakes, e.g. `岩基/研机`, `坝肩/霸建`, `开挖/开发`, `工种/公主`.
+  - Instead of adding a gate or hard patch, construct a paper-style structured evidence prompt:
+    - candidate local spans with similar pinyin;
+    - `copy_term` targets for supported domain terms;
+    - candidate keep/drop evidence for each term.
+- New script:
+  - `src/analysis/build_phonetic_hotword_span_sft.py`
+  - It converts CB-Whisper/COVO candidate-pool JSONL into Qwen messages with a `Phonetic hotword span evidence` section.
+  - Important safeguard: for the current training-data probe, `copy_term` is restricted to terms that appear in the reference text. This avoids teaching false hotword insertion from KWS/prompt false positives.
+  - Added `--compact-prompt` after the first full-evidence prompt caused OOM and was too noisy.
+- Data:
+  - Source pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+  - Compact train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/train_shuili_phonetic_hotword_span_refonly_compact_probe900_20260706.qwen.jsonl`
+  - Compact dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/dev_shuili_phonetic_hotword_span_refonly_compact_probe252_20260706.qwen.jsonl`
+  - Generated `575` rows with phonetic evidence: `323` train / `252` dev, `577` skipped.
+  - Quality check: all `copy_term` targets appear in the assistant/reference answer; no false-hotword target remained after the ref-only safeguard.
+- Training:
+  - Start adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_phonetic_hotword_span_refonly_compact_probe_3epoch_bf16`
+  - Log: `src/logs/train_covo_ramc_oral_phonetic_hotword_span_refonly_compact_probe_3epoch_20260706_stdout.log`
+  - First attempt with full CB-Whisper evidence + phonetic evidence at `max_length=2048` OOMed.
+  - Second attempt with compact prompt still OOMed without gradient checkpointing.
+  - Final successful config: `max_length=1024`, `epochs=3`, `lr=1e-6`, `batch=4`, `grad_accum=7`, `bf16`, `gradient_checkpointing=True`.
+  - Final train loss `2.101`; eval loss improved to `1.951`.
+- Dev mechanism validation:
+  - Prediction file: `src/logs/shuili_phonetic_hotword_span_refonly_compact_probe252_predictions_20260706.jsonl`
+  - Same-input RAMC oral control: `src/logs/shuili_phonetic_hotword_span_refonly_compact_probe252_ramc_oral_predictions_20260706.jsonl`
+  - ASR top1 baseline on this dev subset: CER `0.16303`.
+  - RAMC oral with compact phonetic prompt: CER `0.11543`, `110` improved / `37` worsened / `105` unchanged.
+  - Continued phonetic-span adapter: CER `0.11622`, `111` improved / `37` worsened / `104` unchanged.
+  - Direct comparison with RAMC oral on the same dev rows:
+    - New adapter better on `4` rows.
+    - New adapter worse on `3` rows.
+    - Same edit distance on `245` rows.
+    - Exact same normalized output on `244` rows.
+- Interpretation:
+  - The structured phonetic evidence prompt itself is useful and gives the model local term-disambiguation information.
+  - The 323-row continuation is too small and too close to the existing RAMC behavior to materially change the adapter.
+  - This Shuili ref-only run is a mechanism probe only, not a publishable held-out result, because reference text was used to select true `copy_term` targets.
+  - A fair/paper-usable next step would construct similar phonetic evidence from a real train split, then test with terms coming only from KWS/prompt/candidate evidence; it also needs false-hotword negative examples so the model learns when not to copy a near-homophone term.
