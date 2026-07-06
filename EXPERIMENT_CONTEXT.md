@@ -2607,3 +2607,41 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Planned validation after training:
   - Evaluate on Shuili clean n-best candidate pool first, especially the `t046_keep5_clean_shuili_repeat_len18` pool.
   - Compare against the 4.35 base adapter and RAMC oral/hotword-aware probes on raw CER, minimal filler-normalized CER, hotword recall, base-hit hotword loss, and `unchanged_error`.
+
+#### Completed validation: Shuili `t046_keep5_clean_shuili_repeat_len18`
+
+- Final training status:
+  - Completed full `1.0` epoch: `2575/2575` steps.
+  - Final eval loss: `0.287788`.
+  - Train loss: `0.4716`.
+  - Runtime: about `14h53m`.
+  - Final adapter saved at:
+    - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_selector_content_from_435_full1epoch_bs3ga9_bf16`
+- Validation files:
+  - Messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_from435_full1epoch_bs3ga9_messages_20260706.jsonl`
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_from435_full1epoch_bs3ga9_predictions_20260706.jsonl`
+  - Eval log: `src/logs/eval_shuili_t046_clean_shuili_repeat_len18_from435_full1epoch_bs3ga9_20260706_stdout.log`
+  - Filler CER: `src/logs/filler_normalized_cer_shuili_v3_t046_clean_shuili_repeat_len18_from435_full1epoch_bs3ga9_minfillers_20260706.json`
+  - Error audit: `src/logs/covo_error_audit_shuili_v3_t046_clean_shuili_repeat_len18_from435_full1epoch_bs3ga9_20260706_summary.json`
+- Main metrics:
+  - Raw CER: `0.13479`
+  - Baseline raw CER on this pool: `0.15415`
+  - Minimal filler-normalized CER: `0.08723`
+  - Minimal filler-normalized baseline CER: `0.09814`
+  - Hotword recall: `0.92141`
+  - Base-hit hotwords lost: `4`
+  - Hotwords gained over base: `26`
+  - `unchanged_error=726`, `fixed_to_exact=38`, `improved_partial=107`, `base_correct_broken=21`, `worsened_error=24`.
+- Comparison:
+  - RAMC oral adapter on the same pool:
+    - Raw CER `0.11593`, hotword recall `0.86631`, `unchanged_error=321`, base-hit hotwords lost `46`.
+  - Hotword-first 160-step adapter:
+    - Raw CER `0.13523`, hotword recall `0.91238`, `unchanged_error=683`, base-hit hotwords lost `7`.
+  - This full 4.35-start selector model:
+    - Improves hotword preservation/recall further than hotword-first (`0.92141` recall, only `4` base-hit losses).
+    - But it remains too conservative for Shuili oral correction: raw CER is essentially tied with hotword-first and far worse than RAMC oral.
+- Interpretation:
+  - Full ChineseHP-style selector/content-protect training from the 4.35 hotword-preserve model teaches hotword protection well.
+  - It does not teach enough Shuili-style oral correction behavior, so many reachable candidate improvements are ignored.
+  - Do not promote this adapter as the main Shuili CER model.
+  - It is useful evidence for the recall/CER tradeoff: AISHELL hotword-preserve supervision transfers hotword use, but not domain-specific oral correction.
