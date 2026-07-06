@@ -2866,3 +2866,9 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Output adapter: `outputs/qwen35_ramc_oral_unused_phonetic_mix_full1epoch_bf16`.
   - Log: `src/logs/train_covo_ramc_oral_unused_phonetic_mix_full1epoch_20260706_stdout.log`.
   - Settings: 1 epoch, `2095` steps, LR `1e-6`, max length `1024`, batch `4`, grad accumulation `7`, bf16, gradient checkpointing.
+  - Follow-up queued on user request:
+    - tmux session: `covo_unused_phonetic_0706_round2`, waiting for the first session to finish.
+    - Base adapter: `outputs/qwen35_ramc_oral_unused_phonetic_mix_full1epoch_bf16`.
+    - Output adapter: `outputs/qwen35_ramc_oral_unused_phonetic_mix_2epoch_bf16`.
+    - Log: `src/logs/train_covo_ramc_oral_unused_phonetic_mix_second_epoch_20260707_stdout.log`.
+    - Settings: another 1 epoch on the same non-overlap mix, LR `5e-7`.
