@@ -2759,3 +2759,70 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The 323-row continuation is too small and too close to the existing RAMC behavior to materially change the adapter.
   - This Shuili ref-only run is a mechanism probe only, not a publishable held-out result, because reference text was used to select true `copy_term` targets.
   - A fair/paper-usable next step would construct similar phonetic evidence from a real train split, then test with terms coming only from KWS/prompt/candidate evidence; it also needs false-hotword negative examples so the model learns when not to copy a near-homophone term.
+
+### 2026-07-06 AISHELL diff-based phonetic span data
+
+- Motivation:
+  - User requested constructing the same kind of phonetic/homophone correction cases from AISHELL, instead of relying only on Shuili reference-only probe data.
+  - The first automatic reference n-gram attempt was too noisy: it created unnatural targets such as arbitrary middle substrings and many weak spans.
+- Method update:
+  - Extended `src/analysis/build_phonetic_hotword_span_sft.py` with `--diff-reference-terms`.
+  - This mode compares each N-best candidate with the reference using character-level diff and keeps only `replace` spans where:
+    - reference target length is `2-4`;
+    - candidate span length is at least `2`;
+    - length gap is at most `1`;
+    - pinyin edit distance is at most `1`.
+  - This directly extracts real candidate errors such as `葫芦 -> 胡润`, `羊起 -> 央企`, `编辑 -> 边际`, `未免 -> 卫冕`, `索性 -> 所幸`, `父请/付钱 -> 父亲`.
+- Source:
+  - `src/logs/cbwhisper_covo_evidence_train_full.jsonl`
+  - Total source rows: `17301`.
+- Output data:
+  - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_aishell_phonetic_hotword_span_diff_ref_20260706.qwen.jsonl`
+  - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_aishell_phonetic_hotword_span_diff_ref_20260706.qwen.jsonl`
+  - Generated: `8459` train / `1000` dev / `9459` total.
+  - Skipped: `7842` rows without a qualifying near-phonetic replace span.
+- Data stats:
+  - Unique replacement targets: `11764`.
+  - Unique candidate->target pairs: `20799`.
+  - Average compact user prompt length: about `1008` chars.
+  - P95 compact user prompt length: about `1711` chars.
+- Frequent targets/pairs:
+  - Targets: `城市`, `对于`, `会徽`, `世锦`, `实现`, `技术`, `时间`, `经济`, `卫冕`, `市场`, `计划`, `楼市`, `视频`, `纪录`, `将于`.
+  - Pairs include `程式 -> 城市`, `未免 -> 卫冕`, `城郊 -> 成交`, `基础/计数 -> 技术`, `市井 -> 世锦`, `卉卉 -> 会徽`, `秉天 -> 炳添`, `索性 -> 所幸`, `调导 -> 钓岛`, `付钱/负请 -> 父亲`.
+- Caveat:
+  - Because Whisper/Candidate text often uses traditional Chinese, this data also contains many simplification-normalization examples such as `對於 -> 对于`, `經濟 -> 经济`, `時間 -> 时间`.
+  - This is acceptable if we want the COVO module to normalize output style, but if we want a pure homophone-professional-term experiment, a later filter should remove pairs whose only difference is traditional/simplified form.
+
+#### Expanded/focused AISHELL phonetic data
+
+- User request:
+  - Make more data from AISHELL once diff-based construction proved convenient.
+- Additional variants generated:
+  - Expanded utterance-level:
+    - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_aishell_phonetic_hotword_span_diff_ref_expanded_20260706.qwen.jsonl`
+    - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_aishell_phonetic_hotword_span_diff_ref_expanded_20260706.qwen.jsonl`
+    - Rows: `8765` train / `1500` dev / `10265` total.
+    - Settings: target len `2-5`, pinyin distance `<=2`, max length gap `2`, max evidence terms `16`.
+  - Focused evidence rows:
+    - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_aishell_phonetic_hotword_span_diff_ref_focused_20260706.qwen.jsonl`
+    - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_aishell_phonetic_hotword_span_diff_ref_focused_20260706.qwen.jsonl`
+    - Rows: `15636` train / `1500` dev / `17136` total.
+    - Construction: same expanded settings, but `--explode-evidence --max-exploded-per-row 4`, so each row focuses on one local phonetic target.
+  - Focused-large evidence rows:
+    - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/train_aishell_phonetic_hotword_span_diff_ref_focused_large_20260706.qwen.jsonl`
+    - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/chinesehp_aishell1/dev_aishell_phonetic_hotword_span_diff_ref_focused_large_20260706.qwen.jsonl`
+    - Rows: `15333` train / `2000` dev / `17333` total.
+    - Construction: `--explode-evidence --max-exploded-per-row 8`.
+- Focused-large stats:
+  - Unique candidate->target pairs: `23886`.
+  - Unique replacement targets: `13099`.
+  - Average user prompt length: about `833` chars.
+  - P95 user prompt length: about `1118` chars.
+  - Max user prompt length: `1331` chars.
+- Common pair types:
+  - Homophone/entity/content: `空间 -> 攻坚`, `搜狗 -> 收购`, `空废/空肺 -> 控费`, `旧信/旧姓 -> 救性`, `索性 -> 所幸`, `付钱/负请 -> 父亲`.
+  - Number normalization: `20 -> 二十`, `12 -> 十二`, `200 -> 二百`, `2000 -> 两千`.
+  - Simplified normalization: `對於 -> 对于`, `這個 -> 这个`, `時間 -> 时间`, `經濟 -> 经济`.
+- Recommended training use:
+  - Use `focused_large` as the high-volume phonetic local-correction set.
+  - Mix with previous no-op/hotword-preserve data rather than training on it alone; otherwise the model may become too eager to rewrite numbers/traditional forms.

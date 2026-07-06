@@ -16,6 +16,8 @@ the whole sentence.
 from __future__ import annotations
 
 import argparse
+import difflib
+import functools
 import hashlib
 import json
 import random
@@ -149,25 +151,77 @@ def collect_terms(input_block: Dict[str, Any], reference: str, nbest: List[str],
     return sorted(terms, key=lambda item: (-len(item), item))[:max_terms]
 
 
+def reference_ngram_terms(reference: str, min_len: int, max_len: int, max_terms: int) -> List[str]:
+    ref_norm = norm(reference)
+    terms: List[str] = []
+    if not ref_norm:
+        return terms
+    min_len = max(2, int(min_len))
+    max_len = max(min_len, int(max_len))
+    for size in range(max_len, min_len - 1, -1):
+        if size > len(ref_norm):
+            continue
+        for start in range(0, len(ref_norm) - size + 1):
+            term = ref_norm[start : start + size]
+            if term and term not in terms:
+                terms.append(term)
+            if len(terms) >= max_terms:
+                return terms
+    return terms
+
+
 def pinyin_distance(left: str, right: str) -> int:
-    return int(edit_distance(to_pinyin_units(left), to_pinyin_units(right)))
+    return _pinyin_distance_cached(norm(left), norm(right))
 
 
-def best_phonetic_spans(term: str, candidate: str, max_distance: int, max_spans: int) -> List[Dict[str, Any]]:
+@functools.lru_cache(maxsize=300000)
+def _pinyin_units_cached(text: str) -> Tuple[str, ...]:
+    return tuple(to_pinyin_units(text))
+
+
+@functools.lru_cache(maxsize=500000)
+def _pinyin_distance_cached(left: str, right: str) -> int:
+    return int(edit_distance(list(_pinyin_units_cached(left)), list(_pinyin_units_cached(right))))
+
+
+def pinyin_initials(text: str) -> str:
+    return "".join(unit[:1] for unit in _pinyin_units_cached(norm(text)) if unit)
+
+
+def best_phonetic_spans(
+    term: str,
+    candidate: str,
+    max_distance: int,
+    max_spans: int,
+    min_span_len: int = 2,
+    max_len_gap: int = 1,
+    allow_same_pinyin: bool = True,
+) -> List[Dict[str, Any]]:
     cand = norm(candidate)
     term_norm = norm(term)
     if not cand or not term_norm or term_norm in cand:
         return []
     term_len = len(term_norm)
+    term_initials = pinyin_initials(term_norm)
     ranked: List[Tuple[int, int, str, int, int]] = []
     for win_len in range(max(1, term_len - 1), term_len + 2):
+        if win_len < int(min_span_len):
+            continue
+        if abs(win_len - term_len) > int(max_len_gap):
+            continue
         if win_len > len(cand):
             continue
         for start in range(0, len(cand) - win_len + 1):
             span = cand[start : start + win_len]
             if span == term_norm:
                 continue
+            # Cheap prefilter before full pinyin edit distance.
+            span_initials = pinyin_initials(span)
+            if term_initials and span_initials and edit_distance(list(term_initials), list(span_initials)) > max_distance:
+                continue
             dist = pinyin_distance(term_norm, span)
+            if dist == 0 and not bool(allow_same_pinyin):
+                continue
             char_gap = abs(len(span) - term_len)
             if dist <= max_distance:
                 ranked.append((dist, char_gap, span, start, start + win_len))
@@ -202,6 +256,14 @@ def build_phonetic_evidence(
     max_candidates: int,
     max_spans_per_term: int,
     max_distance: int,
+    auto_reference_terms: bool = False,
+    auto_max_terms: int = 64,
+    min_term_len: int = 2,
+    max_term_len: int = 4,
+    min_span_len: int = 2,
+    max_len_gap: int = 1,
+    allow_same_pinyin: bool = True,
+    require_confusion: bool = False,
 ) -> List[Dict[str, Any]]:
     nbest = [str(item or "") for item in list(input_block.get("nbest", []) or []) if str(item or "").strip()]
     if not nbest:
@@ -209,6 +271,15 @@ def build_phonetic_evidence(
         if top1:
             nbest = [top1]
     terms = collect_terms(input_block, reference, nbest, domain_terms, max_terms=max_terms)
+    if auto_reference_terms:
+        for term in reference_ngram_terms(
+            reference,
+            min_len=int(min_term_len),
+            max_len=int(max_term_len),
+            max_terms=int(auto_max_terms),
+        ):
+            if term not in terms:
+                terms.append(term)
     evidence: List[Dict[str, Any]] = []
     for term in terms:
         term_norm = norm(term)
@@ -226,11 +297,113 @@ def build_phonetic_evidence(
             if keeps:
                 support["span"] = term_norm
             item["candidate_support"].append(support)
-            spans = best_phonetic_spans(term_norm, cand_norm, max_distance=max_distance, max_spans=max_spans_per_term)
+            spans = best_phonetic_spans(
+                term_norm,
+                cand_norm,
+                max_distance=max_distance,
+                max_spans=max_spans_per_term,
+                min_span_len=int(min_span_len),
+                max_len_gap=int(max_len_gap),
+                allow_same_pinyin=bool(allow_same_pinyin),
+            )
             for span in spans:
                 item["phonetic_confusions"].append({"rank": rank, **span})
+        if require_confusion and not item["phonetic_confusions"]:
+            continue
         if item["in_reference"] or item["phonetic_confusions"] or any(s["keeps_term"] for s in item["candidate_support"]):
             evidence.append(item)
+        if len(evidence) >= int(max_terms):
+            break
+    return evidence
+
+
+def build_diff_phonetic_evidence(
+    input_block: Dict[str, Any],
+    reference: str,
+    max_terms: int,
+    max_candidates: int,
+    max_spans_per_term: int,
+    max_distance: int,
+    min_term_len: int = 2,
+    max_term_len: int = 4,
+    min_span_len: int = 2,
+    max_len_gap: int = 1,
+    allow_same_pinyin: bool = True,
+) -> List[Dict[str, Any]]:
+    ref_norm = norm(reference)
+    nbest = [str(item or "") for item in list(input_block.get("nbest", []) or []) if str(item or "").strip()]
+    if not nbest and str(input_block.get("asr_top1", "") or "").strip():
+        nbest = [str(input_block.get("asr_top1", "") or "")]
+    by_term: Dict[str, Dict[str, Any]] = {}
+
+    for rank, candidate in enumerate(nbest[: int(max_candidates)], start=1):
+        cand_norm = norm(candidate)
+        if not ref_norm or not cand_norm or cand_norm == ref_norm:
+            continue
+        matcher = difflib.SequenceMatcher(a=ref_norm, b=cand_norm, autojunk=False)
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag != "replace":
+                continue
+            term = ref_norm[i1:i2]
+            span = cand_norm[j1:j2]
+            if len(term) < int(min_term_len) or len(term) > int(max_term_len):
+                continue
+            if len(span) < int(min_span_len):
+                continue
+            if abs(len(term) - len(span)) > int(max_len_gap):
+                continue
+            if term == span:
+                continue
+            dist = pinyin_distance(term, span)
+            if dist == 0 and not bool(allow_same_pinyin):
+                continue
+            if dist > int(max_distance):
+                continue
+            item = by_term.setdefault(
+                term,
+                {
+                    "term": term,
+                    "term_pinyin": joined_pinyin(term),
+                    "in_reference": True,
+                    "candidate_support": [],
+                    "phonetic_confusions": [],
+                },
+            )
+            seen = {
+                (conf.get("rank"), conf.get("span"), conf.get("start"), conf.get("end"))
+                for conf in item["phonetic_confusions"]
+            }
+            key = (rank, span, j1, j2)
+            if key in seen:
+                continue
+            if len(item["phonetic_confusions"]) < int(max_spans_per_term) * int(max_candidates):
+                item["phonetic_confusions"].append(
+                    {
+                        "rank": rank,
+                        "span": span,
+                        "span_pinyin": joined_pinyin(span),
+                        "start": j1,
+                        "end": j2,
+                        "pinyin_distance": int(dist),
+                        "suggested_replacement": term,
+                    }
+                )
+
+    evidence = list(by_term.values())
+    evidence.sort(key=lambda item: (-len(item.get("phonetic_confusions", [])), -len(item["term"]), item["term"]))
+    evidence = evidence[: int(max_terms)]
+    for item in evidence:
+        term = item["term"]
+        supports = []
+        for rank, candidate in enumerate(nbest[: int(max_candidates)], start=1):
+            cand_norm = norm(candidate)
+            keeps = term in cand_norm
+            support = {"rank": rank, "keeps_term": keeps}
+            if keeps:
+                support["span"] = term
+            supports.append(support)
+        item["candidate_support"] = supports
+        item["phonetic_confusions"] = item["phonetic_confusions"][: max(1, int(max_spans_per_term)) * 3]
     return evidence
 
 
@@ -353,15 +526,38 @@ def augment_record(record: Dict[str, Any], args: argparse.Namespace, domain_term
     if not reference:
         return None
     input_block = dict(record.get("input", {}) or {})
-    evidence = build_phonetic_evidence(
-        input_block=input_block,
-        reference=reference,
-        domain_terms=domain_terms,
-        max_terms=int(args.max_terms),
-        max_candidates=int(args.max_candidates),
-        max_spans_per_term=int(args.max_spans_per_term),
-        max_distance=int(args.max_pinyin_distance),
-    )
+    if bool(args.diff_reference_terms):
+        evidence = build_diff_phonetic_evidence(
+            input_block=input_block,
+            reference=reference,
+            max_terms=int(args.max_terms),
+            max_candidates=int(args.max_candidates),
+            max_spans_per_term=int(args.max_spans_per_term),
+            max_distance=int(args.max_pinyin_distance),
+            min_term_len=int(args.min_term_len),
+            max_term_len=int(args.max_term_len),
+            min_span_len=int(args.min_span_len),
+            max_len_gap=int(args.max_len_gap),
+            allow_same_pinyin=not bool(args.exclude_same_pinyin),
+        )
+    else:
+        evidence = build_phonetic_evidence(
+            input_block=input_block,
+            reference=reference,
+            domain_terms=domain_terms,
+            max_terms=int(args.max_terms),
+            max_candidates=int(args.max_candidates),
+            max_spans_per_term=int(args.max_spans_per_term),
+            max_distance=int(args.max_pinyin_distance),
+            auto_reference_terms=bool(args.auto_reference_terms),
+            auto_max_terms=int(args.auto_max_terms),
+            min_term_len=int(args.min_term_len),
+            max_term_len=int(args.max_term_len),
+            min_span_len=int(args.min_span_len),
+            max_len_gap=int(args.max_len_gap),
+            allow_same_pinyin=not bool(args.exclude_same_pinyin),
+            require_confusion=bool(args.require_confusion),
+        )
     if not evidence and bool(args.require_evidence):
         return None
     input_block["phonetic_hotword_span_evidence"] = evidence
@@ -371,6 +567,27 @@ def augment_record(record: Dict[str, Any], args: argparse.Namespace, domain_term
         "input": input_block,
         "messages": make_messages(record, input_block, evidence_text, args),
     }
+
+
+def explode_augmented_record(record: Dict[str, Any], args: argparse.Namespace) -> List[Dict[str, Any]]:
+    evidence = list((record.get("input", {}) or {}).get("phonetic_hotword_span_evidence", []) or [])
+    if not evidence or not bool(args.explode_evidence):
+        return [record]
+    rows: List[Dict[str, Any]] = []
+    max_items = max(1, int(args.max_exploded_per_row))
+    for idx, item in enumerate(evidence[:max_items], start=1):
+        input_block = dict(record.get("input", {}) or {})
+        input_block["phonetic_hotword_span_evidence"] = [item]
+        base_record = {key: value for key, value in record.items() if key != "messages"}
+        base_record["input"] = input_block
+        base_record["id"] = f"{record.get('id', '')}#phon{idx}"
+        rows.append(
+            {
+                **base_record,
+                "messages": make_messages(base_record, input_block, format_evidence([item]), args),
+            }
+        )
+    return rows
 
 
 def load_domain_terms(path: str) -> List[str]:
@@ -400,7 +617,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-nbest", type=int, default=10)
     parser.add_argument("--max-pinyin", type=int, default=10)
     parser.add_argument("--require-evidence", action="store_true")
+    parser.add_argument("--require-confusion", action="store_true", help="Keep only terms that have at least one phonetic-confusion span")
+    parser.add_argument("--auto-reference-terms", action="store_true", help="Add reference n-grams as candidate terms when no fixed domain lexicon is available")
+    parser.add_argument("--diff-reference-terms", action="store_true", help="Build phonetic evidence only from candidate-vs-reference replace spans")
+    parser.add_argument("--auto-max-terms", type=int, default=64)
+    parser.add_argument("--min-term-len", type=int, default=2)
+    parser.add_argument("--max-term-len", type=int, default=4)
+    parser.add_argument("--min-span-len", type=int, default=2)
+    parser.add_argument("--max-len-gap", type=int, default=1)
+    parser.add_argument("--exclude-same-pinyin", action="store_true", help="Drop exact same-pinyin spans, useful for removing mostly traditional/simplified variants")
     parser.add_argument("--compact-prompt", action="store_true", help="Write a short phonetic-focused prompt instead of the full CB-Whisper bridge prompt")
+    parser.add_argument("--explode-evidence", action="store_true", help="Create one focused SFT row per evidence item")
+    parser.add_argument("--max-exploded-per-row", type=int, default=3)
     return parser.parse_args()
 
 
@@ -415,9 +643,10 @@ def main() -> int:
         if augmented is None:
             skipped += 1
         else:
-            rows.append(augmented)
+            exploded = explode_augmented_record(augmented, args)
+            rows.extend(exploded)
             if augmented.get("input", {}).get("phonetic_hotword_span_evidence"):
-                with_evidence += 1
+                with_evidence += len(exploded)
         if args.limit and idx >= int(args.limit):
             break
 
