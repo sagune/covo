@@ -2702,3 +2702,16 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Continuing on rewrite-heavy Shuili-style oral data does reduce no-op behavior, but only modestly.
   - The hotword-preserve prior is still dominant; the model remains much more conservative than the RAMC oral adapter (`unchanged_error=321`, raw CER `0.11593`).
   - This route alone is insufficient for the desired Shuili CER drop. A stronger intervention is needed: either more Shuili-like rewrite data with less no-op anchoring, or a staged/merged approach that starts from RAMC oral and adds targeted hotword preservation without reintroducing no-op dominance.
+
+### 2026-07-06 Aborted RAMC-aggressive continuation
+
+- User question:
+  - Whether we can start from RAMC oral and make the model more willing to edit.
+- Attempted run:
+  - Start adapter: `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Train file: `data/processed/ramc_oral/train_shuili_style_oral_hotword_mix30k_20260705.qwen.jsonl`
+  - Output dir: `outputs/qwen35_ramc_oral_aggressive_shuili_hotword_mix_full1epoch_bf16`
+  - Initial hyperparameters: `lr=2e-6`, `batch=3`, `grad_accum=9`, `max_length=1536`, full `1 epoch`.
+- Status:
+  - Stopped early at user request before any usable checkpoint/validation.
+  - Reason for stopping: analyze RAMC oral errors first. Lowering `unchanged_error` blindly is risky because RAMC oral already edits aggressively and its main errors include hotword loss, base-correct breakage, hallucinated prefixes/fillers, and occasional repeated-span generation.
