@@ -2645,3 +2645,29 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - It does not teach enough Shuili-style oral correction behavior, so many reachable candidate improvements are ignored.
   - Do not promote this adapter as the main Shuili CER model.
   - It is useful evidence for the recall/CER tradeoff: AISHELL hotword-preserve supervision transfers hotword use, but not domain-specific oral correction.
+
+### 2026-07-06 Lower `unchanged_error`: continue from 4.35 full selector on Shuili-style oral mix
+
+- Motivation:
+  - The full 4.35-start selector model reached high hotword recall (`0.92141`) but was too conservative on Shuili:
+    - Raw CER `0.13479`
+    - `unchanged_error=726`
+  - Goal for this run is to reduce no-op/unchanged behavior by continuing training on rewrite-heavy oral data.
+- Start adapter:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_selector_content_from_435_full1epoch_bs3ga9_bf16`
+- Training data:
+  - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/train_shuili_style_oral_hotword_mix30k_20260705.qwen.jsonl`
+  - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/dev_shuili_style_oral_hotword_mix1500_20260705.qwen.jsonl`
+  - This mix previously showed much lower unchanged behavior when starting from the RAMC oral adapter, while retaining AISHELL hotword/no-op anchors.
+- Training command state:
+  - `tmux` session: `covo_435_unfreeze_oral_full`
+  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_from435_fullselector_oral_hotword_mix_full1epoch_bf16`
+  - Log: `src/logs/train_covo_from435_fullselector_oral_hotword_mix_full1epoch_20260706_stdout.log`
+  - Key hyperparameters: `epochs=1.0`, `lr=1e-6`, `max_length=1536`, `bf16`, `batch=3`, `grad_accum=9`, `save/eval every 250 steps`.
+- Expected effect:
+  - Lower `unchanged_error` substantially compared with `726`.
+  - Watch for hotword recall regression versus `0.92141`; acceptable only if CER/unchanged improve enough.
+- Planned validation:
+  - Same Shuili pool as previous run:
+    - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+  - Same metrics: raw CER, minimal filler-normalized CER, hotword recall, base-hit hotword loss, `unchanged_error`.
