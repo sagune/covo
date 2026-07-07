@@ -3240,3 +3240,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The AISHELL 4.35 no-op model is the most conservative: fewer broken-correct cases, but huge `unchanged_error`.
   - ChineseHP hard-negative is more willing to edit, but still leaves many oracle-reachable errors.
   - This supports the view that COVO has useful general correction ability, but Shuili needs domain/oral-style adaptation to unlock it. Clean format alone is not enough.
+
+#### Raw Shuili candidate-pool retest, preserving more oral candidates
+
+- Motivation:
+  - The `clean_shuili_repeat_len18` candidate pool may remove oral-style candidates such as short filler-heavy outputs or repeated spoken fragments.
+  - Test the earlier unclean pool directly, without the downstream COVO-format cleaner.
+- Raw source pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_20260704.jsonl`
+- Converted COVO input:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_rawpool.qwen.jsonl`
+  - Summary: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_rawpool.summary.json`
+- Candidate statistics:
+  - Raw pool avg N-best: `9.0634`, exact reference in N-best: `717`.
+  - Clean pool avg N-best: `8.9462`, exact reference in N-best: `716`.
+  - Raw pool has slightly better oracle reachability, but also includes more noisy/repeated candidates.
+- Current best model:
+  - `qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`
+- Rawpool prediction:
+  - `src/logs/shuili_covo_rawpool_nohotword_normdomain_sft60k_predictions_20260707.jsonl`
+- Result:
+  - Raw CER: `0.113390`.
+  - Filler-normalized CER: `0.084337`.
+  - N-best oracle CER: `0.052632`.
+  - `fixed_to_exact=260`.
+  - `unchanged_error=247`.
+  - `base_correct_broken=92`.
+  - `worsened_error=100`.
+  - `nbest_better_than_pred=522`.
+- Comparison with clean no-hotword pool:
+  - Clean pool result was raw CER `0.111739`, filler-normalized CER `0.082453`.
+  - Raw pool is not better for the current model, despite slightly better oracle.
+- Interpretation:
+  - The problem is not simply that the previous pool deleted oral candidates. Fully raw candidates introduce noisy repeats and short fragments that COVO does not reliably ignore.
+  - Next useful pool policy should be "oral-preserving but pollution-filtered": keep `呢/啊/呃/嗯`, short oral fragments, and natural repeated phrases when they are supported by N-best, but still remove obvious bad pollution, unusual Unicode, Latin tails, and extreme repetition.
