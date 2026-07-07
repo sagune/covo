@@ -3176,3 +3176,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Hotword mentions in system/user prompts: `0`.
 - Validation:
   - `scripts/train_lora_sft.py --dry-run --input-format qwen-messages` succeeds with the generated file.
+
+#### Retest: clean no-hotword COVO format with norm-domain adapter
+
+- Model:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`
+- Input:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_clean.qwen.jsonl`
+- Predictions:
+  - `src/logs/shuili_covo_clean_nohotword_normdomain_sft60k_predictions_20260707.jsonl`
+- Raw result:
+  - CER: `0.111739`.
+  - Baseline CER under this converted input: `0.149959`.
+  - Improved samples: `544`.
+  - Worsened samples: `192`.
+  - Unchanged samples: `416`.
+- Filler-normalized result, removing `呃/呢/啊/嗯`:
+  - Base CER: `0.094895`.
+  - Prediction CER: `0.082453`.
+- Error audit:
+  - N-best oracle CER: `0.054473`.
+  - Prediction-or-oracle CER: `0.053520`.
+  - `fixed_to_exact=261`.
+  - `unchanged_error=249`.
+  - `base_correct_broken=92`.
+  - `worsened_error=100`.
+  - `nbest_exact=719`.
+  - `nbest_better_than_pred=517`.
+- Decomposition:
+  - Edits: `1760`.
+  - Filler edits: `368` (`20.91%`).
+  - Non-hotword edits: `1392` (`79.09%`).
+- Interpretation:
+  - Compared with the previous norm-domain evaluation (`CER=0.115294`, `fixed_to_exact=178`, `unchanged_error=430`), the clean no-hotword COVO format improves raw CER and makes the model use N-best more actively.
+  - The tradeoff is over-editing: `base_correct_broken` and `worsened_error` both increase. This confirms the next step should not be blind candidate selection, but training a local span/uncertain-region editor that can use N-best evidence while protecting already-correct top1 spans.
