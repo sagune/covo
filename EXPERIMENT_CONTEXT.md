@@ -3026,3 +3026,40 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Important interpretation:
   - The sub-10 result is real under the current evaluator, but it uses an engineering output-normalization layer. It is useful as a diagnostic and possible deployment baseline.
   - For the paper route, the cleaner claim should be: Shuili CER is dominated by non-hotword writing-style, filler, and ordinary lexical errors; future COVO/KB training should teach simplified output, repetition avoidance, and common domain-term normalizations directly, rather than relying on a hand-written normalizer.
+
+#### Non-leak SFT data for learning the normalization behavior
+
+- Motivation:
+  - The engineering normalizer gets Shuili below 10% CER, but it is not a clean paper method.
+  - Convert the discovered behavior into model training: simplified output, repetition suppression, function-word preservation, and common non-hotword domain lexical corrections.
+- New script:
+  - `src/analysis/build_shuili_norm_domain_sft.py`
+  - It does not use Shuili test references.
+  - Sources:
+    - RAMC oral train raw: `covo/data/processed/ramc_oral/train_full_raw.jsonl`
+    - Non-leak Shuili term KB: `src/logs/shuili_domain_term_kb_nonleak_20260707.jsonl`
+  - Synthetic corruptions:
+    - simplified target vs traditional ASR;
+    - repeated local spans;
+    - deleted/inserted function words and oral particles;
+    - domain lexical confusions such as `参建单位/参见单位`, `重力式码头/重力是码头`, `挖运方案/Volume 5`, `开挖/开发`, `土石堤防/土石敌方`, `围海造田/为海造田`.
+  - The prompt explicitly includes the output norm: default simplified Chinese, collapse clear repetition, preserve context-supported oral/function words, and do not insert unsupported domain terms.
+- Generated data:
+  - Train: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/train_shuili_norm_domain_sft60k_20260707.qwen.jsonl`
+  - Dev: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/ramc_oral/dev_shuili_norm_domain_sft3k_20260707.qwen.jsonl`
+  - Rows: `60000` train / `3000` dev.
+  - Source mix in train:
+    - RAMC oral synthetic normalization rows: `44135`.
+    - Shuili-domain synthetic rows from non-leak KB templates: `15865`.
+  - Tag counts:
+    - `traditional=28905`
+    - `delete_function=14903`
+    - `repeat=11275`
+    - `noop_simplified_target=11102`
+    - `insert_function=9341`
+    - `domain_noop=3406`
+    - `domain_confusion=1795`
+- Planned training:
+  - Continue from `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`.
+  - Output: `outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`.
+  - Settings: 1 epoch, LR `1e-6`, max length `1024`, batch `4`, gradient accumulation `7`, bf16, gradient checkpointing.
