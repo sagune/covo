@@ -3063,3 +3063,43 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Continue from `outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`.
   - Output: `outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`.
   - Settings: 1 epoch, LR `1e-6`, max length `1024`, batch `4`, gradient accumulation `7`, bf16, gradient checkpointing.
+
+#### Shuili normalization/domain SFT result
+
+- Training completed:
+  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`
+  - Train runtime: about `6:04:02`.
+  - Train loss: `0.2971`.
+  - Eval loss: `0.2117`.
+- Evaluation input:
+  - `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_messages_20260707.jsonl`
+- Predictions:
+  - `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_normdomain_sft60k_predictions_20260707.jsonl`
+- Raw evaluation:
+  - CER: `0.115294`.
+  - Baseline ASR CER: `0.154149`.
+  - Improved samples: `415`.
+  - Worsened samples: `90`.
+  - Unchanged samples: `647`.
+- Filler-normalized evaluation, removing `呃/呢/啊/嗯`:
+  - Base CER: `0.098998`.
+  - Prediction CER: `0.073778`.
+  - Prediction exact samples: `643`.
+- Error audit:
+  - N-best oracle CER: `0.053330`.
+  - Prediction-or-oracle CER: `0.052568`.
+  - `fixed_to_exact=178`.
+  - `unchanged_error=430`.
+  - `base_correct_broken=40`.
+  - `worsened_error=50`.
+  - Hotword base recall: `0.901536`.
+  - Hotword prediction recall: `0.884372`.
+- CER decomposition:
+  - Edits: `1816`.
+  - Hotword edits: `228` (`12.56%`).
+  - Filler edits: `528` (`29.07%`).
+  - Non-hotword edits: `1060` (`58.37%`).
+- Interpretation:
+  - The model learned some normalization behavior: raw CER is slightly better than RAMC oral (`0.115929`) and KB-supported prompt (`0.116183`), and filler-normalized CER improves clearly to `0.073778`.
+  - It did not solve the raw sub-10 target. The main problem is still non-hotword/filler-heavy oral style plus conservative unchanged errors.
+  - Hotword recall drops from the input-side level, so further training should explicitly protect supported hotwords while increasing willingness to fix non-hotword errors.
