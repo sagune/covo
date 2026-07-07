@@ -3153,3 +3153,26 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - use lower-ranked N-best when it repairs a missing clause or function-word pattern;
     - avoid free-form additions when base is already exact.
   - The most promising supervision is oracle-candidate SFT / preference data from datasets where references exist, because Shuili already has many oracle candidates in N-best.
+
+#### Shuili converted to clean COVO format
+
+- New converter:
+  - `src/analysis/convert_shuili_to_covo_format.py`
+- Purpose:
+  - Convert the current Shuili CB-Whisper candidate pool into COVO/Qwen message format without hotword prompts.
+  - The prompt focuses on ordinary CER reduction: N-best, pinyin, stable/uncertain spans, and confusable candidates.
+  - It explicitly tells the model not to delete oral particles for written style and not to freely add prefixes/suffixes unsupported by N-best.
+- Source candidate pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+- Generated COVO data:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_clean.qwen.jsonl`
+  - Summary: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_clean.summary.json`
+- Statistics:
+  - Rows: `1152`.
+  - Average N-best count: `8.9462`.
+  - Exact reference in N-best under raw whitespace normalization: `716`.
+  - Rows with consensus spans: `991`.
+  - Rows with confusable candidates: `1144`.
+  - Hotword mentions in system/user prompts: `0`.
+- Validation:
+  - `scripts/train_lora_sft.py --dry-run --input-format qwen-messages` succeeds with the generated file.
