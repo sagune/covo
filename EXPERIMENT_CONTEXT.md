@@ -2905,3 +2905,34 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The non-overlap AISHELL synthetic phonetic data did teach the model to make more edits, but it did not transfer cleanly to Shuili oral/professional audio.
   - The generated same-pinyin replacements are too AISHELL/news-style and too “single local word” oriented, while Shuili errors are dominated by oral filler, domain-term preservation, and candidate evidence reliability.
   - Do not continue this exact second epoch as a main route unless the data is rebalanced with stronger no-op/protect/domain-term examples or evaluated only as an ablation.
+
+### 2026-07-07 Shuili domain-term knowledge-base route
+
+- Motivation:
+  - Recent Shuili experiments show that more blind COVO training is not enough: the model becomes more willing to edit, but often edits the wrong term or loses domain terms.
+  - The next paper-friendly route is to expose structured domain knowledge rather than add a hard gate or a case-specific post-processing patch.
+  - The deployable version must not use held-out references. Reference-derived term/confusion information is allowed only for diagnostic/oracle analysis.
+- New script:
+  - `src/analysis/build_domain_term_kb.py`
+  - It builds a domain-term KB from CB-Whisper evidence JSONL.
+  - Default mode is non-leakage: terms come from KWS/prompt/candidate evidence fields, including `hotwords`, `prompt_hotwords`, `keyword_mentions`, candidate `consensus_keywords`, and candidate exact keyword matches.
+  - Optional `--include-reference` is diagnostic only and mines reference-side hit/confusable spans; do not use that file for formal held-out validation.
+- Source evidence:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+  - Rows: `1152`.
+- Generated non-leak KB:
+  - `src/logs/shuili_domain_term_kb_nonleak_20260707.jsonl`
+  - `src/logs/shuili_domain_term_kb_nonleak_20260707_summary.json`
+  - Terms: `124`.
+  - Top supported terms include `施工`, `地基`, `闸门`, `水利`, `土石`, `石方`, `填筑`, `基坑`, `水量`, `开挖`, `钻孔爆破`, `水利工程`, `导流`, `水轮机`, `混凝土`.
+- Generated diagnostic KB:
+  - `src/logs/shuili_domain_term_kb_diagnostic_ref_20260707.jsonl`
+  - `src/logs/shuili_domain_term_kb_diagnostic_ref_20260707_summary.json`
+  - Terms: `124`.
+  - Adds `reference_hit` and candidate/reference confusables. Examples include `地基 -> 低级/第几/第一`, `闸门 -> 扎/栅木`, `填筑 -> 天主/潜住/浅重`, `开挖 -> 开发`, `水闸 -> 杂/閘/沙/灶`.
+  - Some mined confusables are noisy because they come from character diff spans over imperfect candidates, so this is mainly for error analysis and later cleaning.
+- Recommended next experiment:
+  - First do inference-only KB injection with the current best RAMC oral/COVO model; no retraining yet.
+  - For each sample, retrieve compact KB evidence from non-leak sources using KWS support, candidate consensus/exact evidence, and pinyin similarity to unstable n-best spans.
+  - Prompt COVO with: protected domain terms, likely confusable forms, and a warning that unsupported KB terms must not be forced into the output.
+  - If this improves Shuili CER/recall without hurting base-correct cases, then convert the same KB-evidence format into SFT data. If it fails, the issue is likely candidate/evidence reliability rather than model capacity.
