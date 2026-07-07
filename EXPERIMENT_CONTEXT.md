@@ -3346,3 +3346,32 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - With exact original-style input, original COVO can slightly improve the weak CB clean pool, but remains far behind Shuili-adapted COVO.
   - On strong SenseVoice top-1, original COVO over-edits heavily and degrades CER from `4.65%` to `10.09%`.
   - Therefore the current issue is not a file-format incompatibility. The original COVO correction distribution does not match Shuili oral/domain data or strong-ASR no-op preservation.
+
+#### Shuili CB-Whisper candidate-quality diagnosis: neutral Whisper view
+
+- Motivation:
+  - We need to stay inside the CB-Whisper workflow, but current CB-Whisper candidate pools contain prompt-biased artifacts such as hotword repetition or short polluted hypotheses.
+  - Test whether the problem is Whisper's base acoustic ability or the strong KWS/context-bias prompt.
+- Diagnostic run:
+  - Script: `src/analysis/aishell_full_whisper_decode.py`
+  - Dataset: first `100` Shuili test utterances.
+  - Model: `openai/whisper-large-v3`.
+  - Setting: neutral/no-hotword beam search, `num_beams=5`, `num_return_sequences=5`, `batch_size=1`.
+  - Output: `src/logs/shuili_whisper_large_v3_neutral_beam5_smoke100_20260708.jsonl`
+- Result:
+  - Neutral Whisper top1 CER: `0.097817`.
+  - Unique n-best: `1.0` average. HF beam search mostly returns one normalized unique candidate for these short utterances.
+  - Current CB-Whisper pool on the same first 100 rows:
+    - top1 CER: `0.118836`.
+    - oracle CER: `0.025061`.
+    - exact reference in n-best: `80/100`.
+    - average unique n-best: `8.68`.
+- Interpretation:
+  - Large-v3 neutral decoding is cleaner than current CB-Whisper top1 on Shuili, so the KWS/context prompt is hurting some top1 hypotheses.
+  - However, CB-Whisper candidate pools have much better oracle reachability than neutral beam search. The right answer is often in lower-ranked CB candidates.
+  - The next CB-Whisper-side route should be a stratified candidate generation policy:
+    - neutral/acoustic Whisper view supplies a clean anchor;
+    - weak context-bias view supplies small lexical variants;
+    - strong hotword-biased CB view supplies recall candidates;
+    - downstream rerank/COVO sees source tags and consensus, rather than treating all candidates as equal.
+  - Plain beam n-best is not enough for diversity; useful diversity needs sampling or multi-view prompting, but strong hotword prompts should not dominate the first candidate.
