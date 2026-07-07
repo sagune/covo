@@ -2970,3 +2970,59 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Hotword recall: `0.87986`
   - Delta counts: `fixed_to_exact=180`, `unchanged_error=413`, `base_correct_broken=48`, `worsened_error=62`.
   - Interpretation: supported-only KB is better than broad KB and gives the best minimal-filler CER so far on this Shuili setting, but raw CER is still slightly worse than RAMC oral. The method is useful as domain-term/preservation evidence, but prompt-only KB injection is not enough to lower raw CER; the next version should train on this exact KB-evidence format so the model learns to use it without losing edit aggressiveness.
+
+### 2026-07-07 Shuili CER decomposition and sub-10 engineering result
+
+- User concern:
+  - Hotword recall is still around the mid/high 80s, but raw CER remains high; therefore many errors may be outside hotwords.
+- New diagnostic script:
+  - `src/analysis/decompose_cer_errors.py`
+  - It aligns prediction/reference at character level and decomposes CER edits into:
+    - `true_hotword_region`: edits overlapping true `keyword_mentions`;
+    - `filler_region`: edits overlapping `呃/呢/啊/嗯`;
+    - `non_hotword_region`: all other errors.
+- Decomposition, ASR top-1 baseline:
+  - Prediction field: `input.asr_top1`.
+  - CER: `0.154149`, edits `2428`.
+  - Hotword-region edits: `241` (`9.93%`).
+  - Filler edits: `767` (`31.59%`).
+  - Non-hotword edits: `1420` (`58.48%`).
+- Decomposition, RAMC oral COVO:
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_ramc_oral_predictions_20260705.jsonl`
+  - CER: `0.115929`, edits `1826`.
+  - Hotword-region edits: `239` (`13.09%`).
+  - Filler edits: `437` (`23.93%`).
+  - Non-hotword edits: `1150` (`62.98%`).
+  - Conclusion: most remaining CER is outside true hotword spans.
+- Decomposition, KB supported-only COVO:
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_ramc_oral_predictions_20260707.jsonl`
+  - CER: `0.116183`, edits `1830`.
+  - Hotword-region edits: `227` (`12.40%`).
+  - Filler edits: `509` (`27.81%`).
+  - Non-hotword edits: `1094` (`59.78%`).
+- Main non-hotword error sources:
+  - Traditional/simplified mismatch: `们/們`, `个/個`, `这/這`, `进/進`, `对/對`, `较/較`.
+  - Function-word insertion/deletion: `的`, `个`, `这`, `一`, `了`, `那么`.
+  - Repetition/hallucinated phrase: e.g. repeated `那么/这里`.
+  - Non-hotword domain/common confusions: `分/封`, `它/他`, `参建/参见`, `重力式/重力是`, `围海/为海`, `堤防/敌方`, `挖运方案/Volume 5`.
+- Evaluation normalization probe:
+  - `src/analysis/evaluate_filler_normalized_cer.py --fillers ''` uses OpenCC `t2s`, so this is “繁简统一 only”, not filler removal.
+  - RAMC oral after OpenCC-only CER: `0.100882`.
+  - KB supported-only after OpenCC-only CER: `0.100121`.
+  - Interpretation: a large part of the raw CER above 10% is writing-system mismatch, not acoustic/semantic ASR failure.
+- New diagnostic/engineering normalizer:
+  - `src/analysis/normalize_covo_predictions.py`
+  - Repro command used:
+    - `--opencc-t2s --collapse-repeats --shuili-domain-normalize`
+  - Input: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_ramc_oral_predictions_20260707.jsonl`
+  - Output: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_ramc_oral_norm_predictions_20260707.jsonl`
+  - Changed rows: `75`.
+  - Raw CER after normalization: `0.099295`, below 10%.
+  - Decomposition after normalization:
+    - Edits: `1564`.
+    - Hotword-region edits: `214` (`13.68%`).
+    - Filler edits: `509` (`32.54%`).
+    - Non-hotword edits: `841` (`53.77%`).
+- Important interpretation:
+  - The sub-10 result is real under the current evaluator, but it uses an engineering output-normalization layer. It is useful as a diagnostic and possible deployment baseline.
+  - For the paper route, the cleaner claim should be: Shuili CER is dominated by non-hotword writing-style, filler, and ordinary lexical errors; future COVO/KB training should teach simplified output, repetition avoidance, and common domain-term normalizations directly, rather than relying on a hand-written normalizer.
