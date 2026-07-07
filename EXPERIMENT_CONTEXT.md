@@ -3274,3 +3274,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation:
   - The problem is not simply that the previous pool deleted oral candidates. Fully raw candidates introduce noisy repeats and short fragments that COVO does not reliably ignore.
   - Next useful pool policy should be "oral-preserving but pollution-filtered": keep `呢/啊/呃/嗯`, short oral fragments, and natural repeated phrases when they are supported by N-best, but still remove obvious bad pollution, unusual Unicode, Latin tails, and extreme repetition.
+
+#### FunASR/SenseVoice preprocessing probe for Shuili
+
+- Motivation:
+  - Current CB-Whisper candidate pools contain strange prompt-biased hypotheses such as `水利工程 闸门闸`.
+  - Test a strong external Chinese ASR as preprocessing/candidate source.
+- Added scripts:
+  - `src/analysis/run_funasr_shuili_preprocess.py`
+  - `src/analysis/merge_funasr_candidate_pool.py`
+- Models tested on first 100 Shuili samples:
+  - `paraformer-zh`: CER `0.030719`, exact `73/100`.
+  - `iic/SenseVoiceSmall`: CER `0.027486`, exact `73/100`.
+  - CB-Whisper top1 on same first 100: CER `0.118836`, exact `24/100`.
+- Full Shuili preprocessing with SenseVoiceSmall:
+  - Output: `src/logs/shuili_funasr_sensevoice_small_full_20260707.jsonl`
+  - Summary: `src/logs/shuili_funasr_sensevoice_small_full_20260707_summary.json`
+  - CER: `0.046537`.
+  - Exact: `720/1152`.
+  - This is already far below the 10% Shuili CER target.
+- SenseVoice-first candidate pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_with_sensevoice_first_20260707.jsonl`
+  - Average N-best: `9.3707`.
+  - SenseVoice transcript was added to every row and used as `asr_top1`.
+- COVO on SenseVoice-first input with current norm-domain adapter:
+  - Predictions: `src/logs/shuili_covo_sensevoice_first_normdomain_sft60k_predictions_20260707.jsonl`
+  - Raw CER: `0.084566`.
+  - Baseline/SenseVoice input CER: `0.046537`.
+  - Filler-normalized prediction CER: `0.065102`; baseline filler-normalized CER: `0.048356`.
+  - `base_correct_broken=206`, `worsened_error=150`, `fixed_to_exact=69`.
+  - N-best oracle CER: `0.026792`.
+- Interpretation:
+  - SenseVoiceSmall is a very strong Shuili preprocessor and fixes the candidate-quality problem directly.
+  - Passing SenseVoice-first outputs through the current COVO adapter worsens them; COVO is trained for noisier CB-Whisper evidence and over-edits strong ASR hypotheses.
+  - If using SenseVoice in the final workflow, either use it directly as preprocessing output or train a new COVO variant with strong no-op preservation for high-confidence SenseVoice hypotheses.
