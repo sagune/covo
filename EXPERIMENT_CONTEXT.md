@@ -2872,3 +2872,36 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - Output adapter: `outputs/qwen35_ramc_oral_unused_phonetic_mix_2epoch_bf16`.
     - Log: `src/logs/train_covo_ramc_oral_unused_phonetic_mix_second_epoch_20260707_stdout.log`.
     - Settings: another 1 epoch on the same non-overlap mix, LR `5e-7`.
+
+#### First-epoch inspection on Shuili
+
+- User stopped the queued second epoch and asked to inspect the first epoch first.
+- Action:
+  - Stopped the second epoch before it produced a completed model.
+  - Evaluated `outputs/qwen35_ramc_oral_unused_phonetic_mix_full1epoch_bf16` on the existing Shuili textrewrite messages:
+    - Input messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_textrewrite_messages_20260705.jsonl`
+    - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_unused_phonetic_epoch1_predictions_20260707.jsonl`
+    - Eval log: `src/logs/eval_shuili_t046_clean_shuili_repeat_len18_unused_phonetic_epoch1_20260707_stdout.log`
+- Training health:
+  - First epoch completed normally at `2095` steps.
+  - Final train loss: about `0.3549`.
+  - Dev eval loss on the synthetic/non-overlap mix: `0.269998`.
+  - Adapter was saved successfully.
+- Shuili result, raw CER:
+  - RAMC oral baseline adapter: `0.115929`.
+  - New unused-phonetic first epoch: `0.118977`.
+  - Conclusion: worse by about `+0.00305` absolute CER.
+- Shuili result, minimal-filler CER (`呃,呢,啊,嗯` removed):
+  - RAMC oral baseline adapter: `0.082453`.
+  - New unused-phonetic first epoch: `0.085076`.
+  - Conclusion: worse by about `+0.00262` absolute CER.
+- Error/audit comparison:
+  - Exact predictions decreased: `409 -> 393`.
+  - Base-correct-broken increased: `74 -> 90`.
+  - Worsened-error increased: `95 -> 107`.
+  - Unchanged-error decreased: `321 -> 292`, so the model became more willing to edit, but the extra edits are not reliable enough.
+  - Hotword recall decreased: `0.86631 -> 0.86269`; base-lost-by-pred increased `46 -> 50`.
+- Interpretation:
+  - The non-overlap AISHELL synthetic phonetic data did teach the model to make more edits, but it did not transfer cleanly to Shuili oral/professional audio.
+  - The generated same-pinyin replacements are too AISHELL/news-style and too “single local word” oriented, while Shuili errors are dominated by oral filler, domain-term preservation, and candidate evidence reliability.
+  - Do not continue this exact second epoch as a main route unless the data is rebalanced with stronger no-op/protect/domain-term examples or evaluated only as an ablation.
