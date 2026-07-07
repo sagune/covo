@@ -2936,3 +2936,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - For each sample, retrieve compact KB evidence from non-leak sources using KWS support, candidate consensus/exact evidence, and pinyin similarity to unstable n-best spans.
   - Prompt COVO with: protected domain terms, likely confusable forms, and a warning that unsupported KB terms must not be forced into the output.
   - If this improves Shuili CER/recall without hurting base-correct cases, then convert the same KB-evidence format into SFT data. If it fails, the issue is likely candidate/evidence reliability rather than model capacity.
+
+#### Inference-only KB injection probe
+
+- New script:
+  - `src/analysis/inject_domain_kb_to_covo_messages.py`
+  - It injects a compact `Domain KB evidence` section into existing COVO/Qwen messages.
+  - Default mode is conservative and non-leak: only terms already supported by ASR top-1, N-best, candidate exact matches, or candidate consensus are injected.
+  - `--include-absent-hotwords` reproduces the broader ablation where prompt/KWS terms absent from all candidates are also shown as weak evidence; this is useful diagnostically but can make the model too conservative.
+- Base model for both probes:
+  - Adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_rewrite_full1epoch_from_chinesehp_bf16`
+  - Input messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_textrewrite_messages_20260705.jsonl`
+  - Non-leak KB: `src/logs/shuili_domain_term_kb_nonleak_20260707.jsonl`
+- Baseline same-input RAMC oral result:
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_ramc_oral_predictions_20260705.jsonl`
+  - Raw CER: `0.115929`
+  - Minimal filler CER (`呃,呢,啊,嗯` removed): `0.082453`
+  - Hotword recall: `0.86631`
+  - Delta counts: `fixed_to_exact=226`, `unchanged_error=321`, `base_correct_broken=74`, `worsened_error=95`.
+- Probe A, broad KB with absent prompt/KWS terms included as weak evidence:
+  - Messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_messages_20260707.jsonl`
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_ramc_oral_predictions_20260707.jsonl`
+  - Raw CER: `0.117326`
+  - Minimal filler CER: `0.077678`
+  - Hotword recall: `0.88708`
+  - Delta counts: `fixed_to_exact=180`, `unchanged_error=413`, `base_correct_broken=44`, `worsened_error=68`.
+  - Interpretation: KB evidence substantially reduces destructive edits and improves hotword recall, but the model becomes too conservative; raw CER regresses because many originally fixable errors are left unchanged.
+- Probe B, supported-only KB terms:
+  - Messages: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_messages_20260707.jsonl`
+  - Predictions: `src/logs/shuili_v3_t046_clean_shuili_repeat_len18_domainkb_supported_ramc_oral_predictions_20260707.jsonl`
+  - Raw CER: `0.116183`
+  - Minimal filler CER: `0.076199`
+  - Hotword recall: `0.87986`
+  - Delta counts: `fixed_to_exact=180`, `unchanged_error=413`, `base_correct_broken=48`, `worsened_error=62`.
+  - Interpretation: supported-only KB is better than broad KB and gives the best minimal-filler CER so far on this Shuili setting, but raw CER is still slightly worse than RAMC oral. The method is useful as domain-term/preservation evidence, but prompt-only KB injection is not enough to lower raw CER; the next version should train on this exact KB-evidence format so the model learns to use it without losing edit aggressiveness.
