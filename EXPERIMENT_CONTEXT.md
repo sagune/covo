@@ -3210,3 +3210,33 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation:
   - Compared with the previous norm-domain evaluation (`CER=0.115294`, `fixed_to_exact=178`, `unchanged_error=430`), the clean no-hotword COVO format improves raw CER and makes the model use N-best more actively.
   - The tradeoff is over-editing: `base_correct_broken` and `worsened_error` both increase. This confirms the next step should not be blind candidate selection, but training a local span/uncertain-region editor that can use N-best evidence while protecting already-correct top1 spans.
+
+#### Retest: clean no-hotword format with older COVO adapters
+
+- Same input:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_clean.qwen.jsonl`
+- Adapter A, AISHELL 4.35% CER no-op best:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+  - Predictions: `src/logs/shuili_covo_clean_nohotword_preserve2_435_predictions_20260707.jsonl`
+  - Raw CER: `0.134468`.
+  - Filler-normalized CER: `0.089448`.
+  - `fixed_to_exact=60`.
+  - `unchanged_error=592`.
+  - `base_correct_broken=44`.
+  - `worsened_error=85`.
+  - `nbest_better_than_pred=704`.
+- Adapter B, ChineseHP original hard-negative text rewrite:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch`
+  - Predictions: `src/logs/shuili_covo_clean_nohotword_chinesehp_hardneg_predictions_20260707.jsonl`
+  - Raw CER: `0.137007`.
+  - Filler-normalized CER: `0.094828`.
+  - `fixed_to_exact=87`.
+  - `unchanged_error=489`.
+  - `base_correct_broken=61`.
+  - `worsened_error=112`.
+  - `nbest_better_than_pred=693`.
+- Comparison:
+  - Both older adapters improve over base (`0.149959`) but are much weaker than the Shuili norm-domain adapter on the same clean format (`0.111739`).
+  - The AISHELL 4.35 no-op model is the most conservative: fewer broken-correct cases, but huge `unchanged_error`.
+  - ChineseHP hard-negative is more willing to edit, but still leaves many oracle-reachable errors.
+  - This supports the view that COVO has useful general correction ability, but Shuili needs domain/oral-style adaptation to unlock it. Clean format alone is not enough.
