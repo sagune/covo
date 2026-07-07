@@ -3103,3 +3103,53 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The model learned some normalization behavior: raw CER is slightly better than RAMC oral (`0.115929`) and KB-supported prompt (`0.116183`), and filler-normalized CER improves clearly to `0.073778`.
   - It did not solve the raw sub-10 target. The main problem is still non-hotword/filler-heavy oral style plus conservative unchanged errors.
   - Hotword recall drops from the input-side level, so further training should explicitly protect supported hotwords while increasing willingness to fix non-hotword errors.
+
+#### Shuili CER error analysis after ignoring hotword priority
+
+- Current conclusion:
+  - Hotword errors are not the main raw CER bottleneck.
+  - In `normdomain_sft60k`, CER edits decompose as:
+    - Hotword-region edits: `228` (`12.56%`).
+    - Filler edits: `528` (`29.07%`).
+    - Non-hotword edits: `1060` (`58.37%`).
+  - The remaining target should be ordinary ASR correction, oral-style preservation, and better N-best use.
+- Normalization probes, using an internal edit-distance diagnostic:
+  - Raw diagnostic CER: about `0.11904`.
+  - Traditional-to-simplified only: about `0.10317`.
+  - Filler removal only (`呃/呢/啊/嗯`): about `0.09463`.
+  - Traditional-to-simplified + filler removal: about `0.07775`.
+  - Traditional-to-simplified + filler removal + simple repeat collapse: about `0.07503`.
+  - Interpretation: raw CER above 10 is heavily driven by output style mismatch and oral filler handling, not by domain-term errors alone.
+- Top raw error types:
+  - Filler deletion/substitution: many `呢` deletions and `呢->的/了`.
+  - Traditional/simplified mismatch: `们/們`, `么/麼`, `个/個`, `这/這`, `话/話`, `对/對`, `进/進`.
+  - Function-word instability: deletion/insertion of `的`, `个`, `这`, `一`, `了`.
+  - Non-hotword lexical confusions: `分/封`, `它/他`, `运/用`, `浇/交`, `挖/发`, `施/时`, `场/厂`, `筑/流`.
+- N-best utilization problem:
+  - After simplified + filler + space normalization:
+    - `nbest_exact_pred_wrong=268`.
+    - `nbest_better_than_pred=395`.
+    - `pred_same_error=325`.
+    - `pred_worse_base=95`.
+  - Exact-answer rank among the 268 missed cases:
+    - rank 1: `59`
+    - rank 2: `68`
+    - rank 3: `53`
+    - rank 4-5: `36`
+    - rank >=6: `52`
+  - This means many errors are not candidate-generation failures. The right answer is already in N-best, often in top 3, but COVO keeps or lightly edits the top-1 instead of selecting the better candidate.
+- Length-error pattern after simplified + filler + no-space normalization:
+  - same length wrong rows: `216`.
+  - prediction short by 1-2 chars: `129`.
+  - prediction long by 1-2 chars: `115`.
+  - prediction short by 3-5 chars: `35`.
+  - prediction short by 6+ chars: `5`.
+  - Key long-deletion examples are missing clauses already present in a lower-ranked N-best candidate, e.g. `水利工程的地基尤其水利工程的地基问题更为复杂`.
+- Next clean route:
+  - Stop optimizing hotword behavior for now.
+  - Train a COVO candidate-selection/rewrite objective that explicitly learns:
+    - prefer simplified Chinese output;
+    - preserve oral fillers when supported by N-best;
+    - use lower-ranked N-best when it repairs a missing clause or function-word pattern;
+    - avoid free-form additions when base is already exact.
+  - The most promising supervision is oracle-candidate SFT / preference data from datasets where references exist, because Shuili already has many oracle candidates in N-best.
