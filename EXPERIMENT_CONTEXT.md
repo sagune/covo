@@ -3308,3 +3308,41 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - SenseVoiceSmall is a very strong Shuili preprocessor and fixes the candidate-quality problem directly.
   - Passing SenseVoice-first outputs through the current COVO adapter worsens them; COVO is trained for noisier CB-Whisper evidence and over-edits strong ASR hypotheses.
   - If using SenseVoice in the final workflow, either use it directly as preprocessing output or train a new COVO variant with strong no-op preservation for high-confidence SenseVoice hypotheses.
+
+#### Original COVO input-format check on Shuili
+
+- Question:
+  - Whether our Shuili COVO inputs match the original COVO model's training format.
+- Finding:
+  - Earlier Shuili inputs were Qwen-message compatible, but not exactly the original COVO hard-negative prompt distribution.
+  - The original COVO hardneg format uses `ASR top-1 + N-best + Pinyin + Confusable candidates`.
+  - Our Shuili clean/no-hotword format added Shuili-specific oral constraints and explicit stable/uncertain-span wording, so it is a related but shifted input distribution.
+- Regenerated original-style inputs with COVO's own script:
+  - Clean CB pool:
+    - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_originalprompt_clean.qwen.jsonl`
+  - SenseVoice-first pool:
+    - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_originalprompt_sensevoice_first.qwen.jsonl`
+  - Command style:
+    - `prepare_text_rewrite_data.py --evidence-mode nbest --include-pinyin --max-nbest 10 --max-pinyin 5 --max-hard-negatives 6`
+- Original COVO model:
+  - `qwen35_text_rewrite_hardneg_dropout_lora_2epoch`
+- Clean CB pool result:
+  - Prediction file: `src/logs/shuili_originalcovo_hardneg_originalprompt_cleanpool_predictions_20260707.jsonl`
+  - Raw CER: `0.138404`.
+  - Baseline CER: `0.154149`.
+  - Filler-normalized CER: `0.095784`.
+  - Filler-normalized baseline CER: `0.098139`.
+  - N-best oracle CER: `0.053330`.
+  - `fixed_to_exact=91`, `unchanged_error=461`, `base_correct_broken=64`, `worsened_error=131`.
+- SenseVoice-first result:
+  - Prediction file: `src/logs/shuili_originalcovo_hardneg_originalprompt_sensevoice_first_predictions_20260707.jsonl`
+  - Raw CER: `0.100946`.
+  - Baseline/SenseVoice CER: `0.046537`.
+  - Filler-normalized CER: `0.076078`.
+  - Filler-normalized baseline CER: `0.055508`.
+  - N-best oracle CER: `0.026792`.
+  - `fixed_to_exact=52`, `unchanged_error=161`, `base_correct_broken=323`, `worsened_error=169`.
+- Interpretation:
+  - With exact original-style input, original COVO can slightly improve the weak CB clean pool, but remains far behind Shuili-adapted COVO.
+  - On strong SenseVoice top-1, original COVO over-edits heavily and degrades CER from `4.65%` to `10.09%`.
+  - Therefore the current issue is not a file-format incompatibility. The original COVO correction distribution does not match Shuili oral/domain data or strong-ASR no-op preservation.
