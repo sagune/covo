@@ -3559,3 +3559,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Remaining issue:
   - Some candidates are still wrong but acoustically/domain-plausible, e.g. `还有红柠桃公种混凝土工种`.
   - This cleanup improves candidate cleanliness without reducing oracle reachability; the next check should run COVO on this cleaned pool to see whether lower candidate noise converts into raw CER below `10%`.
+
+#### Shuili COVO on anchor-cleaned candidate pool
+
+- COVO input:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_sourceaware_neutralfirst_beam5_rawpool_clean_anchor.qwen.jsonl`
+  - Rows: `1152`.
+  - Average N-best: `7.7917`.
+  - Exact reference in N-best: `746`.
+  - Source-aware prompt: enabled.
+- Model:
+  - Base: `cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B`.
+  - Adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`.
+- Prediction:
+  - `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_clean_anchor_normdomain_sft60k_predictions_20260708.jsonl`
+- Metrics:
+  - Raw CER: `0.100184`.
+  - Baseline top1 CER under COVO evaluator: `0.123611`.
+  - Filler-normalized CER: `0.086755`.
+  - Filler-normalized baseline CER: `0.094920`.
+- Audit:
+  - `fixed_to_exact=222`.
+  - `improved_partial=217`.
+  - `unchanged_error=261`.
+  - `base_correct_broken=105`.
+  - `worsened_error=102`.
+  - N-best oracle CER under COVO evaluator: `0.047489`.
+  - `nbest_better_than_pred=497`, `nbest_better_than_base=643`.
+- Comparison:
+  - Complete-v2 source-aware COVO raw CER: `0.100375`.
+  - Anchor-cleaned COVO raw CER: `0.100184`.
+  - Gain is small (`0.019` absolute CER points), but it is in the right direction and does not hurt oracle reachability.
+- Interpretation:
+  - Candidate cleanup has now removed many visibly bad alternatives, but the model still fails to exploit reachable oracle candidates.
+  - The remaining <10% gap is no longer mainly caused by obvious fragment/off-topic candidate pollution; it is selection/editing behavior (`nbest_better_than_pred=497`).
