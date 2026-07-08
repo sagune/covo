@@ -3834,3 +3834,38 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - CB-Whisper as hotword/context candidate generator,
     - candidate cleaning/simplification,
     - COVO candidate selection and local editing.
+
+#### Shuili CB-Whisper internal neutral-anchor probe
+
+- Motivation:
+  - Pure CB-Whisper top1 is worse than standalone large-v3 on Shuili, even though the run is already based on `openai/whisper-large-v3`.
+  - The likely cause is not the base ASR model but KWS/context prompting and hotword reranking pulling top1 away from the clean acoustic hypothesis.
+- Code change:
+  - `CBWhisper` now has optional neutral-anchor flags:
+    - `neutral_anchor`
+    - `neutral_anchor_as_top1`
+    - `neutral_anchor_include_in_nbest`
+    - `neutral_anchor_num_beams`
+    - `neutral_anchor_skip_surface_repair`
+  - Default behavior is unchanged. These flags are only active when explicitly enabled.
+  - Test script: `src/run_cbwhisper_shuili_v3_kws_neutral_anchor_test.py`.
+- Forced neutral-anchor top1 run:
+  - Metrics file: `src/logs/test_metrics_shuili_v3_neutral_anchor_20260708.csv`.
+  - Entity Recall: `0.61465`.
+  - CER: `0.12904`.
+  - Hotword Only CER: `0.47123`.
+  - WER: `0.71181`.
+  - Interpretation: forcing neutral large-v3 as top1 improves over pure CB-Whisper CER but destroys hotword recall, so it is not acceptable as CB-Whisper output.
+- Neutral-anchor as rerank candidate:
+  - Metrics file: `src/logs/test_metrics_shuili_v3_neutral_anchor_rerank_20260708.csv`.
+  - Entity Recall: `0.86915`.
+  - CER: `0.13913`.
+  - Hotword Sentence CER: `0.13783`.
+  - Hotword Only CER: `0.39614`.
+  - WER: `0.76128`.
+  - Oracle summary: `src/logs/oracle_nbest_summary_shuili_v3_neutral_anchor.csv`.
+  - N-best oracle CER: `0.07710`; top1 diagnostic CER: `0.13950`.
+  - Interpretation: adding neutral large-v3 as a rerank candidate preserves recall relative to current CB-Whisper, but does not solve the CER problem. It is not promoted.
+- Decision:
+  - Do not report either internal-anchor variant as the main Shuili result.
+  - The accepted Shuili direction remains external candidate-pool construction: use neutral large-v3 as a clean top1/source-tagged anchor, keep CB-Whisper candidates behind it, clean/simplify candidates, then let source-aware COVO select/edit.

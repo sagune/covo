@@ -156,6 +156,11 @@ class CBWhisper(pl.LightningModule):
         enable_consensus_rerank: bool = False,
         consensus_rerank_weight: float = 0.35,
         consensus_rerank_min_support: int = 2,
+        neutral_anchor: bool = False,
+        neutral_anchor_as_top1: bool = False,
+        neutral_anchor_include_in_nbest: bool = True,
+        neutral_anchor_num_beams: int = 5,
+        neutral_anchor_skip_surface_repair: bool = True,
         oracle_nbest_diagnostic: bool = False,
         oracle_nbest_detail_path: str = "logs/oracle_nbest_detail.csv",
         oracle_nbest_summary_path: str = "logs/oracle_nbest_summary.csv",
@@ -1648,6 +1653,99 @@ class CBWhisper(pl.LightningModule):
             force_decoder_prompt_ids=bool(getattr(self.hparams, "force_decoder_prompt_ids", False)),
         )
 
+    def _generate_shortform_neutral_anchor(
+        self,
+        input_features: torch.Tensor,
+        attention_mask: torch.Tensor,
+    ) -> Tuple[str, Optional[torch.Tensor]]:
+        input_features = self._cast_features_for_module(input_features, self.whisper)
+        beams = max(1, int(getattr(self.hparams, "neutral_anchor_num_beams", 5)))
+        pred = self.whisper.generate(
+            input_features=input_features,
+            attention_mask=attention_mask,
+            task='transcribe',
+            language=self.hparams.language,
+            return_timestamps=False,
+            condition_on_prev_tokens=False,
+            return_segments=False,
+            num_beams=beams,
+            num_return_sequences=1,
+            do_sample=False,
+            temperature=0,
+            no_repeat_ngram_size=max(0, int(getattr(self.hparams, "shortform_no_repeat_ngram_size", 3))),
+            keyword_spotting=lambda **_: [[]],
+            force_decoder_prompt_ids=bool(getattr(self.hparams, "force_decoder_prompt_ids", False)),
+        )
+        text = self.processor_whisper.tokenizer.batch_decode(pred, skip_special_tokens=True)[0].strip()
+        seq = pred[0].detach().clone() if isinstance(pred, torch.Tensor) and pred.dim() == 2 and pred.size(0) > 0 else None
+        return text, seq
+
+    def _prepend_sequence_if_unique(
+        self,
+        sequences: torch.Tensor,
+        sequence: Optional[torch.Tensor],
+        desired_num_return_sequences: int,
+    ) -> torch.Tensor:
+        if sequence is None or not isinstance(sequences, torch.Tensor) or sequences.dim() != 2:
+            return sequences
+        seq_text = self.processor_whisper.tokenizer.batch_decode(sequence.unsqueeze(0), skip_special_tokens=True)[0].strip()
+        seq_key = self._normalize_surface_text(seq_text)
+        existing = self.processor_whisper.tokenizer.batch_decode(sequences, skip_special_tokens=True)
+        existing_keys = {self._normalize_surface_text(str(text).strip()) for text in existing}
+        if seq_key == "" or seq_key in existing_keys:
+            return sequences
+        pad_id = int(self.processor_whisper.tokenizer.pad_token_id or 0)
+        max_len = max(int(sequence.numel()), int(sequences.size(1)))
+        padded_seq = torch.full((1, max_len), pad_id, device=sequences.device, dtype=sequences.dtype)
+        padded_seq[0, : int(sequence.numel())] = sequence.to(device=sequences.device, dtype=sequences.dtype)
+        padded_existing = torch.full((sequences.size(0), max_len), pad_id, device=sequences.device, dtype=sequences.dtype)
+        padded_existing[:, : sequences.size(1)] = sequences
+        out = torch.cat([padded_seq, padded_existing], dim=0)
+        return out[: max(1, int(desired_num_return_sequences))]
+
+    def _prepend_neutral_anchor_candidate(self, neutral_text: str):
+        neutral_text = str(neutral_text or "").strip()
+        if neutral_text == "":
+            return
+        neutral_key = self._normalize_surface_text(neutral_text)
+        moved = None
+        remaining = []
+        for candidate in list(self._latest_forward_candidates):
+            text = str(candidate.get("text", "")).strip()
+            key = self._normalize_surface_text(text)
+            if moved is None and key != "" and key == neutral_key:
+                moved = dict(candidate)
+                moved["source"] = "neutral_anchor"
+            else:
+                remaining.append(candidate)
+        if moved is None:
+            moved = {
+                "rank": 1,
+                "text": neutral_text,
+                "source": "neutral_anchor",
+                "total_score": 0.0,
+                "score_delta_vs_baseline": 0.0,
+                "hotword_score": 0.0,
+                "asr_score": 0.0,
+                "asr_score_scaled": 0.0,
+                "exact_score": 0.0,
+                "exact_weighted_score": 0.0,
+                "exact_score_scaled": 0.0,
+                "exact_stats": {},
+                "phonetic_score": 0.0,
+                "phonetic_score_used": 0.0,
+                "phonetic_score_scaled": 0.0,
+                "consensus_score": 0.0,
+                "consensus_score_used": 0.0,
+                "consensus_support": 0,
+                "consensus_keywords": [],
+                "prefix_penalty_score": 0.0,
+            }
+        moved["text"] = neutral_text
+        self._latest_forward_candidates = [moved] + remaining
+        for rank, candidate in enumerate(self._latest_forward_candidates, start=1):
+            candidate["rank"] = int(rank)
+
     def _dedup_shortform_predictions(
         self,
         pred: torch.Tensor,
@@ -2146,6 +2244,13 @@ class CBWhisper(pl.LightningModule):
         gen_nbest = min(max(nbest * generation_factor, nbest), generation_cap) if do_rescore else 1
         num_beams = max(5, gen_nbest) if do_rescore else 5
         num_return_sequences = gen_nbest if do_rescore else 1
+        neutral_anchor_text = ""
+        neutral_anchor_sequence = None
+        if is_shortform and bool(getattr(self.hparams, "neutral_anchor", False)):
+            neutral_anchor_text, neutral_anchor_sequence = self._generate_shortform_neutral_anchor(
+                input_features=input_features,
+                attention_mask=attention_mask,
+            )
         # generate transcript candidates
         if is_shortform:
             pred = self._generate_shortform_candidates(
@@ -2157,6 +2262,12 @@ class CBWhisper(pl.LightningModule):
             )
             if do_rescore:
                 pred = self._dedup_shortform_predictions(pred, desired_num_return_sequences=gen_nbest)
+                if bool(getattr(self.hparams, "neutral_anchor_include_in_nbest", True)):
+                    pred = self._prepend_sequence_if_unique(
+                        sequences=pred,
+                        sequence=neutral_anchor_sequence,
+                        desired_num_return_sequences=gen_nbest,
+                    )
         else:
             pred = self.whisper.generate(
                 input_features = input_features,
@@ -2240,6 +2351,10 @@ class CBWhisper(pl.LightningModule):
                     }
                     for rank, item in enumerate(scored_candidates)
                 ]
+                neutral_key = self._normalize_surface_text(neutral_anchor_text)
+                for candidate in self._latest_forward_candidates:
+                    if neutral_key != "" and self._normalize_surface_text(str(candidate.get("text", ""))) == neutral_key:
+                        candidate["source"] = "neutral_anchor"
                 pred = str(scored_candidates[0]["candidate"]).strip()
                 if self._debug_should_log_idx(dbg_idx):
                     baseline_candidate = candidate_stats[baseline_idx] if 0 <= baseline_idx < len(candidate_stats) else {}
@@ -2329,7 +2444,23 @@ class CBWhisper(pl.LightningModule):
             self._latest_forward_candidates = []
             pred = self.processor_whisper.tokenizer.batch_decode(pred['sequences'], skip_special_tokens=True)[0].strip()
 
-        if is_shortform:
+        if (
+            is_shortform
+            and neutral_anchor_text.strip() != ""
+            and bool(getattr(self.hparams, "neutral_anchor_include_in_nbest", True))
+            and not do_rescore
+        ):
+            self._prepend_neutral_anchor_candidate(neutral_anchor_text)
+            if bool(getattr(self.hparams, "neutral_anchor_as_top1", False)):
+                pred = neutral_anchor_text
+
+        skip_surface_repair = bool(
+            is_shortform
+            and neutral_anchor_text.strip() != ""
+            and bool(getattr(self.hparams, "neutral_anchor_as_top1", False))
+            and bool(getattr(self.hparams, "neutral_anchor_skip_surface_repair", True))
+        )
+        if is_shortform and not skip_surface_repair:
             repair_keywords = self._latest_keywords[0] if len(self._latest_keywords) > 0 else []
             repair_score_map = self._latest_keyword_scores[0] if len(self._latest_keyword_scores) > 0 else {}
             pred_before_repair = str(pred)
@@ -2352,6 +2483,12 @@ class CBWhisper(pl.LightningModule):
                         after=str(pred)[:160],
                         repairs=list(repair_info.get("repairs", [])),
                     )
+        elif skip_surface_repair and self._debug_should_log_idx(dbg_idx):
+            self._debug_log(
+                "neutral_anchor_skip_surface_repair",
+                idx=dbg_idx,
+                pred_preview=str(pred)[:160],
+            )
 
         if self._debug_should_log_idx(dbg_idx):
             self._debug_log(
