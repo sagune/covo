@@ -88,18 +88,28 @@ def pick_asr_text(row: Dict[str, Any], field: str) -> str:
     return ""
 
 
-def unique_merge(items: Iterable[Tuple[str, Dict[str, Any]]], max_items: int) -> Tuple[List[str], List[Dict[str, Any]], int]:
+def unique_merge(
+    items: Iterable[Tuple[str, Dict[str, Any]]],
+    max_items: int,
+    simplify_candidates: bool = False,
+) -> Tuple[List[str], List[Dict[str, Any]], int]:
     texts: List[str] = []
     sources: List[Dict[str, Any]] = []
     seen = set()
     added = 0
     for text, source in items:
         text = str(text or "").strip()
+        original_text = text
+        if simplify_candidates:
+            text = _to_simplified(text).strip()
         key = normalize_text(text)
         if not text or not key or key in seen:
             continue
         texts.append(text)
-        sources.append({"text": text, **source})
+        source_row = {"text": text, **source}
+        if simplify_candidates and original_text and original_text != text:
+            source_row["original_text"] = original_text
+        sources.append(source_row)
         seen.add(key)
         added += int(bool(source.get("auxiliary_asr")))
         if len(texts) >= max_items:
@@ -190,6 +200,7 @@ def main() -> int:
     parser.add_argument("--filter-anchor-inconsistent", action="store_true")
     parser.add_argument("--max-anchor-edit-ratio", type=float, default=0.48)
     parser.add_argument("--anchor-filter-source-pattern", default="multiprompt")
+    parser.add_argument("--simplify-candidates", action="store_true")
     args = parser.parse_args()
 
     cb_rows = read_jsonl(Path(args.cb_pool))
@@ -263,9 +274,17 @@ def main() -> int:
                     drop_examples.append({"id": utt_id, "text": text, "reason": reason, "anchor": anchor})
             old_items = filtered_old_items
         if args.asr_first:
-            merged, sources, added = unique_merge([asr_item] + old_items, int(args.max_nbest))
+            merged, sources, added = unique_merge(
+                [asr_item] + old_items,
+                int(args.max_nbest),
+                simplify_candidates=bool(args.simplify_candidates),
+            )
         else:
-            merged, sources, added = unique_merge(old_items + [asr_item], int(args.max_nbest))
+            merged, sources, added = unique_merge(
+                old_items + [asr_item],
+                int(args.max_nbest),
+                simplify_candidates=bool(args.simplify_candidates),
+            )
 
         if asr_text and any(normalize_text(src.get("text", "")) == normalize_text(asr_text) for src in sources):
             added_rows += int(normalize_text(asr_text) not in {normalize_text(text) for text in old_nbest})

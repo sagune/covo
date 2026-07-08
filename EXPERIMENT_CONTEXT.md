@@ -3639,3 +3639,46 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - Simplified/traditional inconsistency injects non-ASR orthographic noise and hurts both oracle accounting and COVO output.
     - Correct candidates are often available but COVO lacks a reliable rank/source preference to pick them.
   - The next clean experiment should normalize N-best candidates to simplified Chinese before COVO conversion, then rerun source-aware COVO. This is a data-format normalization step and is less ad-hoc than changing prediction text after decoding.
+
+#### Shuili simplified-candidate normalization
+
+- Code change:
+  - `src/analysis/merge_asr_candidate_pool.py` now supports `--simplify-candidates`.
+  - Candidate text is converted to simplified Chinese before final N-best de-duplication.
+  - If a candidate changes, its original surface is kept in `nbest_sources[].original_text` for audit.
+- Generated pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_clean_anchor_simplified_20260708.jsonl`
+  - Same filtering settings as anchor-cleaned pool, plus `--simplify-candidates`.
+- Candidate-pool summary:
+  - Average N-best: `7.7917`.
+  - Top1 CER: `0.121389`.
+  - Oracle CER: `0.042981`.
+  - Oracle exact: `790/1152`.
+- COVO input:
+  - `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_sourceaware_neutralfirst_beam5_rawpool_clean_anchor_simplified.qwen.jsonl`
+  - Rows: `1152`.
+  - Average N-best: `7.7917`.
+  - Source-aware prompt: enabled.
+- Prediction:
+  - `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_clean_anchor_simplified_normdomain_sft60k_predictions_20260708.jsonl`
+- Metrics:
+  - Raw CER: `0.090280`.
+  - Baseline top1 CER: `0.121389`.
+  - Filler-normalized CER: `0.086049`.
+  - Filler-normalized baseline CER: `0.094920`.
+  - Traditional-output rows: `0`.
+- Audit:
+  - `fixed_to_exact=240`.
+  - `improved_partial=218`.
+  - `unchanged_error=261`.
+  - `base_correct_broken=103`.
+  - `worsened_error=82`.
+  - N-best oracle CER: `0.042981`.
+  - `nbest_better_than_pred=488`.
+- Comparison:
+  - Anchor-cleaned without simplified normalization: raw CER `0.100184`, filler-normalized CER `0.086755`.
+  - Simplified normalization improves raw CER by about `0.99` absolute points and reaches the `<10%` target.
+  - Most of the raw CER gain comes from removing simplified/traditional orthographic noise before COVO selection, not from a heavier model or post-hoc output patch.
+- Interpretation:
+  - Candidate simplification is now part of the clean candidate construction pipeline.
+  - It is better justified as data normalization than output post-processing because it also restores the N-best oracle from `0.047489` to `0.042981` and exact oracle from `749` to `790`.
