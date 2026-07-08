@@ -3682,3 +3682,66 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation:
   - Candidate simplification is now part of the clean candidate construction pipeline.
   - It is better justified as data normalization than output post-processing because it also restores the N-best oracle from `0.047489` to `0.042981` and exact oracle from `749` to `790`.
+
+#### AISHELL check for simplified-candidate normalization
+
+- Goal:
+  - Test whether the Shuili candidate-normalization finding transfers back to AISHELL.
+  - Use the 808-row AISHELL v3 candidate subset, not full 7176 AISHELL.
+- Existing AISHELL reference point:
+  - Input: `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`.
+  - Model: `qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16`.
+  - Prediction: `src/logs/cbwhisper_covo_predictions_aishell_v3_chinesehp_hotword_aware_20260702.jsonl`.
+  - Raw CER: `0.049670`.
+  - Base CER under COVO evaluator: `0.104463`.
+  - Hotword recall: base `0.9151`, prediction `0.8439`, N-best oracle `0.9161`.
+- Neutral-first attempt:
+  - Built a reference-matched neutral large-v3 view for all 808 rows:
+    - `src/logs/aishell_v3_neutral_view_for_cb808_by_ref_20260708.jsonl`.
+  - Generated:
+    - `src/logs/cbwhisper_candidate_pool_aishell_v3_neutralfirst_clean_anchor_simplified_20260708.jsonl`.
+  - Candidate summary:
+    - Average N-best: `9.7525`.
+    - Top1 CER: `0.131626`.
+    - Oracle CER: `0.041676`.
+    - Oracle exact: `572/808`.
+  - Interpretation:
+    - Unlike Shuili, neutral large-v3 is not a good top1 anchor for this AISHELL 808 subset.
+    - The Shuili `neutral-first` rule should not be transferred blindly to AISHELL.
+- CB-top simplified normalization:
+  - Keep CB-Whisper top1 order and only normalize candidates to simplified Chinese before de-duplication.
+  - Candidate pool:
+    - `src/logs/cbwhisper_candidate_pool_aishell_v3_cbtop_clean_simplified_20260708.jsonl`.
+  - Candidate summary:
+    - Average N-best: `9.9097`.
+    - Top1 CER: `0.085991` under merge-script normalization.
+    - Oracle CER: `0.043073` under merge-script normalization.
+    - Oracle exact: `572/808`.
+  - COVO messages:
+    - `src/logs/cbwhisper_covo_messages_aishell_v3_cbtop_clean_simplified_hotword_aware_20260708.jsonl`.
+  - Prediction:
+    - `src/logs/cbwhisper_covo_predictions_aishell_v3_cbtop_clean_simplified_hotword_aware_20260708.jsonl`.
+- COVO result:
+  - Raw CER: `0.048118`.
+  - Base CER: `0.104463`.
+  - N-best oracle CER: `0.041676`.
+  - Prediction-or-N-best oracle CER: `0.025301`.
+  - Traditional-output rows: `1`.
+  - Delta counts:
+    - `fixed_to_exact=186`.
+    - `improved_partial=149`.
+    - `unchanged_error=80`.
+    - `base_correct_broken=63`.
+    - `worsened_error=24`.
+  - Hotword recall:
+    - base `0.9151`.
+    - prediction `0.8365`.
+    - N-best oracle `0.9342`.
+- Comparison:
+  - Previous hotword-aware AISHELL result: raw CER `0.049670`.
+  - CB-top simplified normalization result: raw CER `0.048118`.
+  - Absolute CER gain: about `0.155` points.
+  - The gain is real but much smaller than Shuili, because AISHELL had less harmful simplified/traditional noise and the hotword-aware model already corrected beyond N-best in many cases.
+- Takeaway:
+  - Candidate simplification transfers positively to AISHELL if CB-Whisper top1 is kept.
+  - Neutral-first is dataset-dependent: helpful on Shuili, harmful as a top1 replacement on AISHELL.
