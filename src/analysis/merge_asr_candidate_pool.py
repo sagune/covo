@@ -126,6 +126,35 @@ def is_complete_candidate(text: str, anchor: str, min_ratio: float, length_slack
     return True, ""
 
 
+def normalized_edit_ratio(text: str, anchor: str) -> float:
+    key = normalize_text(text)
+    anchor_key = normalize_text(anchor)
+    denom = max(len(key), len(anchor_key), 1)
+    return edit_distance(key, anchor_key) / denom
+
+
+def is_anchor_consistent_candidate(
+    text: str,
+    source: Dict[str, Any],
+    anchor: str,
+    max_edit_ratio: float,
+    source_pattern: str,
+) -> Tuple[bool, str]:
+    if max_edit_ratio <= 0:
+        return True, ""
+    source_name = str(source.get("source", "") or "")
+    if source_pattern and re.search(source_pattern, source_name) is None:
+        return True, ""
+    anchor_key = normalize_text(anchor)
+    key = normalize_text(text)
+    if len(anchor_key) <= 6 or len(key) <= 0:
+        return True, ""
+    ratio = normalized_edit_ratio(text, anchor)
+    if ratio > max_edit_ratio:
+        return False, f"far_from_anchor:{ratio:.3f}>{max_edit_ratio:.3f}"
+    return True, ""
+
+
 def make_pinyin(texts: List[str]) -> List[str]:
     try:
         from pypinyin import lazy_pinyin
@@ -158,6 +187,9 @@ def main() -> int:
     parser.add_argument("--filter-incomplete", action="store_true")
     parser.add_argument("--min-length-ratio", type=float, default=0.68)
     parser.add_argument("--length-slack", type=int, default=5)
+    parser.add_argument("--filter-anchor-inconsistent", action="store_true")
+    parser.add_argument("--max-anchor-edit-ratio", type=float, default=0.48)
+    parser.add_argument("--anchor-filter-source-pattern", default="multiprompt")
     args = parser.parse_args()
 
     cb_rows = read_jsonl(Path(args.cb_pool))
@@ -202,15 +234,26 @@ def main() -> int:
         if asr_text:
             matched += 1
         anchor = asr_text or str(input_block.get("asr_top1", "") or (old_nbest[0] if old_nbest else ""))
-        if bool(args.filter_incomplete):
+        if bool(args.filter_incomplete) or bool(args.filter_anchor_inconsistent):
             filtered_old_items = []
             for text, source in old_items:
-                keep, reason = is_complete_candidate(
-                    text=text,
-                    anchor=anchor,
-                    min_ratio=float(args.min_length_ratio),
-                    length_slack=int(args.length_slack),
-                )
+                keep = True
+                reason = ""
+                if bool(args.filter_incomplete):
+                    keep, reason = is_complete_candidate(
+                        text=text,
+                        anchor=anchor,
+                        min_ratio=float(args.min_length_ratio),
+                        length_slack=int(args.length_slack),
+                    )
+                if keep and bool(args.filter_anchor_inconsistent):
+                    keep, reason = is_anchor_consistent_candidate(
+                        text=text,
+                        source=source,
+                        anchor=anchor,
+                        max_edit_ratio=float(args.max_anchor_edit_ratio),
+                        source_pattern=str(args.anchor_filter_source_pattern),
+                    )
                 if keep:
                     filtered_old_items.append((text, source))
                     continue

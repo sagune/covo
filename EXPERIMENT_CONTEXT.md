@@ -3519,3 +3519,43 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Strict length filtering does not remove full-length but semantically off-topic candidates.
   - Example `BAC009S0001W0660` still keeps multiprompt candidates such as `这种事情在我们的生活上比较常见`, although they are not plausible sentence-level alternatives for the current audio.
   - Next candidate-pool cleanup should add an anchor-similarity/coverage filter, especially for multiprompt candidates, while preserving the current oracle CER.
+
+#### Shuili anchor-consistency candidate cleanup
+
+- Code change:
+  - `src/analysis/merge_asr_candidate_pool.py` now supports:
+    - `--filter-anchor-inconsistent`
+    - `--max-anchor-edit-ratio`
+    - `--anchor-filter-source-pattern`
+  - The filter compares each selected-source candidate with the neutral acoustic anchor using normalized edit distance.
+  - Current use only targets `multiprompt` candidates, because CB-Whisper candidates often contain useful domain/hotword variants even when they are phonetically noisy.
+- Generated pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_clean_anchor_20260708.jsonl`
+  - Settings:
+    - `--min-length-ratio 0.88 --length-slack 1`
+    - `--filter-anchor-inconsistent --max-anchor-edit-ratio 0.48 --anchor-filter-source-pattern multiprompt`
+- Summary:
+  - Dropped candidates: `1469`.
+  - Average N-best: `7.7917`.
+  - Top1 CER: `0.121389`.
+  - Oracle CER: `0.042981`, unchanged from complete-v2/strict.
+  - Oracle exact: `790/1152`, unchanged.
+- Audit comparison:
+  - Complete-v2:
+    - Average N-best `8.7283`.
+    - Short-vs-reference samples `113`.
+    - Far/off-topic samples `196`, with `95` far multiprompt cases.
+  - Strict length-only:
+    - Average N-best `7.8481`.
+    - Short-vs-reference samples `31`.
+    - Far/off-topic samples `177`, with `82` far multiprompt cases.
+  - Anchor-cleaned:
+    - Average N-best `7.7917`.
+    - Short-vs-reference samples `31`.
+    - Far/off-topic samples `139`, with `35` far multiprompt cases.
+- Example improvements:
+  - `BAC009S0001W0006` now removes `水利工程 闸门闸` and `水利工程 闸门门`.
+  - `BAC009S0001W0660` removes the clearly off-topic multiprompt candidate `这种事情在我们的生活上比较常见`.
+- Remaining issue:
+  - Some candidates are still wrong but acoustically/domain-plausible, e.g. `还有红柠桃公种混凝土工种`.
+  - This cleanup improves candidate cleanliness without reducing oracle reachability; the next check should run COVO on this cleaned pool to see whether lower candidate noise converts into raw CER below `10%`.
