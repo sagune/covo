@@ -3375,3 +3375,47 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - strong hotword-biased CB view supplies recall candidates;
     - downstream rerank/COVO sees source tags and consensus, rather than treating all candidates as equal.
   - Plain beam n-best is not enough for diversity; useful diversity needs sampling or multi-view prompting, but strong hotword prompts should not dominate the first candidate.
+
+#### Shuili neutral-first CB-Whisper candidate-pool experiment
+
+- Goal:
+  - Stay inside the CB-Whisper workflow while reducing prompt-biased top1 pollution.
+  - Use neutral Whisper-large-v3 as a clean acoustic view, then keep CB-Whisper candidates behind it for hotword/oral variants.
+- Added script:
+  - `src/analysis/merge_asr_candidate_pool.py`
+  - It merges an auxiliary ASR view into a CB-Whisper candidate pool, can place it first, refreshes source tags and pinyin, and reports top1/oracle CER.
+- Full neutral decode:
+  - Command used `openai/whisper-large-v3`, no hotword prompt, beam5, `num_return_sequences=5`, `batch_size=1`.
+  - Output: `src/logs/shuili_whisper_large_v3_neutral_beam5_full_20260708.jsonl`
+  - Full Shuili neutral top1 CER: `0.121326`.
+  - Beam n-best diversity remained low; the output is essentially one unique neutral candidate per utterance.
+- Neutral-first over clean CB pool:
+  - Source pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_clean_shuili_repeat_len18_20260705.jsonl`
+  - Merged pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_clean_len18_20260708.jsonl`
+  - Pool top1 CER: `0.121389`.
+  - Pool oracle CER: `0.042981`.
+  - Oracle exact: `790/1152`.
+  - COVO input: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_neutralfirst_beam5.qwen.jsonl`
+  - COVO prediction: `src/logs/shuili_covo_neutralfirst_beam5_normdomain_sft60k_predictions_20260708.jsonl`
+  - Raw CER: `0.104184`.
+  - Filler-normalized CER: `0.088639`.
+  - Audit: `fixed_to_exact=214`, `unchanged_error=254`, `base_correct_broken=111`, `worsened_error=110`.
+- Neutral-first over raw CB pool:
+  - Source pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_20260704.jsonl`
+  - Merged pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_20260708.jsonl`
+  - Pool top1 CER: `0.121389`.
+  - Pool oracle CER: `0.042981`.
+  - Oracle exact: `790/1152`.
+  - COVO input: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_hardneg_consensus_nohotword_neutralfirst_beam5_rawpool.qwen.jsonl`
+  - COVO prediction: `src/logs/shuili_covo_neutralfirst_beam5_rawpool_normdomain_sft60k_predictions_20260708.jsonl`
+  - Raw CER: `0.103866`.
+  - Filler-normalized CER: `0.089896`.
+  - Audit: `fixed_to_exact=211`, `unchanged_error=258`, `base_correct_broken=112`, `worsened_error=109`.
+- Comparison:
+  - Previous clean no-hotword norm-domain COVO result: raw CER `0.111739`, filler-normalized CER `0.082453`.
+  - Neutral-first improves raw CER by about `0.78` absolute points, but does not reach `<10%`.
+  - It worsens filler-normalized CER because neutral Whisper tends to omit lecture fillers that appear in the reference.
+- Interpretation:
+  - The route is real: replacing the strong hotword-biased top1 with a neutral acoustic view reduces raw CER.
+  - The remaining gap is not only candidate generation. The oracle is around `4.30%`, but COVO still outputs around `10.39%`; it leaves many oracle-reachable errors unresolved.
+  - Next useful step is not more beam search. It should train or prompt a source-aware selector/editor that knows `neutral_whisper` is the clean anchor while CB-Whisper lower candidates may preserve oral fillers and hotword variants.
