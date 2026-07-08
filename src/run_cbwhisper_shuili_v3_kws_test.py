@@ -83,9 +83,11 @@ def main():
         enable_consensus_rerank=True,
         consensus_rerank_weight=0.35,
         consensus_rerank_min_support=2,
+        enable_completeness_rerank=os.getenv("CBW_COMPLETENESS_RERANK", "0").lower() in {"1", "true", "yes", "on"},
+        completeness_rerank_total_margin=float(os.getenv("CBW_COMPLETENESS_MARGIN", "0.3")),
         oracle_nbest_diagnostic=True,
-        oracle_nbest_detail_path="logs/oracle_nbest_detail_shuili_v3_kws.csv",
-        oracle_nbest_summary_path="logs/oracle_nbest_summary_shuili_v3_kws.csv",
+        oracle_nbest_detail_path=os.getenv("CBW_ORACLE_DETAIL_OUT", "logs/oracle_nbest_detail_shuili_v3_kws.csv"),
+        oracle_nbest_summary_path=os.getenv("CBW_ORACLE_SUMMARY_OUT", "logs/oracle_nbest_summary_shuili_v3_kws.csv"),
     )
     trainer = pl.Trainer(
         accelerator="gpu",

@@ -156,6 +156,8 @@ class CBWhisper(pl.LightningModule):
         enable_consensus_rerank: bool = False,
         consensus_rerank_weight: float = 0.35,
         consensus_rerank_min_support: int = 2,
+        enable_completeness_rerank: bool = False,
+        completeness_rerank_total_margin: float = 0.3,
         neutral_anchor: bool = False,
         neutral_anchor_as_top1: bool = False,
         neutral_anchor_include_in_nbest: bool = True,
@@ -1345,6 +1347,24 @@ class CBWhisper(pl.LightningModule):
             )
 
         scored_candidates.sort(key=lambda item: item["total_score"], reverse=True)
+        if bool(getattr(self.hparams, "enable_completeness_rerank", False)) and len(scored_candidates) > 1:
+            best_total = float(scored_candidates[0].get("total_score", 0.0))
+            margin = max(0.0, float(getattr(self.hparams, "completeness_rerank_total_margin", 0.3)))
+            near_best = [
+                item for item in scored_candidates
+                if float(item.get("total_score", 0.0)) >= best_total - margin
+            ]
+            if len(near_best) > 1:
+                selected = max(
+                    near_best,
+                    key=lambda item: (
+                        len(self._normalize_text_for_rescore(str(item.get("candidate", "")))),
+                        float(item.get("total_score", 0.0)),
+                    ),
+                )
+                if selected is not scored_candidates[0]:
+                    scored_candidates = [selected] + [item for item in scored_candidates if item is not selected]
+                    scored_candidates[0]["completeness_rerank_selected"] = True
         return scored_candidates, int(baseline_idx), float(baseline_phonetic_score)
 
     def _shortform_rescore_debug_preview(self, scored_candidates: List[dict], topk: int = 5) -> List[dict]:

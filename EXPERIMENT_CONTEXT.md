@@ -3869,3 +3869,49 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Decision:
   - Do not report either internal-anchor variant as the main Shuili result.
   - The accepted Shuili direction remains external candidate-pool construction: use neutral large-v3 as a clean top1/source-tagged anchor, keep CB-Whisper candidates behind it, clean/simplify candidates, then let source-aware COVO select/edit.
+
+#### Shuili naked CB-Whisper completeness rerank
+
+- Motivation:
+  - Reinspect naked CB-Whisper before relying on COVO.
+  - The original Shuili true-v3 CB-Whisper top1 is often too short or fragment-like even when a fuller candidate exists nearby in the same n-best list.
+- Offline diagnosis on `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`:
+  - Current top1 COVO-evaluator raw CER: `0.154149`.
+  - Current top1 after simplified normalization: `0.139166`.
+  - Oracle over CB-Whisper candidates: raw CER `0.060441`; exact `711/1152`.
+  - Choosing the longest normalized candidate among candidates within a total-score margin gives a large diagnostic gain:
+    - margin `0.3`: simplified-normalized CER `0.107168`, exact `458/1152`, entity recall about `0.8487`.
+    - margin `0.4`: simplified-normalized CER `0.104247`, exact `468/1152`, entity recall about `0.8475`.
+  - Interpretation: the old rerank overweights hotword/ASR score relative to utterance completeness on Shuili oral lecture data.
+- Code change:
+  - `CBWhisper` now has optional completeness-rerank parameters:
+    - `enable_completeness_rerank`
+    - `completeness_rerank_total_margin`
+  - Default behavior is unchanged.
+  - `src/run_cbwhisper_shuili_v3_kws_test.py` exposes the option through:
+    - `CBW_COMPLETENESS_RERANK`
+    - `CBW_COMPLETENESS_MARGIN`
+    - plus oracle-output env vars to avoid overwriting old diagnostics.
+- Full naked CB-Whisper Shuili run:
+  - Command setting: `CBW_COMPLETENESS_RERANK=1`, `CBW_COMPLETENESS_MARGIN=0.3`.
+  - Metrics file: `src/logs/test_metrics_shuili_v3_completeness_rerank_m03_20260709.csv`.
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_v3_completeness_rerank_m03_20260709.jsonl`.
+  - Entity Recall: `0.87395`.
+  - CER: `0.10699`.
+  - Hotword Sentence CER: `0.12041`.
+  - Hotword Only CER: `0.31444`.
+  - WER: `0.60243`.
+  - COVO-evaluator raw CER on the exported top1: `0.121897`.
+  - Oracle summary: `src/logs/oracle_nbest_summary_shuili_v3_completeness_rerank_m03_20260709.csv`.
+  - N-best oracle diagnostic CER: `0.07882`; top1 diagnostic CER: `0.10727`.
+- Comparison with previous naked true-v3 CB-Whisper Shuili run:
+  - Previous metrics: Entity Recall `0.87155`, CER `0.14022`, Hotword Only CER `0.39557`, WER `0.76128`.
+  - Completeness rerank improves:
+    - CER by about `-0.03323`.
+    - Hotword Only CER by about `-0.08113`.
+    - WER by about `-0.15885`.
+    - Entity Recall by about `+0.00240`.
+- Interpretation:
+  - This is the first clean naked-CB-Whisper improvement on Shuili after the v3 rerank issue was identified.
+  - It remains worse than the current COVO-assisted best raw CER (`0.090280`), but it substantially narrows the gap without using neutral external ASR or COVO.
+  - Because the margin was selected after Shuili diagnostics, this should be validated on AISHELL/dev before treating it as a general method. For now, it is a promising Shuili-specific completeness prior.
