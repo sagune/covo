@@ -3745,3 +3745,92 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Takeaway:
   - Candidate simplification transfers positively to AISHELL if CB-Whisper top1 is kept.
   - Neutral-first is dataset-dependent: helpful on Shuili, harmful as a top1 replacement on AISHELL.
+
+#### Pure CB-Whisper Shuili control
+
+- Goal:
+  - Prove that the current Shuili `<10%` result is not achievable by pure CB-Whisper top1 alone.
+  - Pure CB-Whisper here means: use `input.asr_top1` from the original CB-Whisper evidence, without COVO, without neutral-first, without candidate selection.
+- Source evidence:
+  - `src/logs/cbwhisper_covo_evidence_shuili_v3_current_rerun_20260629.jsonl`
+  - Rows: `1152`.
+- Pure CB-Whisper prediction file:
+  - `src/logs/shuili_pure_cbwhisper_asr_top1_predictions_20260708.jsonl`
+  - Built by copying `input.asr_top1` into `prediction`.
+- Metrics:
+  - Original CB-Whisper metrics CSV:
+    - File: `src/logs/test_metrics_shuili_v3_current_rerun_20260629.csv`
+    - Entity Recall: `0.87155`.
+    - CER: `0.14022`.
+    - Hotword Sentence CER: `0.13963`.
+    - Hotword Only CER: `0.39557`.
+    - WER: `0.76128`.
+  - COVO evaluator raw CER:
+    - Pure CB-Whisper raw CER: `0.154149`.
+    - Exact rows: `257/1152`.
+    - N-best oracle CER from the same pure evidence: `0.064885`.
+    - N-best exact: `688/1152`.
+    - `nbest_better_than_pred=722`.
+  - Filler-normalized CER:
+    - Pure CB-Whisper filler-normalized CER: `0.098139`.
+- Simplified-output sanity check:
+  - Prediction file: `src/logs/shuili_pure_cbwhisper_asr_top1_simplified_predictions_20260708.jsonl`.
+  - This only converts pure CB-Whisper output to simplified Chinese, still no COVO and no candidate selection.
+  - Raw CER after simplification: `0.139166`.
+  - Filler-normalized CER remains `0.098139`.
+- Comparison to current best:
+  - Current best Shuili pipeline:
+    - Candidate pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_clean_anchor_simplified_20260708.jsonl`.
+    - COVO prediction: `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_clean_anchor_simplified_normdomain_sft60k_predictions_20260708.jsonl`.
+    - Raw CER: `0.090280`.
+    - Filler-normalized CER: `0.086049`.
+  - Therefore:
+    - Pure CB-Whisper original CSV CER `0.14022` -> current best raw CER `0.09028`.
+    - Pure CB-Whisper simplified raw CER `0.13917` -> current best raw CER `0.09028`.
+    - Pure CB-Whisper filler-normalized CER `0.09814` -> current best filler-normalized CER `0.08605`.
+- Interpretation:
+  - Pure CB-Whisper is far from the current best result.
+  - The useful improvement comes from using CB-Whisper as a candidate generator, then applying candidate normalization/cleaning and COVO selection/editing.
+  - The pure evidence has strong oracle headroom (`0.064885` oracle CER and `722` rows where N-best beats top1), which supports the thesis that candidate use is necessary.
+
+#### Shuili large-v3 as main-output control
+
+- Clarification:
+  - The intended control is not only pure CB-Whisper top1.
+  - We also need to prove the effect of using neutral Whisper large-v3 as the main output/top1 anchor.
+- Standalone large-v3 main output:
+  - Source decode: `src/logs/shuili_whisper_large_v3_neutral_beam5_full_20260708.jsonl`.
+  - Prediction file: `src/logs/shuili_large_v3_neutral_main_predictions_20260708.jsonl`.
+  - Built by copying `asr_top1` from the neutral large-v3 decode into `prediction`.
+  - Raw CER: `0.123611`.
+  - Filler-normalized CER: `0.094920`.
+  - Exact rows under filler-normalized evaluator: `585/1149`.
+- Large-v3 as top1 anchor inside CB-Whisper candidate pool:
+  - Candidate pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_clean_anchor_simplified_20260708.jsonl`.
+  - Policy:
+    - Put neutral large-v3 output first.
+    - Keep CB-Whisper candidates behind it.
+    - Remove incomplete/off-anchor candidates.
+    - Normalize candidates to simplified Chinese.
+  - Pool top1 CER: `0.121389`.
+  - Pool oracle CER: `0.042981`.
+  - Pool oracle exact: `790/1152`.
+- Large-v3 main output + CB-Whisper candidates + COVO:
+  - Prediction file: `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_clean_anchor_simplified_normdomain_sft60k_predictions_20260708.jsonl`.
+  - Raw CER: `0.090280`.
+  - Filler-normalized CER: `0.086049`.
+  - N-best oracle CER: `0.042981`.
+  - `fixed_to_exact=240`, `improved_partial=218`, `worsened_error=82`.
+- Comparison:
+  - Pure CB-Whisper top1 raw CER: `0.154149`.
+  - Pure CB-Whisper simplified raw CER: `0.139166`.
+  - Standalone large-v3 main output raw CER: `0.123611`.
+  - Large-v3 main output plus CB-Whisper candidates and COVO raw CER: `0.090280`.
+- Interpretation:
+  - Using large-v3 as the main output/top1 anchor is clearly helpful on Shuili.
+  - But large-v3 alone is still not enough to reach `<10%`.
+  - The final gain comes from combining:
+    - large-v3 as clean acoustic anchor,
+    - CB-Whisper as hotword/context candidate generator,
+    - candidate cleaning/simplification,
+    - COVO candidate selection and local editing.
