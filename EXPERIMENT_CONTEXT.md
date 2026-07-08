@@ -3593,3 +3593,49 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation:
   - Candidate cleanup has now removed many visibly bad alternatives, but the model still fails to exploit reachable oracle candidates.
   - The remaining <10% gap is no longer mainly caused by obvious fragment/off-topic candidate pollution; it is selection/editing behavior (`nbest_better_than_pred=497`).
+
+#### Shuili candidate analysis after anchor-cleaned COVO
+
+- Candidate-pool distribution:
+  - Pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_clean_anchor_20260708.jsonl`.
+  - Rows: `1152`.
+  - Average N-best: `7.7917`.
+  - Exact reference in N-best: `749`.
+  - Exact reference rank distribution:
+    - rank1 `350`, rank2 `170`, rank3 `100`, rank4 `45`, rank5 `28`, rank6 `19`, rank7 `14`, rank8 `9`, rank9 `8`, rank10 `6`.
+  - Best-candidate source distribution:
+    - `neutral_whisper_large_v3_beam5`: `509`.
+    - `cbwhisper_nbest`: `455`.
+    - `cbwhisper_top1`: `104`.
+    - `multiprompt_whisper`: `76`.
+    - `cbwhisper_scored`: `8`.
+- COVO behavior:
+  - Prediction matched one of the N-best candidates in `1112/1152` rows; only `40` rows are free rewrites.
+  - This means the current COVO mostly behaves as a candidate selector, not as a strong free-form editor.
+  - It still fails to choose reachable exact candidates:
+    - `base_correct_broken=105`, all with exact oracle at rank1.
+    - `unchanged_error` includes many rows with exact candidates at rank2/3+.
+    - Examples:
+      - REF `自然界的水资源进行呢调配控制`; base/pred misses `呢`; exact candidate exists at rank6.
+      - REF `那么我们呢`; base/pred is `那么我们的`; exact candidate exists at rank4.
+      - REF `咱们主要的培养阶段呢`; base/pred ends with `是`; exact candidate exists at rank3.
+- Simplified/traditional issue:
+  - Anchor-cleaned pool still contains `608` traditional-form candidates across `231/1152` rows.
+  - Traditional candidates by source:
+    - `cbwhisper_nbest`: `453`.
+    - `multiprompt_whisper`: `71`.
+    - `cbwhisper_scored`: `50`.
+    - `cbwhisper_top1`: `23`.
+    - `neutral_whisper_large_v3_beam5`: `11`.
+  - COVO outputs traditional text in `40` rows, and all `40` hurt raw CER.
+  - If only the COVO prediction is converted from traditional to simplified, CER drops from `0.100184` to `0.091613`.
+  - If the N-best candidates are converted to simplified and re-deduplicated before inference:
+    - Average N-best changes only from `7.7917` to `7.7786`.
+    - N-best oracle CER improves from `0.047489` to `0.042981`.
+    - Exact reference in N-best improves from `749` to `790`.
+  - Therefore simplification should be treated as candidate normalization, not merely as an output post-processing patch.
+- Interpretation:
+  - The current pool has two remaining candidate-side issues:
+    - Simplified/traditional inconsistency injects non-ASR orthographic noise and hurts both oracle accounting and COVO output.
+    - Correct candidates are often available but COVO lacks a reliable rank/source preference to pick them.
+  - The next clean experiment should normalize N-best candidates to simplified Chinese before COVO conversion, then rerun source-aware COVO. This is a data-format normalization step and is less ad-hoc than changing prediction text after decoding.
