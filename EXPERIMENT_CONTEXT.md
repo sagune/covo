@@ -3453,3 +3453,40 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Candidate source information is useful, but prompt-only use is not enough to pass the `<10%` raw CER target.
   - The remaining issue is learnable selection behavior: the model sees oracle-reachable candidates but still chooses/rewrites imperfectly.
   - A proper next experiment should train a source-aware selector/editor on this exact prompt family, not only append source tags at inference.
+
+#### Shuili complete-candidate filtering
+
+- Motivation:
+  - Inspection found incomplete fragment candidates such as `混凝土工种` inside N-best.
+  - These fragments are useful as local evidence, but harmful when presented as full-sentence candidates to COVO.
+- Code change:
+  - `src/analysis/merge_asr_candidate_pool.py` now supports:
+    - `--filter-incomplete`
+    - `--min-length-ratio`
+    - `--length-slack`
+  - It keeps the neutral anchor, then filters auxiliary CB/multiprompt candidates that are much shorter/longer than the anchor or contain known polluted video-tail phrases.
+- First filter:
+  - `--min-length-ratio 0.68 --length-slack 5`
+  - Dropped `150` candidates.
+  - It removed exact short fragments such as `混凝土工种`, but still allowed some too-short variants like `还有混凝土工种`.
+- Stricter filter:
+  - `--min-length-ratio 0.75 --length-slack 3`
+  - Output pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_complete_v2_20260708.jsonl`
+  - Dropped `396` incomplete/polluted candidates.
+  - Average N-best: `8.7283`.
+  - Top1 CER: `0.121389`.
+  - Oracle CER: `0.042981` unchanged.
+  - Oracle exact: `790/1152` unchanged.
+  - Example `BAC009S0001W0467` after filtering:
+    - Removed `混凝土工种` and `还有混凝土工种`.
+    - Kept longer evidence-like candidates such as `还有红柠桃公种混凝土工种`.
+- Source-aware COVO on complete-v2:
+  - Input: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_sourceaware_neutralfirst_beam5_rawpool_complete_v2.qwen.jsonl`
+  - Prediction: `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_complete_v2_normdomain_sft60k_predictions_20260708.jsonl`
+  - Raw CER: `0.100375`.
+  - Filler-normalized CER: `0.086598`.
+  - Audit: `fixed_to_exact=215`, `unchanged_error=262`, `base_correct_broken=105`, `worsened_error=104`.
+- Comparison:
+  - Source-aware rawpool before completeness filtering: raw CER `0.102597`.
+  - Complete-v2 improves raw CER by about `0.22` absolute points and is now just above the `<10%` target.
+  - Completeness filtering improves COVO behavior without hurting oracle reachability, so this is a cleaner candidate-pool policy than feeding fragment candidates.

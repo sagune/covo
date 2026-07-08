@@ -50,6 +50,19 @@ def edit_distance(a: str, b: str) -> int:
     return dp[-1]
 
 
+BAD_PHRASES = (
+    "请不吝点赞",
+    "订阅",
+    "转发",
+    "打赏",
+    "明镜",
+    "点点栏目",
+    "YoYo",
+    "Television",
+    "Exclusive",
+)
+
+
 def read_jsonl(path: Path) -> List[Dict[str, Any]]:
     rows = []
     with path.open("r", encoding="utf-8") as handle:
@@ -94,6 +107,25 @@ def unique_merge(items: Iterable[Tuple[str, Dict[str, Any]]], max_items: int) ->
     return texts, sources, added
 
 
+def is_complete_candidate(text: str, anchor: str, min_ratio: float, length_slack: int) -> Tuple[bool, str]:
+    key = normalize_text(text)
+    anchor_key = normalize_text(anchor)
+    if not key:
+        return False, "empty"
+    if any(phrase.lower() in str(text).lower() for phrase in BAD_PHRASES):
+        return False, "bad_phrase"
+    if len(anchor_key) <= 0:
+        return True, ""
+    if len(anchor_key) <= 6:
+        return True, ""
+    min_len = max(2, min(int(round(len(anchor_key) * float(min_ratio))), len(anchor_key) - int(length_slack)))
+    if len(key) < min_len:
+        return False, f"too_short:{len(key)}<{min_len}"
+    if len(key) > max(len(anchor_key) + max(8, int(length_slack) * 2), int(round(len(anchor_key) * 1.65))):
+        return False, "too_long"
+    return True, ""
+
+
 def make_pinyin(texts: List[str]) -> List[str]:
     try:
         from pypinyin import lazy_pinyin
@@ -123,6 +155,9 @@ def main() -> int:
     parser.add_argument("--max-nbest", type=int, default=10)
     parser.add_argument("--asr-first", action="store_true")
     parser.add_argument("--replace-top1", action="store_true")
+    parser.add_argument("--filter-incomplete", action="store_true")
+    parser.add_argument("--min-length-ratio", type=float, default=0.68)
+    parser.add_argument("--length-slack", type=int, default=5)
     args = parser.parse_args()
 
     cb_rows = read_jsonl(Path(args.cb_pool))
@@ -137,6 +172,9 @@ def main() -> int:
     added_rows = 0
     added_candidates = 0
     matched = 0
+    dropped_incomplete = 0
+    dropped_reasons: Dict[str, int] = {}
+    drop_examples = []
 
     for row in cb_rows:
         new_row = json.loads(json.dumps(row, ensure_ascii=False))
@@ -163,6 +201,24 @@ def main() -> int:
         )
         if asr_text:
             matched += 1
+        anchor = asr_text or str(input_block.get("asr_top1", "") or (old_nbest[0] if old_nbest else ""))
+        if bool(args.filter_incomplete):
+            filtered_old_items = []
+            for text, source in old_items:
+                keep, reason = is_complete_candidate(
+                    text=text,
+                    anchor=anchor,
+                    min_ratio=float(args.min_length_ratio),
+                    length_slack=int(args.length_slack),
+                )
+                if keep:
+                    filtered_old_items.append((text, source))
+                    continue
+                dropped_incomplete += 1
+                dropped_reasons[reason] = dropped_reasons.get(reason, 0) + 1
+                if len(drop_examples) < 20:
+                    drop_examples.append({"id": utt_id, "text": text, "reason": reason, "anchor": anchor})
+            old_items = filtered_old_items
         if args.asr_first:
             merged, sources, added = unique_merge([asr_item] + old_items, int(args.max_nbest))
         else:
@@ -211,6 +267,10 @@ def main() -> int:
         "source_name": str(args.source_name),
         "added_rows": added_rows,
         "added_candidates": added_candidates,
+        "filter_incomplete": bool(args.filter_incomplete),
+        "dropped_incomplete": dropped_incomplete,
+        "dropped_reasons": dropped_reasons,
+        "drop_examples": drop_examples,
         "avg_nbest": sum(len(row.get("input", {}).get("nbest", []) or []) for row in output_rows) / max(len(output_rows), 1),
         "top1_corpus_cer": total_top_ed / max(total_chars, 1),
         "oracle_corpus_cer": total_oracle_ed / max(total_chars, 1),
