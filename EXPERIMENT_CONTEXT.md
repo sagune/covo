@@ -3490,3 +3490,32 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Source-aware rawpool before completeness filtering: raw CER `0.102597`.
   - Complete-v2 improves raw CER by about `0.22` absolute points and is now just above the `<10%` target.
   - Completeness filtering improves COVO behavior without hurting oracle reachability, so this is a cleaner candidate-pool policy than feeding fragment candidates.
+
+#### Shuili candidate-pool reinspection after complete-v2
+
+- User concern:
+  - Some N-best entries were still not full utterance candidates, e.g. `水利工程 闸门闸` for reference `那么咱们这一个水利工程`.
+  - The desired candidate pool should be sentence-level and roughly length-consistent, not local fragments.
+- Complete-v2 audit:
+  - Pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_complete_v2_20260708.jsonl`.
+  - Average N-best: `8.7283`.
+  - Samples with fewer than 5 candidates: `43/1152`.
+  - Samples with candidates still short relative to reference: `113/1152`.
+  - Samples with far/off-topic candidates relative to neutral anchor: `196/1152`, including `95` with multiprompt-derived far candidates.
+  - Samples whose oracle candidate CER is still above `10%`: `199/1152`.
+- More strict length-only check:
+  - Command settings: `--min-length-ratio 0.88 --length-slack 1`.
+  - Output pool: `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_complete_strict_20260708.jsonl`.
+  - Dropped `1404` incomplete/polluted candidates.
+  - Average N-best decreased to `7.8481`.
+  - Oracle CER stayed `0.042981`; oracle exact stayed `790/1152`.
+  - Short-vs-reference samples decreased from `113` to `31`.
+  - Example `BAC009S0001W0006` became:
+    - `那么咱们这个水利工程`
+    - `那么咱们这一个水利工程`
+    - `咱们这一个水利工程`
+    - The bad candidates `水利工程 闸门闸` and `水利工程 闸门门` were removed.
+- Remaining issue:
+  - Strict length filtering does not remove full-length but semantically off-topic candidates.
+  - Example `BAC009S0001W0660` still keeps multiprompt candidates such as `这种事情在我们的生活上比较常见`, although they are not plausible sentence-level alternatives for the current audio.
+  - Next candidate-pool cleanup should add an anchor-similarity/coverage filter, especially for multiprompt candidates, while preserving the current oracle CER.
