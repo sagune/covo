@@ -3419,3 +3419,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The route is real: replacing the strong hotword-biased top1 with a neutral acoustic view reduces raw CER.
   - The remaining gap is not only candidate generation. The oracle is around `4.30%`, but COVO still outputs around `10.39%`; it leaves many oracle-reachable errors unresolved.
   - Next useful step is not more beam search. It should train or prompt a source-aware selector/editor that knows `neutral_whisper` is the clean anchor while CB-Whisper lower candidates may preserve oral fillers and hotword variants.
+
+#### Shuili source-aware COVO prompt experiment
+
+- Goal:
+  - Test whether COVO can use candidate source information without retraining.
+  - The prompt tells the model that `neutral_whisper` is a clean acoustic anchor, while `cbwhisper` candidates may add oral fillers/domain terms but may also contain context-bias hallucinations.
+- Code change:
+  - `src/analysis/convert_shuili_to_covo_format.py` now has optional flags:
+    - `--include-source-tags`
+    - `--source-aware-guidance`
+    - `--source-aware-strict`
+  - Default behavior is unchanged.
+- Input pool:
+  - `src/logs/cbwhisper_candidate_pool_shuili_v3_neutralfirst_beam5_rawpool_20260708.jsonl`
+- Source-aware prompt, normal guidance:
+  - COVO input: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_sourceaware_neutralfirst_beam5_rawpool.qwen.jsonl`
+  - Prediction: `src/logs/shuili_covo_sourceaware_neutralfirst_beam5_rawpool_normdomain_sft60k_predictions_20260708.jsonl`
+  - Raw CER: `0.102597`.
+  - Filler-normalized CER: `0.087697`.
+  - Audit: `fixed_to_exact=215`, `unchanged_error=262`, `base_correct_broken=108`, `worsened_error=102`.
+- Source-aware prompt, strict guidance:
+  - COVO input: `cbwhisper_covo_migration_20260609_tar_extracted/covo/data/processed/shuili/test_text_rewrite_sourceaware_strict_neutralfirst_beam5_rawpool.qwen.jsonl`
+  - Prediction: `src/logs/shuili_covo_sourceaware_strict_neutralfirst_beam5_rawpool_normdomain_sft60k_predictions_20260708.jsonl`
+  - Raw CER: `0.104120`.
+  - Filler-normalized CER: `0.087540`.
+  - Audit: `fixed_to_exact=215`, `unchanged_error=257`, `base_correct_broken=121`, `worsened_error=106`.
+- Comparison:
+  - Neutral-first rawpool without source-aware prompt: raw CER `0.103866`, filler-normalized CER `0.089896`.
+  - Source-aware normal guidance is currently best on raw CER: `0.102597`.
+  - Strict guidance improves filler-normalized CER slightly but hurts raw CER, mainly by breaking more originally correct cases.
+- Interpretation:
+  - Candidate source information is useful, but prompt-only use is not enough to pass the `<10%` raw CER target.
+  - The remaining issue is learnable selection behavior: the model sees oracle-reachable candidates but still chooses/rewrites imperfectly.
+  - A proper next experiment should train a source-aware selector/editor on this exact prompt family, not only append source tags at inference.

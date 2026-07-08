@@ -23,6 +23,18 @@ INSTRUCTION = (
     "不要自由添加 N-best 中没有证据的前后缀。如果证据不足，保持 ASR top-1 不变。"
 )
 
+SOURCE_AWARE_GUIDANCE = (
+    "候选来源说明：neutral_whisper 是未注入热词的声学识别结果，通常更干净但可能漏掉口语词；"
+    "cbwhisper 候选包含热词/上下文偏置，可能补出口语词或专业词，也可能产生热词幻觉。"
+    "请优先以 neutral_whisper 作为干净锚点，只在 CB 候选、拼音和上下文共同支持时吸收其局部内容。"
+)
+
+SOURCE_AWARE_STRICT_GUIDANCE = (
+    "请尽量直接输出某一个 N-best 候选，或只做最小必要合并；不要自由改写。"
+    "当 neutral_whisper 与 CB 候选冲突时，只有多个 CB 候选共同支持某个口语词、专业词或局部片段时才采用 CB 局部；"
+    "如果只是单条 CB 候选出现热词或奇怪重复，视为可能的上下文偏置幻觉，应保持 neutral_whisper。"
+)
+
 
 def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as handle:
@@ -59,6 +71,26 @@ def unique_texts(items: Iterable[Any], limit: int) -> List[str]:
         if len(output) >= limit:
             break
     return output
+
+
+def unique_texts_with_sources(raw_input: Dict[str, Any], limit: int) -> Tuple[List[str], List[Dict[str, Any]]]:
+    nbest = list(raw_input.get("nbest", []) or [])
+    raw_sources = list(raw_input.get("nbest_sources", []) or [])
+    output: List[str] = []
+    sources: List[Dict[str, Any]] = []
+    seen = set()
+    for idx, item in enumerate(nbest):
+        text = str(item or "").strip()
+        key = normalize_text(text)
+        if not text or not key or key in seen:
+            continue
+        source = raw_sources[idx] if idx < len(raw_sources) and isinstance(raw_sources[idx], dict) else {}
+        output.append(text)
+        sources.append(source)
+        seen.add(key)
+        if len(output) >= limit:
+            break
+    return output, sources
 
 
 def edit_distance(a: str, b: str) -> int:
@@ -240,8 +272,31 @@ def format_consensus(consensus: Dict[str, Any]) -> List[str]:
     return lines
 
 
-def build_user_prompt(input_block: Dict[str, Any], max_pinyin: int, max_confusables: int) -> str:
+def _source_label(source: Dict[str, Any]) -> str:
+    name = str(source.get("source", "unknown") or "unknown")
+    if "neutral_whisper" in name:
+        return "neutral_whisper"
+    if name.startswith("cbwhisper"):
+        return name
+    if name.startswith("multiprompt"):
+        prompt = source.get("prompt")
+        return f"{name}/{prompt}" if prompt else name
+    return name
+
+
+def build_user_prompt(
+    input_block: Dict[str, Any],
+    max_pinyin: int,
+    max_confusables: int,
+    include_source_tags: bool = False,
+    source_aware_guidance: bool = False,
+    source_aware_strict: bool = False,
+) -> str:
     lines = [INSTRUCTION]
+    if source_aware_guidance:
+        lines.append(SOURCE_AWARE_GUIDANCE)
+    if source_aware_strict:
+        lines.append(SOURCE_AWARE_STRICT_GUIDANCE)
     asr_top1 = str(input_block.get("asr_top1", "")).strip()
     lines.append(f"ASR top-1: {asr_top1}")
     nbest = list(input_block.get("nbest", []) or [])
@@ -249,6 +304,12 @@ def build_user_prompt(input_block: Dict[str, Any], max_pinyin: int, max_confusab
         lines.append("N-best:")
         for idx, hyp in enumerate(nbest, 1):
             lines.append(f"{idx}. {hyp}")
+    if include_source_tags:
+        sources = list(input_block.get("nbest_sources", []) or [])
+        if sources:
+            lines.append("Candidate sources:")
+            for idx, source in enumerate(sources[: len(nbest)], 1):
+                lines.append(f"{idx}. {_source_label(source)}")
     pinyin = list(input_block.get("nbest_pinyin", []) or [])[:max_pinyin]
     if pinyin:
         lines.append("Pinyin:")
@@ -273,10 +334,11 @@ def convert_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
     for idx, record in enumerate(read_jsonl(Path(args.input))):
         reference = str(record.get(args.reference_field, "")).strip()
         raw_input = dict(record.get("input", {}) or {})
-        nbest = unique_texts(raw_input.get("nbest", []) or [], int(args.max_nbest))
+        nbest, nbest_sources = unique_texts_with_sources(raw_input, int(args.max_nbest))
         if not nbest:
             top1 = str(raw_input.get("asr_top1", record.get("asr_top1", ""))).strip()
             nbest = [top1] if top1 else []
+            nbest_sources = [{} for _ in nbest]
         asr_top1 = nbest[0] if nbest else ""
         pinyin = list(raw_input.get("nbest_pinyin", []) or [])[: len(nbest)]
         consensus = build_nbest_consensus(
@@ -289,6 +351,7 @@ def convert_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
         input_block = {
             "asr_top1": asr_top1,
             "nbest": nbest,
+            "nbest_sources": nbest_sources,
             "nbest_pinyin": pinyin,
             "asr_top1_pinyin": pinyin[0] if pinyin else "",
             "nbest_consensus": consensus,
@@ -309,6 +372,9 @@ def convert_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
                         input_block,
                         max_pinyin=int(args.max_pinyin),
                         max_confusables=int(args.max_confusables),
+                        include_source_tags=bool(args.include_source_tags),
+                        source_aware_guidance=bool(args.source_aware_guidance),
+                        source_aware_strict=bool(args.source_aware_strict),
                     ),
                 },
             ],
@@ -369,6 +435,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-uncertain-spans", type=int, default=8)
     parser.add_argument("--max-span-variants", type=int, default=6)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--include-source-tags", action="store_true")
+    parser.add_argument("--source-aware-guidance", action="store_true")
+    parser.add_argument("--source-aware-strict", action="store_true")
     return parser.parse_args()
 
 
