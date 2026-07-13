@@ -4162,3 +4162,23 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation:
   - The user's diagnosis was correct: a meaningful part of the remaining error came from unsupported word insertion rather than hotword recall.
   - Anti-insertion is a lightweight reranking prior, not a hard gate; it remains compatible with the paper's "lightweight CB-Whisper + COVO evidence" direction.
+
+#### Shuili video standalone large-v3 baseline
+
+- Purpose:
+  - Check the naked `openai/whisper-large-v3` baseline on the current Shuili video test set, without CB-Whisper hotword prompting/reranking and without COVO.
+- Command:
+  - `analysis/whisper_clean_decode.py --root /root/autodl-tmp/datasets/shuili/data_shuil_videos_largev3 --split test --kw-type natural --whisper-ckpt openai/whisper-large-v3 --batch-size 1 --num-beams 5`
+- Output:
+  - CSV: `src/logs/whisper_clean_decode_shuili_videos_large_v3_beam5_20260714.csv`.
+  - Stdout: `src/logs/whisper_clean_decode_shuili_videos_large_v3_beam5_20260714_stdout.log`.
+- Metrics:
+  - Samples: `990`.
+  - Standard script corpus CER: `0.09323`.
+  - Standard script mean CER: `0.10671`.
+  - Exact matches: `535/990`.
+  - Filler + number normalized CER: `0.08367`.
+  - Filler + number normalized exact matches: `580/990`.
+- Comparison:
+  - Current best anti-insertion CB-Whisper + compact COVO route has filler + number normalized CER `0.08271`.
+  - The full route is only about `0.00095` absolute CER better than naked large-v3 under the current normalized metric, so the remaining paper problem is proving that the hotword/COVO workflow adds robust value beyond an already strong large-v3 baseline.
