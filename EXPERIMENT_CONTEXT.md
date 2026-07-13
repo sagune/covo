@@ -4115,3 +4115,50 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Previous best simplified verbose COVO number-normalized CER: `0.08643`.
   - Compact v3 number-normalized CER: `0.08595`.
   - Compact v3 is both shorter and slightly better; promote compact evidence as the default COVO input style for the current Shuili video workflow.
+
+#### Shuili video CB-Whisper anti-insertion prior
+
+- Motivation:
+  - Error inspection showed that many residual mistakes came from CB-Whisper/COVO selecting candidates with unsupported extra words rather than true hotword corrections.
+  - Examples include extra sentence-initial words such as `是/与/包括/要`, or tail insertions that do not carry hotword evidence.
+  - The existing completeness rerank helped avoid fragments, but it could also prefer unnecessarily longer candidates inside the near-best score band.
+- Code change:
+  - `CBWhisper` now has an optional anti-insertion prior:
+    - `enable_insertion_penalty`
+    - `insertion_penalty_weight`
+    - `insertion_penalty_free_chars`
+    - `insertion_penalty_min_anchor_chars`
+    - `insertion_penalty_allow_exact_gain`
+  - The penalty compares each candidate to the best-ASR anchor and subtracts score for unsupported inserted characters.
+  - If the longer candidate gains exact hotword coverage, the insertion penalty can be waived, so real hotword corrections are still allowed.
+  - Completeness rerank now prefers near-best candidates with lower insertion penalty before using length as a tie-breaker.
+  - `run_cbwhisper_shuili_v3_kws_test.py` exposes these knobs through `CBW_INSERTION_PENALTY*` environment variables.
+- Full CB-Whisper run:
+  - Setting:
+    - `CBW_COMPLETENESS_RERANK=1`
+    - `CBW_COMPLETENESS_MARGIN=0.3`
+    - `CBW_INSERTION_PENALTY=1`
+    - `CBW_INSERTION_PENALTY_WEIGHT=0.25`
+    - `CBW_INSERTION_PENALTY_FREE_CHARS=1`
+  - Metrics: `src/logs/test_metrics_shuili_videos_v3_expand180_completeness_m03_insertpen025_20260713.csv`.
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_expand180_completeness_m03_insertpen025_20260713.jsonl`.
+  - Entity Recall: `0.94144`.
+  - CER: `0.14434` versus previous `0.14499`.
+  - Hotword Sentence CER: `0.10481` versus previous `0.10699`.
+  - Hotword Only CER: `0.09532` versus previous `0.10160`.
+  - WER: `0.51212` versus previous `0.50202`; WER worsened slightly, so this should be judged mainly through downstream CER and error analysis.
+- Downstream COVO run with compact evidence:
+  - Messages: `src/logs/cbwhisper_covo_messages_shuili_videos_expand180_insertpen025_compact_normdomain_sft60k_20260713.jsonl`.
+  - Predictions: `src/logs/shuili_videos_covo_expand180_insertpen025_compact_normdomain_sft60k_predictions_20260713.jsonl`.
+  - Raw COVO evaluator CER: `0.11116`, baseline `0.12041`.
+  - Filler + number normalized CER: `0.08271`, baseline `0.10461`.
+  - Improved/worsened/unchanged under number-normalized evaluation: `221/96/673`.
+- Comparison with previous compact-v3 route:
+  - Previous compact-v3 number-normalized CER: `0.08595`.
+  - Anti-insertion + compact route number-normalized CER: `0.08271`.
+  - Prediction edits decreased: `903` -> `869`.
+  - Worsened samples decreased: `103` -> `96`.
+  - Improved samples increased: `207` -> `221`.
+- Interpretation:
+  - The user's diagnosis was correct: a meaningful part of the remaining error came from unsupported word insertion rather than hotword recall.
+  - Anti-insertion is a lightweight reranking prior, not a hard gate; it remains compatible with the paper's "lightweight CB-Whisper + COVO evidence" direction.

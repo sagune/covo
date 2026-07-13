@@ -158,6 +158,11 @@ class CBWhisper(pl.LightningModule):
         consensus_rerank_min_support: int = 2,
         enable_completeness_rerank: bool = False,
         completeness_rerank_total_margin: float = 0.3,
+        enable_insertion_penalty: bool = False,
+        insertion_penalty_weight: float = 0.25,
+        insertion_penalty_free_chars: int = 1,
+        insertion_penalty_min_anchor_chars: int = 4,
+        insertion_penalty_allow_exact_gain: bool = True,
         neutral_anchor: bool = False,
         neutral_anchor_as_top1: bool = False,
         neutral_anchor_include_in_nbest: bool = True,
@@ -1088,6 +1093,60 @@ class CBWhisper(pl.LightningModule):
             "suspicious_single_letter_prefix": bool(suspicious_single_letter_prefix),
         }
 
+    def _unsupported_insertion_stats(self, anchor: str, candidate: str, exact_gain: float = 0.0) -> dict:
+        anchor_norm = self._normalize_text_for_rescore(anchor)
+        candidate_norm = self._normalize_text_for_rescore(candidate)
+        min_anchor_chars = max(1, int(getattr(self.hparams, "insertion_penalty_min_anchor_chars", 4)))
+        free_chars = max(0, int(getattr(self.hparams, "insertion_penalty_free_chars", 1)))
+        if (
+            not bool(getattr(self.hparams, "enable_insertion_penalty", False))
+            or len(anchor_norm) < min_anchor_chars
+            or len(candidate_norm) <= len(anchor_norm)
+        ):
+            return {
+                "penalty": 0.0,
+                "inserted_chars": 0,
+                "extra_chars": 0,
+                "anchor": anchor_norm,
+                "candidate": candidate_norm,
+                "reason": "disabled_or_not_longer",
+            }
+        if (
+            bool(getattr(self.hparams, "insertion_penalty_allow_exact_gain", True))
+            and float(exact_gain) > 1e-9
+        ):
+            return {
+                "penalty": 0.0,
+                "inserted_chars": 0,
+                "extra_chars": max(0, len(candidate_norm) - len(anchor_norm)),
+                "anchor": anchor_norm,
+                "candidate": candidate_norm,
+                "reason": "exact_hotword_gain",
+            }
+
+        inserted = max(0, len(candidate_norm) - len(anchor_norm))
+        try:
+            from difflib import SequenceMatcher
+
+            inserted = 0
+            for tag, i1, i2, j1, j2 in SequenceMatcher(a=anchor_norm, b=candidate_norm).get_opcodes():
+                if tag == "insert":
+                    inserted += j2 - j1
+                elif tag == "replace":
+                    inserted += max(0, (j2 - j1) - (i2 - i1))
+        except Exception:
+            inserted = max(0, len(candidate_norm) - len(anchor_norm))
+        chargeable = max(0, int(inserted) - free_chars)
+        weight = max(0.0, float(getattr(self.hparams, "insertion_penalty_weight", 0.25)))
+        return {
+            "penalty": float(weight * chargeable),
+            "inserted_chars": int(inserted),
+            "extra_chars": int(max(0, len(candidate_norm) - len(anchor_norm))),
+            "anchor": anchor_norm,
+            "candidate": candidate_norm,
+            "reason": "unsupported_insertion" if chargeable > 0 else "within_free_chars",
+        }
+
     def _sequence_logprob(
         self, input_features: torch.Tensor, attention_mask: Optional[torch.Tensor], seq: torch.Tensor
     ) -> float:
@@ -1281,6 +1340,8 @@ class CBWhisper(pl.LightningModule):
         )
         exact_scaled_scores = self._scale_scores_within_candidates(exact_raw_scores, neutral_if_flat=False)
         phonetic_scaled_scores = self._scale_scores_within_candidates(phonetic_raw_scores, neutral_if_flat=False)
+        insertion_anchor = str(candidate_stats[baseline_idx].get("candidate", ""))
+        baseline_exact_weighted = float(exact_raw_scores[baseline_idx]) if 0 <= baseline_idx < len(exact_raw_scores) else 0.0
 
         exact_keyword_support = {}
         for stats in candidate_stats:
@@ -1316,6 +1377,12 @@ class CBWhisper(pl.LightningModule):
             prefix_stats = self._prefix_pollution_stats(str(stats.get("candidate", "")))
             prefix_penalty = float(prefix_stats.get("penalty", 0.0))
             prefix_penalty_score = prefix_penalty_weight * prefix_penalty
+            insertion_stats = self._unsupported_insertion_stats(
+                anchor=insertion_anchor,
+                candidate=str(stats.get("candidate", "")),
+                exact_gain=max(0.0, float(exact_weighted_score) - baseline_exact_weighted),
+            )
+            insertion_penalty_score = float(insertion_stats.get("penalty", 0.0))
             consensus_score, consensus_support, consensus_keywords = _candidate_consensus_score(stats)
             consensus_score_used = consensus_weight * consensus_score
             total_score = (
@@ -1324,6 +1391,7 @@ class CBWhisper(pl.LightningModule):
                 + float(phonetic_weight) * phonetic_score_scaled
                 + float(consensus_score_used)
                 - float(prefix_penalty_score)
+                - float(insertion_penalty_score)
             )
             scored_candidates.append(
                 {
@@ -1335,6 +1403,8 @@ class CBWhisper(pl.LightningModule):
                     "prefix_penalty": float(prefix_penalty),
                     "prefix_penalty_score": float(prefix_penalty_score),
                     "prefix_stats": prefix_stats,
+                    "insertion_penalty_score": float(insertion_penalty_score),
+                    "insertion_stats": insertion_stats,
                     "phonetic_score_used": float(phonetic_score),
                     "phonetic_score_scaled": float(phonetic_score_scaled),
                     "consensus_score": float(consensus_score),
@@ -1358,6 +1428,7 @@ class CBWhisper(pl.LightningModule):
                 selected = max(
                     near_best,
                     key=lambda item: (
+                        -float(item.get("insertion_penalty_score", 0.0)),
                         len(self._normalize_text_for_rescore(str(item.get("candidate", "")))),
                         float(item.get("total_score", 0.0)),
                     ),
@@ -1397,6 +1468,9 @@ class CBWhisper(pl.LightningModule):
                     "phon_gain_vs_baseline": float(item.get("phon_gain_vs_baseline", 0.0)),
                     "prefix_penalty": float(item.get("prefix_penalty", 0.0)),
                     "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
+                    "insertion_penalty_score": float(item.get("insertion_penalty_score", 0.0)),
+                    "insertion_inserted_chars": int((item.get("insertion_stats", {}) or {}).get("inserted_chars", 0)),
+                    "insertion_reason": str((item.get("insertion_stats", {}) or {}).get("reason", "")),
                     "prefix_ascii": str((item.get("prefix_stats", {}) or {}).get("ascii_prefix", "")),
                     "prefix_ascii_len": int((item.get("prefix_stats", {}) or {}).get("ascii_prefix_len", 0)),
                     "prefix_has_cjk_after_ascii": bool((item.get("prefix_stats", {}) or {}).get("has_cjk_after_ascii", False)),
