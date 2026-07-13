@@ -22,6 +22,9 @@ DOMAIN_WORDS = (
     "水资源", "水库", "水利", "工程", "河流", "河道", "江河", "湖泊", "流域", "灌区", "渠道",
     "灌溉", "防洪", "排涝", "供水", "输水", "调水", "南水北调", "丹江口", "汉江", "长江",
     "生态", "水质", "水量", "水位", "水电", "泵站", "水闸", "堤防", "大坝", "水厂", "涵闸",
+    "鄂北", "湖北", "湖北省", "用水", "用水量", "用水总量", "节水", "再生水", "缺水",
+    "资源配置", "资源配置工程", "水资源配置", "配置工程", "工程技术人员",
+    "年用水量", "年用水总量", "用水指标", "水指标", "以水定产", "水肥一体化", "唐白河",
 )
 STOP_TERMS = {
     "这个", "这一个", "那个", "那么", "我们", "咱们", "他们", "它们", "一个", "一种", "一些", "不是",
@@ -72,6 +75,10 @@ def is_good_hotword(term: str) -> bool:
         return False
     if term not in DOMAIN_WORDS and any(item in term for item in BAD_HOTWORD_SUBSTRINGS):
         return False
+    if term not in DOMAIN_WORDS and term.startswith(("北", "口", "源", "区", "置", "个", "于", "出", "成", "须", "根", "列", "及", "市")):
+        return False
+    if term not in DOMAIN_WORDS and term.endswith(("工", "资", "配", "地", "定", "总", "指")):
+        return False
     return any(ch in DOMAIN_CHARS for ch in term) or any(word in term for word in DOMAIN_WORDS)
 
 
@@ -106,7 +113,7 @@ def extract_hotword_candidates(texts: list[str], old_hotwords: list[str], max_ho
             break
         if term in old_set:
             continue
-        if any(term != kept and term in kept and len(term) <= 2 for kept in output):
+        if any(term != kept and term in kept and term not in DOMAIN_WORDS for kept in output):
             continue
         output.append(term)
         old_set.add(term)
