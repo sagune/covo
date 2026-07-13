@@ -29,6 +29,11 @@ STOP_TERMS = {
     "这里", "大家", "来说", "起来", "出来", "不断", "作为", "成为", "对于", "以及", "还有", "开始",
     "看到", "今天", "同时", "为了", "更加", "非常", "重要", "问题", "方式", "过程", "形成", "发展",
 }
+BAD_HOTWORD_SUBSTRINGS = (
+    "的", "了", "着", "和", "与", "把", "就", "这个", "我们", "咱们", "他们", "它们",
+    "给", "等", "有", "是", "在", "成为", "用好", "最多", "当地", "安全", "有限",
+    "薄", "方米", "系列",
+)
 
 
 @dataclass
@@ -64,6 +69,8 @@ def is_good_hotword(term: str) -> bool:
     if term.startswith(("的", "了", "和", "与", "在", "对", "从", "把", "将", "为")):
         return False
     if term.endswith(("的", "了", "呢", "啊", "嘛", "吗", "着", "过", "和", "与", "在", "是")):
+        return False
+    if term not in DOMAIN_WORDS and any(item in term for item in BAD_HOTWORD_SUBSTRINGS):
         return False
     return any(ch in DOMAIN_CHARS for ch in term) or any(word in term for word in DOMAIN_WORDS)
 
