@@ -4291,3 +4291,43 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - The candidate pool has enough information for the `~5%` oracle upper bound, but the available hand-written score features do not reveal the oracle candidate reliably.
   - High-CER failures are often not hotword failures (`exact_score=0`) but generic short-speech homophone/口语 errors. Examples: `官厅村 -> 欢迎光临`, `山海情 -> 3位请`, `分部支护 -> 分布知乎`.
   - To approach `6%`, the next route must use a stronger text-level correction/selection model over the n-best evidence, not just exact/phonetic/asr scalar tuning.
+
+#### Shuili video COVO same-length selection result
+
+- Goal for this overnight branch:
+  - Make the Shuili-video CB-Whisper workflow beat naked large-v3 and push CER toward `6%`.
+  - Keep the change recoverable and avoid retaining failed routes.
+- Failed pure-CB attempt:
+  - Tried allowing later exact-hotword candidates to bypass neutral anchor when the anchor was ranked first.
+  - Full run: `src/logs/test_metrics_shuili_videos_v3_neutral_guard_hotword_scan_20260714.csv`.
+  - Result worsened: CER `0.11339`, Recall `0.86074`, WER `0.67101`.
+  - The code change was reverted; this route is not retained.
+- COVO prompt/filter change:
+  - Added `--prefer-same-length` to append an instruction that prioritizes equal-length homophone/near-homophone substitutions over insertions/deletions.
+  - Added `--post-filter-same-length` to keep COVO predictions only when simplified, punctuation-free prediction length equals ASR top-1 length; otherwise it falls back to ASR top-1.
+  - Motivation: most useful Shuili COVO fixes are same-length substitutions, while many COVO regressions come from adding/deleting oral filler words or rewriting the sentence.
+- Best current route:
+  - Evidence input: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_neutral_guard_20260714.jsonl`.
+  - Command shape: `selector_spoken + prefer_same_length + clean_nbest + consensus/hotword evidence + post_filter_same_length`.
+  - Stdout: `src/logs/experiment_covo_shuili_videos_neutral_guard_spoken_samelenprior_normdomain_samelen_20260714_stdout.log`.
+  - Predictions: `src/logs/shuili_videos_covo_neutral_guard_spoken_samelenprior_normdomain_samelen_predictions_20260714.jsonl`.
+  - Raw evaluation:
+    - Output: `src/logs/evaluate_covo_shuili_videos_neutral_guard_spoken_samelenprior_normdomain_samelen_20260714.json`.
+    - CER `0.08635`.
+    - Baseline `input.asr_top1` CER `0.09871`.
+    - Improved/worsened/unchanged samples: `149/41/800`.
+  - Filler+number normalized evaluation:
+    - Output: `src/logs/filler_number_normalized_cer_shuili_videos_neutral_guard_spoken_samelenprior_normdomain_samelen_20260714.json`.
+    - CER `0.06844`.
+    - Baseline `0.08329`.
+    - Improved/worsened/unchanged samples: `152/33/805`.
+    - Exact samples increased from `584` to `664`.
+- Comparison:
+  - Naked large-v3 clean decode: raw corpus CER `0.09323`, filler+number normalized CER `0.08367`.
+  - Previous best COVO route: filler+number normalized CER `0.08271`.
+  - Current best route: raw CER `0.08635`, normalized CER `0.06844`.
+  - This beats naked large-v3 and gets close to the `6%` normalized target, but does not reach raw `6%`.
+- Notes:
+  - Increasing `max_nbest` from `8` to `16` produced the same result.
+  - `selector` prompt was too aggressive: even with same-length filtering, normalized CER was `0.07243`, worse than `selector_spoken`.
+  - The remaining gap to `6%` is likely from hard homophones where the right candidate is present but not selected, plus cases where no correct candidate exists in n-best.

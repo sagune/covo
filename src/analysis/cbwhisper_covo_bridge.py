@@ -118,6 +118,11 @@ HOTWORD_AWARE_EVIDENCE_INSTRUCTION = (
     "false_hotword_warning=yes 表示候选可能只是被热词误导，不能仅凭热词出现就采用。"
 )
 
+SAME_LENGTH_PRIOR_INSTRUCTION = (
+    "长度约束：除非多个高质量 N-best 候选都明确支持漏字或多字，最终输出在去除标点和空格后"
+    "应尽量与 ASR top-1 保持相同字数。优先做等长的同音/近音字替换，不要主动扩写、删减或改写句子。"
+)
+
 COMPACT_EVIDENCE_NOTE = (
     "证据说明：下面是压缩后的候选证据。若 ASR top-1 分数明显最高、句子完整，且没有候选支持的热词冲突，"
     "应优先保持 top-1；不要只因为拼音相同或某个 KWS 热词高分就改成低分同音候选。"
@@ -973,6 +978,8 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines = [INSTRUCTION]
     if compact:
         lines.append(COMPACT_EVIDENCE_NOTE)
+    if bool(getattr(args, "prefer_same_length", False)):
+        lines.append(SAME_LENGTH_PRIOR_INSTRUCTION)
     if bool(getattr(args, "protect_supported_hotwords", False)) and not compact:
         lines.append(PROTECTED_HOTWORD_INSTRUCTION)
     if (bool(getattr(args, "include_consensus_spans", False)) or int(getattr(args, "max_confusables", 0)) > 0) and not compact:
@@ -1245,6 +1252,67 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     return 0
 
 
+def post_filter_predictions(args: argparse.Namespace) -> int:
+    """Conservative post-filter for COVO predictions.
+
+    The Shuili video set is very sensitive to insertion/deletion errors.  This
+    filter keeps COVO substitutions that preserve the normalized character
+    length of ASR top-1, and otherwise falls back to top-1.  It intentionally
+    uses the same light text normalization as the prompt builder: simplify,
+    drop punctuation/space, but do not remove fillers or rewrite numbers.
+    """
+    if not bool(getattr(args, "post_filter_same_length", False)):
+        return 0
+
+    prediction_path = Path(args.prediction_output)
+    rows = list(read_jsonl(prediction_path))
+    kept = 0
+    reverted = 0
+    unchanged = 0
+    for row in rows:
+        input_block = row.get("input", {}) or {}
+        baseline = simplify_text(input_block.get("asr_top1", ""))
+        prediction = simplify_text(row.get("prediction", ""))
+        base_key = normalize_text(baseline)
+        pred_key = normalize_text(prediction)
+        decision = "unchanged"
+        if pred_key == base_key:
+            unchanged += 1
+        elif pred_key and len(pred_key) == len(base_key):
+            kept += 1
+            decision = "kept_same_length"
+        else:
+            row["prediction_before_post_filter"] = row.get("prediction", "")
+            row["raw_prediction_before_post_filter"] = row.get("raw_prediction", "")
+            row["prediction"] = baseline
+            row["raw_prediction"] = baseline
+            reverted += 1
+            decision = "reverted_length_mismatch"
+        row["post_filter"] = {
+            "same_length": True,
+            "decision": decision,
+            "baseline_norm_len": len(base_key),
+            "prediction_norm_len": len(pred_key),
+        }
+
+    write_jsonl(prediction_path, rows)
+    print(
+        json.dumps(
+            {
+                "post_filter": "same_length",
+                "prediction_output": str(prediction_path),
+                "kept": kept,
+                "reverted": reverted,
+                "unchanged": unchanged,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        flush=True,
+    )
+    return kept + reverted + unchanged
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     cmd_prepare(args)
     covo_dir = Path(args.covo_dir).resolve()
@@ -1285,6 +1353,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         command.extend(["--limit", str(args.infer_limit)])
     print("+ " + " ".join(command), flush=True)
     subprocess.run(command, cwd=str(covo_dir), check=True)
+    post_filter_predictions(args)
 
     if args.evaluate and eval_script.exists():
         eval_command = [
@@ -1359,6 +1428,11 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         help="Add structured hotword-aware evidence fields for candidate keep/drop/conflict status.",
     )
     parser.add_argument(
+        "--prefer-same-length",
+        action="store_true",
+        help="Tell COVO to prefer equal-length homophone substitutions over insertions/deletions.",
+    )
+    parser.add_argument(
         "--no-compact-evidence",
         dest="compact_evidence",
         action="store_false",
@@ -1401,6 +1475,11 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--progress-every", type=int, default=100)
     run.add_argument("--infer-limit", type=int, default=0)
     run.add_argument("--disable-thinking", action="store_true")
+    run.add_argument(
+        "--post-filter-same-length",
+        action="store_true",
+        help="After COVO inference, keep only predictions with the same normalized character length as ASR top-1.",
+    )
     run.add_argument("--evaluate", action="store_true")
     run.set_defaults(func=cmd_run)
     return parser.parse_args()
