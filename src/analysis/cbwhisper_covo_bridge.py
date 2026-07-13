@@ -118,6 +118,11 @@ HOTWORD_AWARE_EVIDENCE_INSTRUCTION = (
     "false_hotword_warning=yes 表示候选可能只是被热词误导，不能仅凭热词出现就采用。"
 )
 
+COMPACT_EVIDENCE_NOTE = (
+    "证据说明：下面是压缩后的候选证据。若 ASR top-1 分数明显最高、句子完整，且没有候选支持的热词冲突，"
+    "应优先保持 top-1；不要只因为拼音相同或某个 KWS 热词高分就改成低分同音候选。"
+)
+
 
 def read_jsonl(path: str | Path) -> Iterable[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
@@ -502,6 +507,7 @@ def format_consensus_spans(
     consensus: Dict[str, Any],
     hotword_rows: List[Dict[str, Any]] | None = None,
     protected_hotwords: List[str] | None = None,
+    compact: bool = False,
 ) -> List[str]:
     output: List[str] = []
     hotword_rows = hotword_rows or []
@@ -521,7 +527,9 @@ def format_consensus_spans(
             variants = list(item.get("variants", []) or [])
             suffix = ""
             if variants:
-                if hotword_rows:
+                if compact:
+                    suffix = " variants=" + json.dumps(variants, ensure_ascii=False, separators=(",", ":"))
+                elif hotword_rows:
                     variants_for_prompt = [
                         _variant_hotword_delta(
                             variant=str(variant),
@@ -531,9 +539,10 @@ def format_consensus_spans(
                         )
                         for variant in variants
                     ]
+                    suffix = " variants=" + json.dumps(variants_for_prompt, ensure_ascii=False, separators=(",", ":"))
                 else:
                     variants_for_prompt = variants
-                suffix = " variants=" + json.dumps(variants_for_prompt, ensure_ascii=False, separators=(",", ":"))
+                    suffix = " variants=" + json.dumps(variants_for_prompt, ensure_ascii=False, separators=(",", ":"))
             output.append(
                 f"- {int(item.get('start', 0))}:{int(item.get('end', 0))} "
                 f"{item.get('text', '')} support={float(item.get('support', 0.0)):.3f}{suffix}"
@@ -698,7 +707,50 @@ def build_protected_hotwords(input_block: Dict[str, Any], rows: List[Dict[str, A
     return protected
 
 
-def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
+def _supported_hotword_sets(rows: List[Dict[str, Any]], nbest: List[str]) -> Tuple[List[str], List[str], List[str]]:
+    candidate_text = normalize_text("".join(str(item or "") for item in nbest))
+    supported: List[str] = []
+    unsupported_prompt: List[str] = []
+    unsupported_kws: List[str] = []
+    seen_supported = set()
+    seen_unsupported = set()
+    for item in rows:
+        text = simplify_text(item.get("text", ""))
+        key = normalize_text(text)
+        if not text or not key:
+            continue
+        if key in candidate_text:
+            if key not in seen_supported:
+                supported.append(text)
+                seen_supported.add(key)
+        elif item.get("in_prompt", False):
+            if key not in seen_unsupported:
+                unsupported_prompt.append(text)
+                seen_unsupported.add(key)
+        else:
+            unsupported_kws.append(text)
+    return supported, unsupported_prompt, unsupported_kws
+
+
+def format_context_hotwords(
+    rows: List[Dict[str, Any]],
+    nbest: List[str] | None = None,
+    compact: bool = False,
+) -> List[str]:
+    if compact:
+        nbest = nbest or []
+        supported, unsupported_prompt, _unsupported_kws = _supported_hotword_sets(rows, nbest)
+        output = []
+        if supported:
+            output.append("- supported_hotwords_in_candidates=" + ",".join(supported))
+        if unsupported_prompt:
+            output.append(
+                "- unsupported_prompt_hotwords="
+                + ",".join(unsupported_prompt)
+                + " (not found in any candidate; do not force)"
+            )
+        return output
+
     output = []
     for item in rows:
         text = simplify_text(item.get("text", ""))
@@ -720,6 +772,7 @@ def format_nbest(
     input_block: Dict[str, Any],
     hotword_rows: List[Dict[str, Any]],
     max_items: int,
+    compact: bool = False,
 ) -> List[str]:
     cbw = input_block.get("cbwhisper", {}) or {}
     scored_candidates = list(cbw.get("candidates", []) or [])
@@ -740,21 +793,45 @@ def format_nbest(
             score_bits = "score=NA"
         else:
             source = "trusted_scored"
-            score_bits = (
-                f"score_rank={int(scored.get('rank', idx))} "
-                f"total={float(scored.get('total_score', 0.0)):.4f} "
-                f"asr={float(scored.get('asr_score', 0.0)):.4f} "
-                f"exact={float(scored.get('exact_score', 0.0)):.4f} "
-                f"phon={float(scored.get('phonetic_score', 0.0)):.4f}"
-            )
+            if compact:
+                bits = [
+                    f"rank={int(scored.get('rank', idx))}",
+                    f"score={float(scored.get('total_score', 0.0)):.3f}",
+                    f"asr={float(scored.get('asr_score', 0.0)):.3f}",
+                ]
+                exact = float(scored.get("exact_score", 0.0))
+                phon = float(scored.get("phonetic_score", 0.0))
+                if abs(exact) > 1e-6:
+                    bits.append(f"exact={exact:.3f}")
+                if abs(phon) > 1e-6:
+                    bits.append(f"phon={phon:.3f}")
+                score_bits = " ".join(bits)
+            else:
+                score_bits = (
+                    f"score_rank={int(scored.get('rank', idx))} "
+                    f"total={float(scored.get('total_score', 0.0)):.4f} "
+                    f"asr={float(scored.get('asr_score', 0.0)):.4f} "
+                    f"exact={float(scored.get('exact_score', 0.0)):.4f} "
+                    f"phon={float(scored.get('phonetic_score', 0.0)):.4f}"
+                )
         prompt_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=True)
         kws_hits = _matched_hotword_texts(text, hotword_rows, prompt_only=False)
-        prompt_msg = ",".join(prompt_hits) if prompt_hits else "none"
-        kws_msg = ",".join(kws_hits) if kws_hits else "none"
-        output.append(
-            f"{idx}. {text} | source={source} {score_bits} "
-            f"keeps_prompt_hotwords={prompt_msg} keeps_context_hotwords={kws_msg}"
-        )
+        if compact:
+            hit_bits = []
+            if prompt_hits:
+                hit_bits.append("prompt_hw=" + ",".join(prompt_hits))
+            context_only_hits = [item for item in kws_hits if item not in set(prompt_hits)]
+            if context_only_hits:
+                hit_bits.append("kws_hw=" + ",".join(context_only_hits))
+            hit_msg = (" " + " ".join(hit_bits)) if hit_bits else ""
+            output.append(f"{idx}. {text} | {source} {score_bits}{hit_msg}")
+        else:
+            prompt_msg = ",".join(prompt_hits) if prompt_hits else "none"
+            kws_msg = ",".join(kws_hits) if kws_hits else "none"
+            output.append(
+                f"{idx}. {text} | source={source} {score_bits} "
+                f"keeps_prompt_hotwords={prompt_msg} keeps_context_hotwords={kws_msg}"
+            )
     return output
 
 
@@ -796,7 +873,52 @@ def build_hotword_aware_evidence(
     }
 
 
-def format_hotword_aware_evidence(evidence: Dict[str, Any]) -> List[str]:
+def format_hotword_aware_evidence(evidence: Dict[str, Any], compact: bool = False) -> List[str]:
+    if compact:
+        protected = list(evidence.get("protected_hotwords", []) or [])
+        prompt = list(evidence.get("prompt_hotwords", []) or [])
+        kws = list(evidence.get("kws_hotwords", []) or [])
+        rows = list(evidence.get("candidate_hotword_status", []) or [])
+        supported_norms = set()
+        for row in rows:
+            for item in list(row.get("variant_keeps_hotword", []) or []):
+                key = normalize_text(item)
+                if key:
+                    supported_norms.add(key)
+        protected_norms = {normalize_text(item) for item in protected if normalize_text(item)}
+        unsupported_prompt = [
+            item for item in prompt
+            if normalize_text(item) and normalize_text(item) not in supported_norms and normalize_text(item) not in protected_norms
+        ]
+        supported = [
+            item for item in kws
+            if normalize_text(item) and normalize_text(item) in supported_norms
+        ]
+        output = ["Hotword evidence:"]
+        if protected:
+            output.append("- protected_hotwords=" + ",".join(protected))
+        if supported:
+            output.append("- candidate_supported_hotwords=" + ",".join(supported))
+        if unsupported_prompt:
+            output.append(
+                "- unsupported_prompt_hotwords="
+                + ",".join(unsupported_prompt)
+                + " (not found in candidates; do not force)"
+            )
+        conflicts = list(evidence.get("hotword_conflict", []) or [])
+        compact_conflicts = [
+            row for row in conflicts
+            if row.get("protected_dropped") or row.get("inserted_hotwords") or row.get("false_hotword_warning")
+        ]
+        if compact_conflicts:
+            output.append(
+                "- conflicts="
+                + json.dumps(compact_conflicts, ensure_ascii=False, separators=(",", ":"))
+            )
+        if len(output) == 1:
+            output.append("- no candidate-supported hotword evidence")
+        return output
+
     output = ["Hotword-aware evidence:"]
     for key in ("protected_hotwords", "prompt_hotwords", "kws_hotwords"):
         output.append(f"- {key}=" + json.dumps(evidence.get(key, []), ensure_ascii=False, separators=(",", ":")))
@@ -839,6 +961,7 @@ def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[
 
 def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     input_block = record.get("input", {}) or {}
+    compact = bool(getattr(args, "compact_evidence", True))
     prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
     if prompt_mode == "selector_spoken":
         lines = [SPOKEN_SELECTOR_INSTRUCTION]
@@ -848,11 +971,13 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines = [SELECTOR_INSTRUCTION]
     else:
         lines = [INSTRUCTION]
-    if bool(getattr(args, "protect_supported_hotwords", False)):
+    if compact:
+        lines.append(COMPACT_EVIDENCE_NOTE)
+    if bool(getattr(args, "protect_supported_hotwords", False)) and not compact:
         lines.append(PROTECTED_HOTWORD_INSTRUCTION)
-    if bool(getattr(args, "include_consensus_spans", False)) or int(getattr(args, "max_confusables", 0)) > 0:
+    if (bool(getattr(args, "include_consensus_spans", False)) or int(getattr(args, "max_confusables", 0)) > 0) and not compact:
         lines.append(CHINESEHP_EVIDENCE_INSTRUCTION)
-    if bool(getattr(args, "include_hotword_evidence", False)):
+    if bool(getattr(args, "include_hotword_evidence", False)) and not compact:
         lines.append(HOTWORD_AWARE_EVIDENCE_INSTRUCTION)
     asr_top1 = simplify_text(input_block.get("asr_top1", ""))
     lines.append(f"ASR top-1: {asr_top1}")
@@ -862,8 +987,9 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines.append("Protected hotwords that must be preserved exactly: " + ",".join(protected_hotwords))
     if hotword_rows:
         asr_prompt_hits = _matched_hotword_texts(asr_top1, hotword_rows, prompt_only=True)
-        hit_msg = ",".join(asr_prompt_hits) if asr_prompt_hits else "none"
-        lines.append(f"ASR top-1 keeps prompt hotwords: {hit_msg}")
+        if asr_prompt_hits or not compact:
+            hit_msg = ",".join(asr_prompt_hits) if asr_prompt_hits else "none"
+            lines.append(f"ASR top-1 keeps prompt hotwords: {hit_msg}")
 
     nbest = list(input_block.get("nbest", []) or [])[: max(1, int(args.max_nbest))]
     if nbest:
@@ -871,7 +997,7 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
             "N-best with reliability labels "
             "(trusted_scored=CB-Whisper scored beam, supplemental_unscored=extra diversity candidate):"
         )
-        lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest))))
+        lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest)), compact=compact))
 
     if bool(getattr(args, "include_consensus_spans", False)) and nbest:
         consensus = input_block.get("nbest_consensus")
@@ -887,6 +1013,7 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
             consensus,
             hotword_rows=hotword_rows if bool(getattr(args, "include_hotword_evidence", False)) else None,
             protected_hotwords=protected_hotwords,
+            compact=compact,
         )
         if consensus_lines:
             lines.extend(consensus_lines)
@@ -900,7 +1027,7 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
                 protected_hotwords=protected_hotwords,
                 max_items=max(1, int(args.max_nbest)),
             )
-        lines.extend(format_hotword_aware_evidence(evidence))
+        lines.extend(format_hotword_aware_evidence(evidence, compact=compact))
 
     confusable_lines = format_confusable_candidates(
         nbest=nbest,
@@ -915,21 +1042,36 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     if bool(args.include_pinyin):
         pinyin = list(input_block.get("nbest_pinyin", []) or [])[: max(1, int(args.max_pinyin))]
         if pinyin:
-            lines.append("Pinyin:")
-            for idx, item in enumerate(pinyin, 1):
-                lines.append(f"{idx}. {item}")
+            pinyin_keys = []
+            seen_pinyin = set()
+            for item in pinyin:
+                key = re.sub(r"\s+", " ", str(item or "").strip())
+                if key and key not in seen_pinyin:
+                    pinyin_keys.append(key)
+                    seen_pinyin.add(key)
+            if compact and len(pinyin_keys) == 1:
+                lines.append("Pinyin: all listed candidates share " + pinyin_keys[0])
+            else:
+                lines.append("Pinyin:")
+                for idx, item in enumerate(pinyin, 1):
+                    lines.append(f"{idx}. {item}")
 
-    hotword_lines = format_context_hotwords(hotword_rows)
+    hotword_lines = (
+        []
+        if (compact and bool(getattr(args, "include_hotword_evidence", False)))
+        else format_context_hotwords(hotword_rows, nbest=nbest, compact=compact)
+    )
     if hotword_lines:
         lines.append("CB-Whisper hotword evidence (predicted, not gold):")
         lines.extend(hotword_lines)
 
-    cbw = input_block.get("cbwhisper", {}) or {}
-    candidates = list(cbw.get("candidates", []) or [])
-    candidate_lines = format_candidates(candidates, max_items=int(args.max_candidates_with_scores))
-    if candidate_lines:
-        lines.append("CB-Whisper candidate scores:")
-        lines.extend(candidate_lines)
+    if not compact:
+        cbw = input_block.get("cbwhisper", {}) or {}
+        candidates = list(cbw.get("candidates", []) or [])
+        candidate_lines = format_candidates(candidates, max_items=int(args.max_candidates_with_scores))
+        if candidate_lines:
+            lines.append("CB-Whisper candidate scores:")
+            lines.extend(candidate_lines)
 
     lines.append('请输出 JSON：{"text":"纠错后的完整句子"}')
     return "\n".join(lines)
@@ -1215,6 +1357,13 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         "--include-hotword-evidence",
         action="store_true",
         help="Add structured hotword-aware evidence fields for candidate keep/drop/conflict status.",
+    )
+    parser.add_argument(
+        "--no-compact-evidence",
+        dest="compact_evidence",
+        action="store_false",
+        default=True,
+        help="Use the older verbose prompt with repeated score blocks and full hotword status.",
     )
     parser.add_argument("--consensus-span-threshold", type=float, default=0.75)
     parser.add_argument("--max-stable-spans", type=int, default=8)

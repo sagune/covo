@@ -4078,3 +4078,40 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - `钢铁供应...` vs candidate `钢铁工业...`.
     - `园区/原区`, `节水/技术`, `涧/渐`.
   - Interpretation: the remaining bottleneck is not numeric formatting or hotword recall. It is COVO's candidate-selection reliability: it needs stronger no-op training for already-correct top1 and stronger domain-knowledge/consensus evidence for choosing among homophones.
+
+#### Shuili video compact COVO evidence
+
+- Motivation:
+  - The verbose COVO prompt was too long and noisy. For sample `id=50`, the full message repeated empty `exact/phon` scores, empty hotword-status rows, KWS false positives, duplicated candidate-score blocks, and repeated pinyin.
+  - This made simple cases like `这是最大的刚性约束` harder than necessary because the unsupported KWS hotword `钢筋` was visually prominent.
+- Code change:
+  - `src/analysis/cbwhisper_covo_bridge.py` now defaults to compact evidence.
+  - `--no-compact-evidence` restores the older verbose prompt for ablation.
+  - Compact evidence:
+    - keeps ASR top1 and N-best candidates;
+    - keeps rank/total/asr scores but omits zero exact/phon fields;
+    - keeps stable/uncertain spans but simplifies variants to plain lists when no hotword delta exists;
+    - labels unsupported prompt hotwords as `not found in candidates; do not force`;
+    - removes all-empty candidate hotword status rows;
+    - omits the duplicated `CB-Whisper candidate scores` block;
+    - adds a compact-evidence note: if top1 is high-score, complete, and has no supported-hotword conflict, prefer keeping top1.
+- Prompt length:
+  - Previous simplified verbose messages:
+    - average user prompt chars: `5487.8`
+    - median: `5635.5`
+    - p95: `6445`
+  - Compact v3 messages:
+    - average user prompt chars: `1698.6`
+    - median: `1616.5`
+    - p95: `2341`
+  - Example `id=50` shrank from about `5811` user-prompt chars to about `1491`.
+- Full COVO run:
+  - Messages: `src/logs/cbwhisper_covo_messages_shuili_videos_expand180_compact_v3_normdomain_sft60k_20260713.jsonl`.
+  - Predictions: `src/logs/shuili_videos_covo_expand180_compact_v3_normdomain_sft60k_predictions_20260713.jsonl`.
+  - Raw COVO evaluator CER: `0.11598`, baseline `0.12192`.
+  - Filler + number normalized CER: `0.08595`, baseline `0.10270`.
+  - Improved/worsened/unchanged under number-normalized evaluation: `207/103/680`.
+- Comparison:
+  - Previous best simplified verbose COVO number-normalized CER: `0.08643`.
+  - Compact v3 number-normalized CER: `0.08595`.
+  - Compact v3 is both shorter and slightly better; promote compact evidence as the default COVO input style for the current Shuili video workflow.
