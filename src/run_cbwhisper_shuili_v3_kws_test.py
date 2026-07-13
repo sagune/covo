@@ -11,7 +11,7 @@ from data.data_module import DatasetInfo, KWSDataMod
 from model.cb_whisper import CBWhisper
 
 
-ROOT = "/root/autodl-tmp/datasets/shuili/data_shuil_largev3"
+ROOT = os.getenv("SHUILI_ROOT", "/root/autodl-tmp/datasets/shuili/data_shuil_largev3")
 KWS_CKPT = (
     "/root/autodl-tmp/src/outputs/aishell_large_v3_kws_true/"
     "checkpoints/f1G/f1G-epoch=11-step=72060.ckpt"
