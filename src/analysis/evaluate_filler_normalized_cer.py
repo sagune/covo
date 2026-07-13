@@ -42,6 +42,101 @@ DEFAULT_FILLERS = (
 )
 
 
+_CN_DIGIT = {
+    "零": 0,
+    "〇": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
+
+_CN_UNIT = {"十": 10, "百": 100, "千": 1000, "万": 10000, "亿": 100000000}
+_CN_NUM_CHARS = "零〇一二两三四五六七八九十百千万亿点"
+
+
+def _parse_cn_integer(text: str) -> int | None:
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    if all(ch in _CN_DIGIT for ch in text):
+        return int("".join(str(_CN_DIGIT[ch]) for ch in text))
+    total = 0
+    section = 0
+    number = 0
+    seen = False
+    for ch in text:
+        if ch in _CN_DIGIT:
+            number = _CN_DIGIT[ch]
+            seen = True
+        elif ch in _CN_UNIT:
+            unit = _CN_UNIT[ch]
+            seen = True
+            if unit >= 10000:
+                section = (section + number) or 1
+                total += section * unit
+                section = 0
+            else:
+                section += (number or 1) * unit
+            number = 0
+        else:
+            return None
+    return total + section + number if seen else None
+
+
+def _number_text_to_ascii(text: str) -> str:
+    token = str(text or "")
+    if token.isdigit():
+        return token
+    if len(token) > 1 and token[-1] in {"万", "亿"}:
+        prefix = token[:-1]
+        if prefix.isdigit():
+            return token
+        prefix_value = _parse_cn_integer(prefix)
+        if prefix_value is not None:
+            return f"{prefix_value}{token[-1]}"
+    if "点" in token:
+        left, right = token.split("点", 1)
+        left_value = _parse_cn_integer(left) if left else 0
+        if left_value is None or not right:
+            return token
+        if not all(ch in _CN_DIGIT for ch in right):
+            return token
+        decimal = "".join(str(_CN_DIGIT[ch]) for ch in right).rstrip("0")
+        return f"{left_value}" + (f".{decimal}" if decimal else "")
+    value = _parse_cn_integer(token)
+    return str(value) if value is not None else token
+
+
+def normalize_numbers(text: str) -> str:
+    """Normalize common Chinese/Arabic number variants for CER evaluation."""
+    number = rf"[0-9{_CN_NUM_CHARS}]+"
+    text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    text = re.sub(r"(?<=\d)[.．]0+(?!\d)", "", text)
+    text = re.sub(r"(?<=\d)([.．]\d*?[1-9])0+(?!\d)", lambda m: m.group(1), text)
+    text = re.sub(r"(?<=\d)\s*[-~—－到至]\s*(?=\d)", "到", text)
+
+    def percent_repl(match: re.Match[str]) -> str:
+        return _number_text_to_ascii(match.group(1)) + "%"
+
+    def fraction_repl(match: re.Match[str]) -> str:
+        denominator = _number_text_to_ascii(match.group(1))
+        numerator = _number_text_to_ascii(match.group(2))
+        return f"{numerator}/{denominator}"
+
+    text = re.sub(rf"百分之({number})", percent_repl, text)
+    text = re.sub(rf"({number})分之({number})", fraction_repl, text)
+    text = re.sub(rf"(?<![A-Za-z0-9])({number})(?![A-Za-z0-9])", lambda m: _number_text_to_ascii(m.group(1)), text)
+    return text
+
+
 def read_jsonl(path: str | Path) -> Iterable[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle, 1):
@@ -70,10 +165,12 @@ def parse_fillers(spec: str) -> List[str]:
     return sorted(set(fillers), key=lambda item: (-len(item), item))
 
 
-def normalize_text(value: Any, fillers: List[str]) -> str:
+def normalize_text(value: Any, fillers: List[str], numbers: bool = False) -> str:
     text = unicodedata.normalize("NFKC", str(value or ""))
     if _OPENCC is not None:
         text = _OPENCC.convert(text)
+    if numbers:
+        text = normalize_numbers(text)
     chars = []
     for ch in text:
         if unicodedata.category(ch).startswith("P") or ch.isspace():
@@ -107,9 +204,9 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
         ref_plain = normalize_text(ref_raw, [])
         base_plain = normalize_text(base_raw, [])
         pred_plain = normalize_text(pred_raw, [])
-        ref = normalize_text(ref_raw, fillers)
-        base = normalize_text(base_raw, fillers)
-        pred = normalize_text(pred_raw, fillers)
+        ref = normalize_text(ref_raw, fillers, numbers=bool(args.normalize_numbers))
+        base = normalize_text(base_raw, fillers, numbers=bool(args.normalize_numbers))
+        pred = normalize_text(pred_raw, fillers, numbers=bool(args.normalize_numbers))
         if not ref:
             continue
         samples += 1
@@ -132,6 +229,7 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
         "samples": samples,
         "reference_chars": chars,
         "fillers": fillers,
+        "normalize_numbers": bool(args.normalize_numbers),
         "base_cer": float(base_edits / chars) if chars else 0.0,
         "prediction_cer": float(pred_edits / chars) if chars else 0.0,
         "base_edits": base_edits,
@@ -154,6 +252,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reference-field", default="reference")
     parser.add_argument("--baseline-field", default="input.asr_top1")
     parser.add_argument("--fillers", default=",".join(DEFAULT_FILLERS))
+    parser.add_argument("--normalize-numbers", action="store_true", help="Treat common Chinese/Arabic numeric variants as equivalent.")
     parser.add_argument("--output", default="")
     return parser.parse_args()
 

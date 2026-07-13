@@ -4048,3 +4048,33 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Many errors are non-hotword ASR errors; samples with real hotword mentions have CER about `0.08905`, while no-real-hotword samples have CER about `0.14612`.
   - Candidate selection is still weak: normalized top1 CER is `0.12189`, while N-best oracle CER is about `0.05111`.
   - Common residual errors include number-format mismatch (`10到20` vs `十到二十`, `6400` vs `六千四百`), sentence-boundary/function-word mismatch (`是/与/在/要`), and homophone domain mistakes (`工业/供应`, `园区/原区`, `节水/技术`).
+
+#### Shuili video number-normalized evaluation
+
+- Issue:
+  - Several previous "errors" were only numeric surface differences, not true recognition errors.
+  - Examples: `10到20` vs `十到二十`, `6,400亿` vs `六千四百亿`, `2025` vs `二零二五`, `98.2%` vs `百分之九十八点二`.
+- Code change:
+  - `src/analysis/evaluate_filler_normalized_cer.py` now supports `--normalize-numbers`.
+  - The normalization is applied before punctuation removal, so decimal points, percentages, fractions, and large units can be aligned before CER calculation.
+  - Covered forms include Chinese digits/units, percentages, fractions, decimals, year-like digit strings, and final `万/亿` expressions.
+- Re-evaluation on simplified-input COVO output:
+  - Input: `src/logs/shuili_videos_covo_expand180_simplified_normdomain_sft60k_predictions_20260713.jsonl`.
+  - Output: `src/logs/filler_number_normalized_cer_shuili_videos_expand180_simplified_normdomain_sft60k_20260713.json`.
+  - Baseline CER after filler + number normalization: `0.10270`.
+  - COVO CER after filler + number normalization: `0.08643`.
+  - Improved/worsened/unchanged: `199/89/702`.
+  - Exact samples: baseline `532`, COVO `583`.
+- Comparison:
+  - Without number normalization, simplified-input COVO CER was `0.11321`.
+  - With number normalization, it becomes `0.08643`.
+  - Therefore the video result is already below 9% CER under a more appropriate numeric-equivalence metric.
+- Remaining true model errors:
+  - COVO still sometimes rewrites a correct top1 into a worse n-best variant:
+    - `鱼潜鸟飞` -> `鱼前鸟飞`.
+    - `提示人们珍惜水资源` -> `要提示人们珍惜水资源`.
+    - `中国水资源人均拥有量` -> `包括中国水资源人均拥有量`.
+  - It also misses cases where a better candidate exists:
+    - `钢铁供应...` vs candidate `钢铁工业...`.
+    - `园区/原区`, `节水/技术`, `涧/渐`.
+  - Interpretation: the remaining bottleneck is not numeric formatting or hotword recall. It is COVO's candidate-selection reliability: it needs stronger no-op training for already-correct top1 and stronger domain-knowledge/consensus evidence for choosing among homophones.
