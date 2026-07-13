@@ -168,6 +168,13 @@ class CBWhisper(pl.LightningModule):
         neutral_anchor_include_in_nbest: bool = True,
         neutral_anchor_num_beams: int = 5,
         neutral_anchor_skip_surface_repair: bool = True,
+        neutral_anchor_guard: bool = False,
+        neutral_anchor_guard_min_exact_gain: float = 0.5,
+        neutral_anchor_guard_max_extra_chars: int = 0,
+        neutral_anchor_guard_max_abs_length_delta: int = 1,
+        neutral_anchor_guard_max_anchor_edit_ratio: float = 0.2,
+        neutral_anchor_guard_min_consensus: int = 0,
+        neutral_anchor_guard_min_asr_score: float = -5.0,
         oracle_nbest_diagnostic: bool = False,
         oracle_nbest_detail_path: str = "logs/oracle_nbest_detail.csv",
         oracle_nbest_summary_path: str = "logs/oracle_nbest_summary.csv",
@@ -1438,6 +1445,69 @@ class CBWhisper(pl.LightningModule):
                     scored_candidates[0]["completeness_rerank_selected"] = True
         return scored_candidates, int(baseline_idx), float(baseline_phonetic_score)
 
+    def _apply_neutral_anchor_guard(self, scored_candidates: List[dict], neutral_anchor_text: str) -> List[dict]:
+        if (
+            not bool(getattr(self.hparams, "neutral_anchor_guard", False))
+            or len(scored_candidates) <= 1
+            or str(neutral_anchor_text or "").strip() == ""
+        ):
+            return scored_candidates
+
+        neutral_key = self._normalize_text_for_rescore(neutral_anchor_text)
+        if neutral_key == "":
+            return scored_candidates
+
+        neutral_candidate = None
+        for item in scored_candidates:
+            if self._normalize_text_for_rescore(str(item.get("candidate", ""))) == neutral_key:
+                neutral_candidate = item
+                break
+        if neutral_candidate is None:
+            return scored_candidates
+
+        min_exact_gain = max(0.0, float(getattr(self.hparams, "neutral_anchor_guard_min_exact_gain", 0.5)))
+        max_extra_chars = int(getattr(self.hparams, "neutral_anchor_guard_max_extra_chars", 0))
+        max_abs_delta = max(0, int(getattr(self.hparams, "neutral_anchor_guard_max_abs_length_delta", 1)))
+        max_edit_ratio = max(0.0, float(getattr(self.hparams, "neutral_anchor_guard_max_anchor_edit_ratio", 0.2)))
+        min_consensus = max(0, int(getattr(self.hparams, "neutral_anchor_guard_min_consensus", 0)))
+        min_asr_score = float(getattr(self.hparams, "neutral_anchor_guard_min_asr_score", -5.0))
+        neutral_exact = float(neutral_candidate.get("exact_weighted_score", 0.0))
+
+        selected = neutral_candidate
+        selected_reason = "neutral_anchor_default"
+        for item in scored_candidates:
+            item_key = self._normalize_text_for_rescore(str(item.get("candidate", "")))
+            if item_key == neutral_key:
+                selected = neutral_candidate
+                selected_reason = "neutral_anchor_ranked_first"
+                break
+
+            exact_gain = float(item.get("exact_weighted_score", 0.0)) - neutral_exact
+            if exact_gain < min_exact_gain:
+                continue
+            if float(item.get("asr_score", -1e9)) < min_asr_score:
+                continue
+            length_delta = len(item_key) - len(neutral_key)
+            if length_delta > max_extra_chars or abs(length_delta) > max_abs_delta:
+                continue
+            anchor_edits = self._edit_distance(list(neutral_key), list(item_key))
+            if anchor_edits / max(len(neutral_key), 1) > max_edit_ratio:
+                continue
+            if int(item.get("consensus_support", 0)) < min_consensus and exact_gain < 1.5:
+                continue
+            selected = item
+            selected_reason = "hotword_candidate_passed_guard"
+            break
+
+        if selected is scored_candidates[0]:
+            scored_candidates[0]["neutral_anchor_guard_reason"] = selected_reason
+            return scored_candidates
+
+        out = [selected] + [item for item in scored_candidates if item is not selected]
+        out[0]["neutral_anchor_guard_selected"] = True
+        out[0]["neutral_anchor_guard_reason"] = selected_reason
+        return out
+
     def _shortform_rescore_debug_preview(self, scored_candidates: List[dict], topk: int = 5) -> List[dict]:
         preview = []
         for rank, item in enumerate(scored_candidates[: min(topk, len(scored_candidates))], start=1):
@@ -2416,6 +2486,10 @@ class CBWhisper(pl.LightningModule):
                     candidate_stats=candidate_stats,
                     keyword_weight=effective_keyword_weight,
                 )
+                scored_candidates = self._apply_neutral_anchor_guard(
+                    scored_candidates=scored_candidates,
+                    neutral_anchor_text=neutral_anchor_text,
+                )
                 baseline_total_score = float(candidate_stats[baseline_idx].get("asr_score", 0.0))
                 for item in scored_candidates:
                     if str(item.get("candidate", "")) == str(candidate_stats[baseline_idx].get("candidate", "")):
@@ -2442,6 +2516,9 @@ class CBWhisper(pl.LightningModule):
                         "consensus_support": int(item.get("consensus_support", 0)),
                         "consensus_keywords": list(item.get("consensus_keywords", [])),
                         "prefix_penalty_score": float(item.get("prefix_penalty_score", 0.0)),
+                        "insertion_penalty_score": float(item.get("insertion_penalty_score", 0.0)),
+                        "neutral_anchor_guard_selected": bool(item.get("neutral_anchor_guard_selected", False)),
+                        "neutral_anchor_guard_reason": str(item.get("neutral_anchor_guard_reason", "")),
                     }
                     for rank, item in enumerate(scored_candidates)
                 ]

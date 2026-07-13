@@ -4232,3 +4232,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - But the useful KWS signal is weak for this dataset: prompt recall is only about `0.48`, and the rescore pool needs many low-confidence words to reach usable recall.
   - The main degradation is CB-Whisper utilization/reranking: broad low-threshold KWS context creates false hotword pressure, and the exact/phonetic reward can select candidates with unsupported insertions or tail hotwords over the cleaner ASR candidate.
   - Pure CB-Whisper should not be judged as a strong Shuili baseline in its current setting. The next fix should make hotword bias conditional on strong evidence or preserve naked v3 as a neutral anchor unless the hotword-bearing candidate is both complete and ASR-plausible.
+
+#### Shuili video neutral-anchor guard experiment
+
+- Branch:
+  - `cbwhisper-shuili-cer-tuning-20260714`.
+- Code change:
+  - Added optional `neutral_anchor_guard` to `CBWhisper`.
+  - The guard includes the unprompted large-v3 transcript as a neutral anchor in n-best.
+  - A hotword candidate may replace the anchor only if it has enough exact hotword gain, stays close in length/edit distance to the anchor, and passes a minimum ASR-score floor.
+  - `run_cbwhisper_shuili_v3_kws_test.py` exposes the guard through `CBW_NEUTRAL_*` environment variables.
+- Full run:
+  - Stdout: `src/logs/experiment_shuili_videos_v3_neutral_guard_20260714_stdout.log`.
+  - Metrics: `src/logs/test_metrics_shuili_videos_v3_neutral_guard_20260714.csv`.
+  - Runtime probe: `src/logs/runtime_probe_shuili_videos_v3_neutral_guard_20260714.jsonl`.
+  - Oracle n-best detail: `src/logs/oracle_nbest_detail_shuili_videos_v3_neutral_guard_20260714.csv`.
+  - Oracle n-best summary: `src/logs/oracle_nbest_summary_shuili_videos_v3_neutral_guard_20260714.csv`.
+- Metrics:
+  - Entity Recall: `0.89414`.
+  - CER: `0.10631`.
+  - Hotword Sentence CER: `0.07705`.
+  - Hotword Only CER: `0.08847`.
+  - WER: `0.45556`.
+- Comparison:
+  - Previous pure CB-Whisper expand180 + insertion penalty CER: `0.14434`.
+  - Neutral-anchor guard CER: `0.10631`.
+  - Naked large-v3 clean decode CER: `0.09323`.
+  - The guard fixes much of the false-hotword pollution but still does not beat naked large-v3.
+- N-best upper bound:
+  - Oracle n-best CER in this run: `0.04939`.
+  - Average n-best size: `9.79`.
+  - This means the candidate pool is strong enough to hit the 6% target, but the current hand-written selector is not.
+- Current interpretation:
+  - The next useful step is not more exact/phonetic weight tuning.
+  - We need a stronger selector/reranker trained on candidate evidence, or a better non-cheating confidence model that can identify the oracle-like candidate from the n-best pool.
