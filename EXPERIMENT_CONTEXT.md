@@ -3915,3 +3915,50 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - This is the first clean naked-CB-Whisper improvement on Shuili after the v3 rerank issue was identified.
   - It remains worse than the current COVO-assisted best raw CER (`0.090280`), but it substantially narrows the gap without using neutral external ASR or COVO.
   - Because the margin was selected after Shuili diagnostics, this should be validated on AISHELL/dev before treating it as a general method. For now, it is a promising Shuili-specific completeness prior.
+
+#### Shuili video dataset from `Videos.zip`
+
+- Source:
+  - Raw archive: `/root/autodl-tmp/newdata/Videos.zip`.
+  - Extracted files:
+    - `/root/autodl-tmp/newdata/7月11日/7月11日.mp4`
+    - `/root/autodl-tmp/newdata/7月11日/7月11日.srt`
+    - `/root/autodl-tmp/newdata/7月12日/7月12日.mp4`
+    - `/root/autodl-tmp/newdata/7月12日/7月12日.srt`
+- Dataset construction:
+  - Builder script: `src/analysis/build_shuili_video_dataset.py`.
+  - Target dataset: `/root/autodl-tmp/datasets/shuili/data_shuil_videos_largev3`.
+  - The script extracts 16 kHz mono audio from each mp4, parses SRT timestamps, cuts subtitle-level wav segments, and writes files in the existing Shuili/AISHELL-style layout.
+  - Segment IDs are made compatible with `AishellHotwordDataset`, e.g. `BAC011S0001W0001` and `BAC012S0002W0001`.
+  - Reused old Shuili hotword inventory and keyword hidden states from `/root/autodl-tmp/datasets/shuili/data_shuil_largev3`.
+  - Generated split summary:
+    - samples: `990`
+    - transcript characters: `10691`
+    - average transcript length: `10.80` chars
+    - hotwords: `124`
+    - subtitle-matched hotword mentions: `150`
+  - Utterance hidden states were extracted with `openai/whisper-large-v3`, `hs_fuse=last`, `d_model=1280`.
+- Code fixes/changes:
+  - `src/run_cbwhisper_shuili_v3_kws_test.py` now accepts `SHUILI_ROOT` so the same runner can test either old Shuili or the new video dataset.
+  - `src/utils.py` now casts Whisper input features to the encoder parameter dtype during hidden-state extraction. This fixes the large-v3 extraction failure: `Input type (float) and bias type (c10::Half) should be the same`.
+- Full test:
+  - Runner: `src/run_cbwhisper_shuili_v3_kws_test.py`.
+  - Dataset root: `SHUILI_ROOT=/root/autodl-tmp/datasets/shuili/data_shuil_videos_largev3`.
+  - Setting: `CBW_COMPLETENESS_RERANK=1`, `CBW_COMPLETENESS_MARGIN=0.3`.
+  - Metrics file: `src/logs/test_metrics_shuili_videos_v3_completeness_m03_20260713.csv`.
+  - Oracle summary: `src/logs/oracle_nbest_summary_shuili_videos_v3_completeness_m03_20260713.csv`.
+  - Entity Recall: `0.97183`.
+  - CER: `0.14273`.
+  - Hotword Sentence CER: `0.08313`.
+  - Hotword Only CER: `0.08101`.
+  - WER: `0.51717`.
+  - N-best diagnostic:
+    - average n-best size: `9.81`
+    - top1 diagnostic CER: `0.14316`
+    - oracle diagnostic CER: `0.05192`
+    - oracle rank: `2.33`
+- Interpretation:
+  - Hotword recall is high on the subtitle-matched hotword subset, so the main error source is no longer hotword recall.
+  - Overall CER is high because this new video/subtitle set is documentary-style short subtitle segmentation and differs from the old oral lecture Shuili distribution.
+  - The oracle CER gap (`0.14316` top1 vs `0.05192` oracle) says useful candidates are often present, but current naked CB-Whisper ranking is still weak for this dataset.
+  - Important note: this run accidentally used `CBW_COVO_EVIDENCE_OUT` instead of the current `CBW_EVIDENCE_OUT`, so no COVO evidence jsonl was exported. Metrics and oracle CSVs are valid.
