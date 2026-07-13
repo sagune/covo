@@ -4266,3 +4266,28 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Current interpretation:
   - The next useful step is not more exact/phonetic weight tuning.
   - We need a stronger selector/reranker trained on candidate evidence, or a better non-cheating confidence model that can identify the oracle-like candidate from the n-best pool.
+
+#### Shuili video selector probes after neutral-anchor guard
+
+- Neutral-only formal metric:
+  - Metrics: `src/logs/test_metrics_shuili_videos_v3_neutral_anchor_only_20260714.csv`.
+  - CER: `0.10631`.
+  - This matches the neutral-anchor guard result, meaning the current guard is effectively preserving the neutral anchor most of the time.
+  - Important metric note: the clean standalone v3 script had corpus CER `0.09323` and mean CER `0.10671`. CB-Whisper `test_metrics` uses the mean-style CER, so neutral anchor is slightly better than naked v3 under that specific mean metric, but not under corpus CER.
+- Decode-parameter probes:
+  - `CBW_FORCE_DECODER_PROMPT_IDS=0` on smoke200 failed badly: CER `4.27865`. Large-v3 needs the forced decoder/language/task prompt in this CB-Whisper wrapper.
+  - `CBW_SHORTFORM_NO_REPEAT_NGRAM=0` was much slower in the CB n-best wrapper and was terminated; keep `3` for now.
+- Reranker probes:
+  - Linear holdout reranker on current neutral-guard n-best:
+    - primary top1 CER on holdout: `0.09166`.
+    - oracle CER on holdout: `0.04495`.
+    - learned linear reranker CER: `0.09690`, worse than top1.
+  - MLP insample reranker:
+    - primary top1 CER: `0.10663`.
+    - oracle CER: `0.04849`.
+    - MLP insample CER: `0.10345`, only a small gain and still far from oracle.
+  - Consensus/medoid rules were also worse than top1.
+- Interpretation:
+  - The candidate pool has enough information for the `~5%` oracle upper bound, but the available hand-written score features do not reveal the oracle candidate reliably.
+  - High-CER failures are often not hotword failures (`exact_score=0`) but generic short-speech homophone/口语 errors. Examples: `官厅村 -> 欢迎光临`, `山海情 -> 3位请`, `分部支护 -> 分布知乎`.
+  - To approach `6%`, the next route must use a stronger text-level correction/selection model over the n-best evidence, not just exact/phonetic/asr scalar tuning.

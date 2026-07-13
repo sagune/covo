@@ -20,6 +20,11 @@ KWS_CKPT = (
 
 def main():
     pl.seed_everything(123)
+    limit_test_batches = os.getenv("CBW_LIMIT_TEST_BATCHES", "").strip()
+    if limit_test_batches == "":
+        limit_test_batches_value = None
+    else:
+        limit_test_batches_value = int(limit_test_batches)
     data = KWSDataMod(
         batch_size=1,
         sampling="random",
@@ -41,7 +46,7 @@ def main():
         whisper_ckpt="openai/whisper-large-v3",
         kws_ckpt=KWS_CKPT,
         language="chinese",
-        force_decoder_prompt_ids=True,
+        force_decoder_prompt_ids=os.getenv("CBW_FORCE_DECODER_PROMPT_IDS", "1").lower() not in {"0", "false", "no", "off"},
         prompt=True,
         oracle="kws",
         kws_features_size=(150, 750),
@@ -68,7 +73,7 @@ def main():
         rescore_keyword_weight=1.8,
         rescore_phonetic_weight=0.7,
         rescore_prefix_penalty_weight=1.0,
-        shortform_no_repeat_ngram_size=3,
+        shortform_no_repeat_ngram_size=int(os.getenv("CBW_SHORTFORM_NO_REPEAT_NGRAM", "3")),
         rescore_max_keywords=160,
         enable_phonetic_surface_repair=True,
         surface_repair_score_threshold=0.95,
@@ -113,6 +118,7 @@ def main():
         enable_checkpointing=False,
         enable_model_summary=False,
         inference_mode=True,
+        limit_test_batches=limit_test_batches_value,
     )
     trainer.test(model=model, datamodule=data)
 
