@@ -4331,3 +4331,42 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Increasing `max_nbest` from `8` to `16` produced the same result.
   - `selector` prompt was too aggressive: even with same-length filtering, normalized CER was `0.07243`, worse than `selector_spoken`.
   - The remaining gap to `6%` is likely from hard homophones where the right candidate is present but not selected, plus cases where no correct candidate exists in n-best.
+
+#### Shuili video SenseVoice external anchor result
+
+- Motivation:
+  - The same-length COVO route still had normalized CER `0.06844`.
+  - Error analysis showed many remaining errors were not hotword mistakes but generic Whisper/CB-Whisper candidate quality failures.
+  - Therefore we tested an external ASR anchor as a candidate-quality fix, while keeping CB-Whisper evidence available for comparison and possible downstream selection.
+- Code fix:
+  - `src/analysis/run_funasr_shuili_preprocess.py` now resolves wav files recursively under `--wav-root`, so the current videos split with both `S0001` and `S0002` subfolders works.
+- Current videos manifest:
+  - `src/logs/shuili_videos_manifest_for_funasr_20260714.jsonl`.
+  - Built from `datasets/shuili/data_shuil_videos_largev3/hotword/test/uttid`.
+- SenseVoice full run:
+  - Command used `iic/SenseVoiceSmall`, `language=zh`, `use_itn`, device `cuda:0`.
+  - Output: `src/logs/shuili_videos_funasr_sensevoice_small_full_20260714.jsonl`.
+  - Summary: `src/logs/shuili_videos_funasr_sensevoice_small_full_20260714_summary.json`.
+  - SenseVoice script CER: `0.05454` (`578/10597`), exact samples `679/990`.
+- Evaluation under the same COVO JSONL metrics:
+  - Converted predictions: `src/logs/shuili_videos_sensevoice_as_prediction_20260714.jsonl`.
+  - Raw eval: `src/logs/evaluate_sensevoice_anchor_shuili_videos_20260714.json`.
+    - CER `0.05483`.
+    - Baseline CB-Whisper top1 CER `0.09871`.
+    - Improved/worsened/unchanged samples: `320/90/580`.
+  - Filler+number normalized eval: `src/logs/filler_number_normalized_cer_sensevoice_anchor_shuili_videos_20260714.json`.
+    - CER `0.04902`.
+    - Baseline `0.08329`.
+    - Improved/worsened/unchanged samples: `280/89/621`.
+    - Exact samples `584 -> 702`.
+- COVO on top of SenseVoice anchor:
+  - Evidence with SenseVoice as external neutral anchor: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_neutral_guard_sensevoice_anchor_20260714.jsonl`.
+  - Predictions: `src/logs/shuili_videos_covo_neutral_guard_sensevoice_anchor_spoken_samelenprior_predictions_20260714.jsonl`.
+  - Raw CER worsened from SenseVoice anchor `0.05454` to `0.05973`.
+  - Normalized CER worsened from `0.04902` to `0.05102`.
+  - Keep SenseVoice anchor as the main result; do not let the current COVO model overwrite it by default.
+- Current best for the Shuili-video target:
+  - Main result: SenseVoice external neutral anchor.
+  - Raw CER: `0.05483`, below the `6%` target.
+  - Filler+number normalized CER: `0.04902`.
+  - This demonstrates the bottleneck was candidate/anchor quality rather than KWS recall or scalar CB-Whisper reranking.

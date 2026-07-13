@@ -64,6 +64,16 @@ def extract_text(result: Any) -> str:
     return strip_asr_markup(result)
 
 
+def resolve_wav_path(wav_root: Path, utt_id: str) -> Path:
+    direct = wav_root / f"{utt_id}.wav"
+    if direct.exists():
+        return direct
+    matches = list(wav_root.glob(f"*/{utt_id}.wav"))
+    if matches:
+        return matches[0]
+    return direct
+
+
 def build_model(args: argparse.Namespace):
     from funasr import AutoModel
 
@@ -111,7 +121,7 @@ def main() -> int:
     with output_path.open("w", encoding="utf-8") as handle:
         for row in rows:
             utt_id = str(row.get("id", ""))
-            wav = wav_root / f"{utt_id}.wav"
+            wav = resolve_wav_path(wav_root, utt_id)
             generate_kwargs: Dict[str, Any] = {
                 "input": str(wav),
                 "batch_size_s": int(args.batch_size_s),
