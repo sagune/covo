@@ -561,6 +561,7 @@ def extract_hidden_states(
     # instantiate WhisperModel object and get encoder
     encoder = WhisperModel.from_pretrained(whisper_ckpt).encoder.to(device)
     encoder.eval()
+    encoder_dtype = next(encoder.parameters()).dtype
 
     feature_size = int(getattr(feature_extractor, 'feature_size', 0))
     encoder_config = getattr(encoder, 'config', None)
@@ -664,7 +665,7 @@ def extract_hidden_states(
             t_len = ceil(feature_extractor(t_waveform[0], sampling_rate=16000, return_tensors='pt', padding=True).input_features.size(dim=2) / 2.)
             with torch.inference_mode():
                 hidden_states = encoder(
-                    input_features = t_features.to(device),
+                    input_features = t_features.to(device=device, dtype=encoder_dtype),
                     output_hidden_states = True,
                     return_dict = True
                 )['hidden_states']
