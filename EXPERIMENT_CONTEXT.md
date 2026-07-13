@@ -3962,3 +3962,89 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Overall CER is high because this new video/subtitle set is documentary-style short subtitle segmentation and differs from the old oral lecture Shuili distribution.
   - The oracle CER gap (`0.14316` top1 vs `0.05192` oracle) says useful candidates are often present, but current naked CB-Whisper ranking is still weak for this dataset.
   - Important note: this run accidentally used `CBW_COVO_EVIDENCE_OUT` instead of the current `CBW_EVIDENCE_OUT`, so no COVO evidence jsonl was exported. Metrics and oracle CSVs are valid.
+
+#### Shuili video expanded-hotword and COVO connection
+
+- Motivation:
+  - The first video-dataset run used only the old Shuili 124-hotword list, with only `150` subtitle-matched hotword mentions.
+  - We tested whether adding more domain terms from the new video subtitles helps CB-Whisper and then connected the exported evidence to COVO.
+- Dataset rebuild:
+  - Builder: `src/analysis/build_shuili_video_dataset.py`.
+  - Setting: `--expand-hotwords --max-hotwords 180`.
+  - Target dataset: `/root/autodl-tmp/datasets/shuili/data_shuil_videos_largev3`.
+  - Summary:
+    - samples: `990`
+    - hotwords: `180`
+    - natural keyword audios written for new terms: `56`
+    - aligned subtitle hotword mentions: `647`
+  - Hidden states:
+    - utterance hidden states: `990/990`
+    - keyword hidden states: `180/180`
+    - Whisper profile: `openai/whisper-large-v3`, `hs_fuse=last`, `d_model=1280`
+- Naked CB-Whisper test with expanded 180 hotwords:
+  - Setting: `CBW_COMPLETENESS_RERANK=1`, `CBW_COMPLETENESS_MARGIN=0.3`.
+  - Metrics: `src/logs/test_metrics_shuili_videos_v3_expand180_completeness_m03_20260713.csv`.
+  - Evidence: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_expand180_completeness_m03_20260713.jsonl`.
+  - Entity Recall: `0.94144`.
+  - CER: `0.14499`.
+  - Hotword Sentence CER: `0.10699`.
+  - Hotword Only CER: `0.10160`.
+  - WER: `0.50202`.
+  - Oracle summary: `src/logs/oracle_nbest_summary_shuili_videos_v3_expand180_completeness_m03_20260713.csv`.
+  - N-best diagnostic:
+    - average n-best size: `9.73`
+    - top1 diagnostic CER: `0.14543`
+    - oracle diagnostic CER: `0.05086`
+    - oracle rank: `2.28`
+- Comparison with 124-hotword video run:
+  - Hotword count/matched mentions increased: `124/150` -> `180/647`.
+  - Entity Recall worsened: `0.97183` -> `0.94144`.
+  - CER worsened: `0.14273` -> `0.14499`.
+  - Hotword Sentence CER worsened: `0.08313` -> `0.10699`.
+  - Hotword Only CER worsened: `0.08101` -> `0.10160`.
+  - WER improved: `0.51717` -> `0.50202`.
+  - Interpretation: simply increasing the hotword list brings in many more true mentions, but also increases KWS false positives and makes naked CB-Whisper ranking worse.
+- COVO connection on expanded 180-hotword evidence:
+  - Adapter: `/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16`.
+  - Full hotword-evidence prompt:
+    - Messages: `src/logs/cbwhisper_covo_messages_shuili_videos_expand180_normdomain_sft60k_20260713.jsonl`.
+    - Predictions: `src/logs/shuili_videos_covo_expand180_normdomain_sft60k_predictions_20260713.jsonl`.
+    - Raw COVO evaluator CER: `0.20591`, baseline `0.23035`.
+    - Filler/OpenCC-normalized CER: `0.11668`, baseline `0.12189`.
+    - Improved/worsened/unchanged after normalized evaluation: `199/132/659`.
+  - Cleaner prompt using only prompt-source hotwords:
+    - Messages: `src/logs/cbwhisper_covo_messages_shuili_videos_expand180_cleanprompt_normdomain_sft60k_20260713.jsonl`.
+    - Predictions: `src/logs/shuili_videos_covo_expand180_cleanprompt_normdomain_sft60k_predictions_20260713.jsonl`.
+    - Raw COVO evaluator CER: `0.20912`, baseline `0.23035`.
+    - Filler/OpenCC-normalized CER: `0.11794`, baseline `0.12189`.
+    - Improved/worsened/unchanged after normalized evaluation: `214/157/619`.
+- Interpretation:
+  - COVO is connected and improves over its own message baseline after normalization, but it is not yet better than the naked CB-Whisper metric result on this new video dataset.
+  - The first COVO error pattern includes harmful rewrites of already-correct or traditional-form outputs, e.g. `魚潛鳥飛` can be changed to a wrong homophone-like form.
+  - The clean-prompt COVO variant did not outperform the fuller hotword-evidence prompt, so the current bottleneck is not only too many hotwords. The larger issue is domain/style mismatch between the video subtitle set and the COVO model trained mainly on previous Shuili oral data.
+  - Next promising direction: build video-style COVO SFT examples from this dataset's own CB-Whisper n-best/oracle evidence, with explicit no-op targets for already-correct samples and stronger simplification/variant preservation.
+
+#### Shuili video COVO simplified-input fix
+
+- Issue:
+  - `cbwhisper_covo_bridge.py` used simplified/normalized text for de-duplication and consensus, but the actual prompt still displayed raw ASR/N-best surfaces.
+  - On the video dataset this meant COVO saw many traditional candidates, e.g. `魚潛鳥飛`, and sometimes rewrote an already correct traditional-form top1 into a wrong homophone.
+- Code change:
+  - `cbwhisper_covo_bridge.py` now converts ASR top1, N-best candidates, CB-Whisper scored candidates, prompt/KWS hotwords, keyword mentions, and oracle hotwords to simplified Chinese before message construction.
+  - The default is simplified input; `--no-simplify-input` keeps the old behavior for ablation.
+  - N-best cleaning still runs after simplification, so simplified duplicates collapse before prompting.
+- Full COVO run after the fix:
+  - Messages: `src/logs/cbwhisper_covo_messages_shuili_videos_expand180_simplified_normdomain_sft60k_20260713.jsonl`.
+  - Predictions: `src/logs/shuili_videos_covo_expand180_simplified_normdomain_sft60k_predictions_20260713.jsonl`.
+  - Raw COVO evaluator CER: `0.11484`, baseline `0.12192`.
+  - Filler/OpenCC-normalized CER: `0.11321`, baseline `0.12189`.
+  - Improved/worsened/unchanged after normalized evaluation: `200/112/678`.
+- Comparison:
+  - Previous full hotword-evidence COVO normalized CER: `0.11668`.
+  - Simplified-input COVO normalized CER: `0.11321`.
+  - Absolute gain from simplifying prompt input: about `-0.00347` CER.
+  - Worsened samples decreased from `132` to `112`.
+- Remaining main error sources after the fix:
+  - Many errors are non-hotword ASR errors; samples with real hotword mentions have CER about `0.08905`, while no-real-hotword samples have CER about `0.14612`.
+  - Candidate selection is still weak: normalized top1 CER is `0.12189`, while N-best oracle CER is about `0.05111`.
+  - Common residual errors include number-format mismatch (`10到20` vs `十到二十`, `6400` vs `六千四百`), sentence-boundary/function-word mismatch (`是/与/在/要`), and homophone domain mistakes (`工业/供应`, `园区/原区`, `节水/技术`).

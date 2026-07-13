@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import subprocess
 import sys
+import unicodedata
 from collections import Counter
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -159,10 +161,15 @@ def _as_float(value: Any, default: float = 0.0) -> float:
 _PUNCT_RE = re.compile(r"[\s,，。.!！？?；;：:“”\"'‘’、（）()\[\]【】《》<>-]+")
 
 
-def normalize_text(text: Any) -> str:
-    value = str(text or "").strip()
+def simplify_text(text: Any) -> str:
+    value = unicodedata.normalize("NFKC", str(text or "")).strip()
     if _OPENCC is not None:
         value = _OPENCC.convert(value)
+    return value
+
+
+def normalize_text(text: Any) -> str:
+    value = simplify_text(text)
     return _PUNCT_RE.sub("", value)
 
 
@@ -178,7 +185,7 @@ def _unique_texts(values: Iterable[Any]) -> List[Tuple[str, str]]:
     output: List[Tuple[str, str]] = []
     seen = set()
     for value in values:
-        raw = str(value or "").strip()
+        raw = simplify_text(value)
         key = normalize_text(raw)
         if raw and key and key not in seen:
             output.append((raw, key))
@@ -598,7 +605,7 @@ def build_context_hotwords(input_block: Dict[str, Any], args: argparse.Namespace
     for rank, item in enumerate(list(input_block.get("hotwords", []) or [])[: int(args.max_hotwords)], 1):
         if not use_kws:
             continue
-        text = str(item.get("text", "")).strip()
+        text = simplify_text(item.get("text", ""))
         if not text:
             continue
         row = merged.setdefault(
@@ -619,7 +626,7 @@ def build_context_hotwords(input_block: Dict[str, Any], args: argparse.Namespace
     for rank, item in enumerate(list(input_block.get("prompt_hotwords", []) or [])[: int(args.max_prompt_hotwords)], 1):
         if not use_prompt:
             continue
-        text = str(item.get("text", "")).strip()
+        text = simplify_text(item.get("text", ""))
         if not text:
             continue
         row = merged.setdefault(
@@ -659,7 +666,7 @@ def _matched_hotword_texts(text: str, rows: List[Dict[str, Any]], prompt_only: b
     for item in rows:
         if prompt_only and not bool(item.get("in_prompt", False)):
             continue
-        keyword = str(item.get("text", "")).strip()
+        keyword = simplify_text(item.get("text", ""))
         if keyword and normalize_text(keyword) in normalized:
             matched.append(keyword)
     return matched
@@ -694,7 +701,7 @@ def build_protected_hotwords(input_block: Dict[str, Any], rows: List[Dict[str, A
 def format_context_hotwords(rows: List[Dict[str, Any]]) -> List[str]:
     output = []
     for item in rows:
-        text = str(item.get("text", "")).strip()
+        text = simplify_text(item.get("text", ""))
         if not text:
             continue
         score = _as_float(item.get("score", 0.0))
@@ -720,7 +727,7 @@ def format_nbest(
     output = []
     seen = set()
     for idx, hyp in enumerate(nbest[:max_items], 1):
-        text = str(hyp).strip()
+        text = simplify_text(hyp)
         if not text:
             continue
         normalized = normalize_text(text)
@@ -816,7 +823,7 @@ def format_hotword_aware_evidence(evidence: Dict[str, Any]) -> List[str]:
 def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[str]:
     output = []
     for item in candidates[:max_items]:
-        text = str(item.get("text", "")).strip()
+        text = simplify_text(item.get("text", ""))
         if not text:
             continue
         rank = int(item.get("rank", len(output) + 1))
@@ -847,7 +854,7 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines.append(CHINESEHP_EVIDENCE_INSTRUCTION)
     if bool(getattr(args, "include_hotword_evidence", False)):
         lines.append(HOTWORD_AWARE_EVIDENCE_INSTRUCTION)
-    asr_top1 = str(input_block.get("asr_top1", "")).strip()
+    asr_top1 = simplify_text(input_block.get("asr_top1", ""))
     lines.append(f"ASR top-1: {asr_top1}")
     hotword_rows = build_context_hotwords(input_block, args)
     protected_hotwords = build_protected_hotwords(input_block, hotword_rows)
@@ -928,6 +935,69 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     return "\n".join(lines)
 
 
+def _simplify_hotword_rows(rows: List[Any]) -> List[Any]:
+    output: List[Any] = []
+    for item in rows:
+        if isinstance(item, dict):
+            copied = dict(item)
+            copied["text"] = simplify_text(copied.get("text", ""))
+            if copied["text"]:
+                output.append(copied)
+        else:
+            text = simplify_text(item)
+            if text:
+                output.append(text)
+    return output
+
+
+def _simplify_candidates(rows: List[Any]) -> List[Any]:
+    output: List[Any] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            output.append(item)
+            continue
+        copied = copy.deepcopy(item)
+        copied["text"] = simplify_text(copied.get("text", ""))
+        exact_stats = copied.get("exact_stats")
+        if isinstance(exact_stats, dict):
+            exact_stats["matched_keywords"] = [
+                simplify_text(keyword)
+                for keyword in list(exact_stats.get("matched_keywords", []) or [])
+                if simplify_text(keyword)
+            ]
+        copied["consensus_keywords"] = [
+            simplify_text(keyword)
+            for keyword in list(copied.get("consensus_keywords", []) or [])
+            if simplify_text(keyword)
+        ]
+        output.append(copied)
+    return output
+
+
+def simplify_input_block(input_block: Dict[str, Any]) -> Dict[str, Any]:
+    simplified = copy.deepcopy(input_block)
+    if "asr_top1" in simplified:
+        simplified["asr_top1"] = simplify_text(simplified.get("asr_top1", ""))
+    if "nbest" in simplified:
+        simplified["nbest"] = [
+            simplify_text(item)
+            for item in list(simplified.get("nbest", []) or [])
+            if simplify_text(item)
+        ]
+    if "hotwords" in simplified:
+        simplified["hotwords"] = _simplify_hotword_rows(list(simplified.get("hotwords", []) or []))
+    if "prompt_hotwords" in simplified:
+        simplified["prompt_hotwords"] = _simplify_hotword_rows(list(simplified.get("prompt_hotwords", []) or []))
+    if "keyword_mentions" in simplified:
+        simplified["keyword_mentions"] = _simplify_hotword_rows(list(simplified.get("keyword_mentions", []) or []))
+    if "oracle_hotwords" in simplified:
+        simplified["oracle_hotwords"] = _simplify_hotword_rows(list(simplified.get("oracle_hotwords", []) or []))
+    cbw = simplified.get("cbwhisper")
+    if isinstance(cbw, dict) and "candidates" in cbw:
+        cbw["candidates"] = _simplify_candidates(list(cbw.get("candidates", []) or []))
+    return simplified
+
+
 def build_system_message(args: argparse.Namespace) -> str:
     prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
     if prompt_mode == "selector_spoken":
@@ -950,6 +1020,8 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
             input_block["nbest"] = list(record.get("nbest", []) or [])
         if not input_block.get("nbest") and input_block.get("asr_top1"):
             input_block["nbest"] = [str(input_block.get("asr_top1", "")).strip()]
+        if bool(getattr(args, "simplify_input", True)):
+            input_block = simplify_input_block(input_block)
         if bool(getattr(args, "clean_nbest", False)):
             original_nbest = list(input_block.get("nbest", []) or [])
             original_pinyin = list(input_block.get("nbest_pinyin", []) or [])
@@ -1127,6 +1199,13 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--clean-length-slack", type=int, default=8)
     parser.add_argument("--clean-anchor-suffix-filter", action="store_true")
     parser.add_argument("--clean-drop-polluted-top1", action="store_true", default=True)
+    parser.add_argument(
+        "--no-simplify-input",
+        dest="simplify_input",
+        action="store_false",
+        default=True,
+        help="Keep original text surfaces in COVO prompts instead of converting ASR/N-best/hotwords to simplified Chinese.",
+    )
     parser.add_argument(
         "--include-consensus-spans",
         action="store_true",
