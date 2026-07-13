@@ -4182,3 +4182,53 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Comparison:
   - Current best anti-insertion CB-Whisper + compact COVO route has filler + number normalized CER `0.08271`.
   - The full route is only about `0.00095` absolute CER better than naked large-v3 under the current normalized metric, so the remaining paper problem is proving that the hotword/COVO workflow adds robust value beyond an already strong large-v3 baseline.
+
+#### Shuili video CB-Whisper degradation diagnosis
+
+- Purpose:
+  - Check why naked large-v3 is much better than pure CB-Whisper on the current Shuili video set, and whether the KWS module is broken.
+- Files:
+  - KWS run-config top-k CSV: `src/logs/kws_topk_recall_shuili_videos_large_v3_runconfig_20260714.csv`.
+  - KWS run-config stdout: `src/logs/kws_topk_recall_shuili_videos_large_v3_runconfig_20260714_stdout.log`.
+  - CB-Whisper evidence: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_expand180_completeness_m03_insertpen025_20260713.jsonl`.
+  - Naked v3 CSV: `src/logs/whisper_clean_decode_shuili_videos_large_v3_beam5_20260714.csv`.
+- KWS diagnosis:
+  - Hotword-bearing samples: `361`.
+  - True hotwords: `647`.
+  - KWS micro recall: `@1 0.30294`, `@3 0.49304`, `@6 0.58114`, `@12 0.67079`, `@28 0.80989`, `@50 0.92427`.
+  - Under the actual current CB-Whisper selection config (`threshold=0.05`, `topk_per_group=50`, `max_prompt_keywords=200`, `rescore_max_keywords=160`):
+    - CB/rescore pool micro recall: `0.72952`.
+    - Prompt micro recall: `0.48068`.
+    - Average rescore pool size on hotword-bearing samples: `17.86`.
+    - Average prompt size on hotword-bearing samples: `2.03`.
+- CB versus naked v3:
+  - Same normalized surface metric used by the clean v3 script:
+    - CB-Whisper top1 CER: `0.11512`.
+    - Naked large-v3 CER: `0.09323`.
+  - Per-sample comparison:
+    - CB worse: `164`.
+    - CB better: `84`.
+    - Same edit count: `742`.
+    - CB worse added `353` extra edits; CB better saved only `121` edits.
+  - On samples without true hotword mentions:
+    - CB CER: `0.13633`.
+    - Naked v3 CER: `0.10634`.
+    - CB worse/better: `110/34`.
+  - On samples with true hotword mentions:
+    - CB CER: `0.08557`.
+    - Naked v3 CER: `0.07496`.
+    - CB worse/better: `54/50`.
+- Error shape:
+  - Compared with naked v3, CB-Whisper has many more insertions: CB insertion ops `169` versus naked v3 `55`.
+  - Among CB-worse samples, extra errors include insertions, truncations, and substitutions.
+  - Typical failures:
+    - `以水定产` -> `以水定产 缺水 靠水`.
+    - `这个水资源啊` -> `这个水资源 闸门源源源`.
+    - `变成再生水` -> `辨称再生水 地基 丹江口水库`.
+    - `工程设计建设` -> `工程设计建设 技术人员 工程量 填筑者员`.
+  - No-true-hotword samples still receive an average of about `1.54` prompt hotwords and `17.02` rescore hotwords, so false-positive hotword context is a major pollution source.
+- Interpretation:
+  - KWS is not completely broken: the true hotword often appears somewhere in top-50.
+  - But the useful KWS signal is weak for this dataset: prompt recall is only about `0.48`, and the rescore pool needs many low-confidence words to reach usable recall.
+  - The main degradation is CB-Whisper utilization/reranking: broad low-threshold KWS context creates false hotword pressure, and the exact/phonetic reward can select candidates with unsupported insertions or tail hotwords over the cleaner ASR candidate.
+  - Pure CB-Whisper should not be judged as a strong Shuili baseline in its current setting. The next fix should make hotword bias conditional on strong evidence or preserve naked v3 as a neutral anchor unless the hotword-bearing candidate is both complete and ASR-plausible.
