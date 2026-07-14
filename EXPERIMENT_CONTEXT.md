@@ -4458,3 +4458,36 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
     - `qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`;
     - same-length + anchor-digit post-filter.
   - Best metrics: raw CER `0.04869`, filler+number normalized CER `0.04312`.
+
+#### CB-SenseVoice full-migration feasibility
+
+- Motivation:
+  - The current strongest Shuili-video route uses SenseVoice as an external anchor. For a cleaner paper story, the CB-Whisper idea should be migrated to SenseVoice rather than merely using SenseVoice as an outside preprocessing model.
+- Feasibility check:
+  - FunASR/SenseVoice is available in the configured `great` environment: `funasr 1.3.14`.
+  - `iic/SenseVoiceSmall` resolves to local class `funasr.models.sense_voice.model.SenseVoiceSmall`.
+  - The model exposes `encoder` and `encode/inference` paths. Internally, SenseVoice does:
+    - fbank feature extraction;
+    - prepend language/style/event query tokens;
+    - `self.encoder(...)`;
+    - CTC decoding.
+  - Therefore a CB-SenseVoice KWS can use SenseVoice encoder outputs directly.
+- Implemented helper:
+  - Added `src/analysis/extract_sensevoice_hidden_states.py`.
+  - It extracts SenseVoice encoder hidden states and saves them with the same `.bin` quantized format used by the existing KWS loader.
+  - It strips the 4 prepended SenseVoice query tokens by default, L2-normalizes each frame, and writes `_hs_manifest.json`.
+- Smoke/full-test extraction:
+  - Command accidentally ran the full current Shuili-video test split, which is acceptable as a feasibility artifact.
+  - Output folder: `src/logs/tmp_sensevoice_hs_smoke`.
+  - Log: `src/logs/extract_sensevoice_hs_smoke_20260714_stdout.log`.
+  - Result: `990` files written, `0` failures.
+  - Manifest reports `encoder_output_size=512`, `input_size=560`, `model=iic/SenseVoiceSmall`, `strip_query_tokens=true`.
+  - Example shapes:
+    - `BAC011S0001W0001.bin`: `(1, 72, 512)`.
+    - `BAC011S0001W0002.bin`: `(1, 27, 512)`.
+- Next full migration steps:
+  - Re-extract utterance and hotword hidden states for AISHELL/Shuili train/dev/test with SenseVoice.
+  - Train a SenseVoice-based KWS using the existing KWS dataloader/model over the new 512-dim hidden states.
+  - Replace Whisper-side online KWS feature extraction with the same SenseVoice extractor logic.
+  - Build SenseVoice n-best/candidate generation and apply the existing exact/phonetic/consensus/COVO evidence stack.
+  - This yields a paper-clean CB-SenseVoice system rather than a Whisper system with an external SenseVoice anchor.
