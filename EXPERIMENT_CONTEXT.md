@@ -4411,3 +4411,50 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Next useful requirement:
   - To make COVO genuinely improve the SenseVoice anchor, we need additional supervision or external knowledge: water-domain term lists, course transcripts/slides, or a labeled development set from the same Shuili-video distribution.
   - Without that, the cleanest deployable choice remains using SenseVoice anchor directly and treating current COVO as unsafe for automatic overwrite.
+
+#### Re-testing original and hotword-use COVO with original-style evidence
+
+- Rationale:
+  - The failed COVO attempts above used selector/strong-anchor prompts that were not close enough to the original COVO hard-negative training format.
+  - We therefore re-tested the original `text_rewrite_hardneg` adapter and the earlier hotword-use adapter with a more original-style correction prompt: compact ASR top-1 + N-best + pinyin + consensus/confusable evidence, plus only two conservative runtime protections:
+    - same normalized length post-filter;
+    - anchor Arabic-digit preservation post-filter.
+- Common inference settings:
+  - Evidence input: `src/logs/cbwhisper_covo_evidence_shuili_videos_v3_neutral_guard_sensevoice_anchor_20260714.jsonl`.
+  - Prompt mode: `correction`.
+  - Enabled: `--include-pinyin`, `--include-consensus-spans`, `--max-confusables 4`, `--prefer-same-length`, `--preserve-anchor-digits`, `--clean-nbest`, `--post-filter-same-length`, `--post-filter-anchor-digits`.
+  - This keeps COVO close to its original ChineseHP hard-negative evidence structure while preventing the major Shuili failure modes of prefix/suffix insertion and numeric rewriting.
+- Original COVO hardneg:
+  - Adapter: `qwen35_text_rewrite_hardneg_dropout_lora_2epoch`.
+  - Predictions: `src/logs/shuili_videos_original_covo_hardneg_sensevoice_predictions_20260714.jsonl`.
+  - Raw CER `0.05011`, baseline SenseVoice-anchor CER `0.05454`.
+  - Improved/worsened/unchanged: `92/62/836`.
+  - Filler+number normalized CER `0.04455`, baseline `0.04902`.
+  - Exact samples `702 -> 745`.
+  - Accepted as a positive COVO-on-anchor result.
+- ChineseHP hotword-aware COVO:
+  - Adapter: `qwen35_cbwhisper_chinesehp_hotword_aware_from_preserve2_lr5e7_1epoch_bf16`.
+  - Predictions: `src/logs/shuili_videos_hotword_aware_covo_sensevoice_predictions_20260714.jsonl`.
+  - Raw CER `0.05049`, baseline `0.05454`.
+  - Improved/worsened/unchanged: `77/46/867`.
+  - Filler+number normalized CER `0.04483`, baseline `0.04902`.
+  - Exact samples `702 -> 747`.
+  - Positive but slightly behind original hardneg on CER.
+- Earlier hotword-use COVO:
+  - Adapter: `qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`.
+  - Predictions: `src/logs/shuili_videos_hotword_use_covo_sensevoice_predictions_20260714.jsonl`.
+  - Raw CER `0.04869`, baseline `0.05454`.
+  - Improved/worsened/unchanged: `74/28/888`.
+  - Filler+number normalized CER `0.04312`, baseline `0.04902`.
+  - Exact samples `702 -> 754`.
+  - Current best COVO-on-anchor result.
+- Interpretation:
+  - The original-style hard-negative evidence structure is important; the selector-style prompts made COVO too willing to absorb noisy n-best text.
+  - The earlier hotword-use adapter is more conservative than the later ChineseHP hotword-aware adapter on this Shuili-video set: it makes fewer changes, but far fewer harmful changes.
+  - Current best complete route is now:
+    - SenseVoice external anchor;
+    - CB-Whisper n-best evidence;
+    - original-style COVO correction prompt;
+    - `qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`;
+    - same-length + anchor-digit post-filter.
+  - Best metrics: raw CER `0.04869`, filler+number normalized CER `0.04312`.
