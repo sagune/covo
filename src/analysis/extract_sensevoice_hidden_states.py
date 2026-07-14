@@ -174,11 +174,15 @@ def extract(args: argparse.Namespace) -> int:
     )
 
     written = 0
+    seen = 0
     skipped = 0
     failed: List[Dict[str, str]] = []
     for code, audio_file in tqdm(audio_files.items()):
         if codes is not None and code not in codes:
             continue
+        if args.limit is not None and seen >= args.limit:
+            break
+        seen += 1
         out_file = target / f"{code}.bin"
         if args.skip_existing and out_file.exists():
             skipped += 1
@@ -228,6 +232,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--keep-query-tokens", action="store_true")
     parser.add_argument("--fail-on-error", action="store_true")
+    parser.add_argument("--limit", type=int, default=None)
     return parser.parse_args()
 
 

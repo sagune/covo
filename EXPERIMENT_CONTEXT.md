@@ -4491,3 +4491,32 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Replace Whisper-side online KWS feature extraction with the same SenseVoice extractor logic.
   - Build SenseVoice n-best/candidate generation and apply the existing exact/phonetic/consensus/COVO evidence stack.
   - This yields a paper-clean CB-SenseVoice system rather than a Whisper system with an external SenseVoice anchor.
+
+#### SenseVoice-KWS full-flow replication
+
+- Goal:
+  - Reuse the CB-Whisper KWS dataset/training inheritance while replacing Whisper encoder hidden states with SenseVoice encoder hidden states.
+  - This is the first concrete step toward a full CB-SenseVoice workflow, instead of using SenseVoice only as an external ASR anchor.
+- Existing KWS flow confirmed:
+  - `AishellKWSDataset` reads utterance hidden states from `kws/hs` and keyword hidden states from `kws/keywords-hs/{natural,tts}`.
+  - It computes normalized inner-product similarity matrices and feeds them to the existing 1-channel TCResNet KWS model.
+  - The hidden dimension itself is not hard-coded; utterance and keyword states only need to come from the same encoder/profile.
+- SenseVoice adaptation:
+  - Added `src/analysis/prepare_sensevoice_kws_dataset.py`.
+  - It creates `datasets/aishell/data_aishell_sensevoice`, symlinks the original AISHELL/CB-Whisper metadata and keyword audio assets, and creates fresh hidden-state output directories.
+  - Added `src/configs/train-sensevoice-kws.yaml`, mirroring the strong large-v3 KWS training recipe while pointing to the SenseVoice hidden-state root.
+  - Updated `src/analysis/extract_sensevoice_hidden_states.py` with `--limit` for smoke tests and safer staged extraction.
+- Smoke check:
+  - Extracted 3 KWS utterance states plus 3 natural and 3 TTS keyword states.
+  - `AishellKWSDataset` successfully loaded a SenseVoice pair and produced a similarity matrix, e.g. feature shape `(1, 2, 65)` for keyword `一`.
+- Full extraction started:
+  - Current detached script PID: `184570`; current extraction subprocess PID: `184573`.
+  - Log: `src/logs/extract_sensevoice_aishell_kws_full_20260714.log`.
+  - Targets:
+    - train KWS utterances: `data_aishell_sensevoice/kws/hs`;
+    - KWS keyword audio states: `data_aishell_sensevoice/kws/keywords-hs/{natural,tts}`;
+    - hotword dev/test utterance states and keyword states for validation/test.
+- Next steps after extraction:
+  - Run `python run_CLI.py fit --config configs/train-sensevoice-kws.yaml` from `src/`.
+  - Validate the resulting SenseVoice-KWS checkpoint on AISHELL dev/test.
+  - Wire the checkpoint into the CB-SenseVoice recognition workflow.
