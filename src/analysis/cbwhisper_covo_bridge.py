@@ -123,6 +123,18 @@ SAME_LENGTH_PRIOR_INSTRUCTION = (
     "应尽量与 ASR top-1 保持相同字数。优先做等长的同音/近音字替换，不要主动扩写、删减或改写句子。"
 )
 
+TRUST_ASR_TOP1_INSTRUCTION = (
+    "强锚点约束：本轮 ASR top-1 来自更可靠的外部/neutral anchor，应视为高置信主候选。"
+    "只有当多个高质量 N-best 候选在同一位置共同支持、且修改后不会破坏数字/领域词/主体语义时，"
+    "才允许改动 ASR top-1。不要仅凭单条同音候选或 KWS 热词把正确 anchor 改坏。"
+)
+
+PRESERVE_ANCHOR_DIGITS_INSTRUCTION = (
+    "数字约束：如果 ASR top-1 中已经包含阿拉伯数字、小数、百分号或年份，最终输出应保留这些数字"
+    "及其书写形式。不要把 2025、6400、10到20、4.8、20% 等改写成中文数字，"
+    "除非 ASR top-1 的数字明显缺失且多个可信候选给出同一个阿拉伯数字修正。"
+)
+
 COMPACT_EVIDENCE_NOTE = (
     "证据说明：下面是压缩后的候选证据。若 ASR top-1 分数明显最高、句子完整，且没有候选支持的热词冲突，"
     "应优先保持 top-1；不要只因为拼音相同或某个 KWS 热词高分就改成低分同音候选。"
@@ -978,6 +990,10 @@ def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
         lines = [INSTRUCTION]
     if compact:
         lines.append(COMPACT_EVIDENCE_NOTE)
+    if bool(getattr(args, "trust_asr_top1", False)):
+        lines.append(TRUST_ASR_TOP1_INSTRUCTION)
+    if bool(getattr(args, "preserve_anchor_digits", False)):
+        lines.append(PRESERVE_ANCHOR_DIGITS_INSTRUCTION)
     if bool(getattr(args, "prefer_same_length", False)):
         lines.append(SAME_LENGTH_PRIOR_INSTRUCTION)
     if bool(getattr(args, "protect_supported_hotwords", False)) and not compact:
@@ -1252,6 +1268,13 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     return 0
 
 
+_ANCHOR_DIGIT_RE = re.compile(r"\d+(?:\.\d+)?%?")
+
+
+def _digit_signature(text: Any) -> List[str]:
+    return _ANCHOR_DIGIT_RE.findall(unicodedata.normalize("NFKC", str(text or "")))
+
+
 def post_filter_predictions(args: argparse.Namespace) -> int:
     """Conservative post-filter for COVO predictions.
 
@@ -1261,7 +1284,9 @@ def post_filter_predictions(args: argparse.Namespace) -> int:
     uses the same light text normalization as the prompt builder: simplify,
     drop punctuation/space, but do not remove fillers or rewrite numbers.
     """
-    if not bool(getattr(args, "post_filter_same_length", False)):
+    use_same_length = bool(getattr(args, "post_filter_same_length", False))
+    use_anchor_digits = bool(getattr(args, "post_filter_anchor_digits", False))
+    if not use_same_length and not use_anchor_digits:
         return 0
 
     prediction_path = Path(args.prediction_output)
@@ -1276,11 +1301,23 @@ def post_filter_predictions(args: argparse.Namespace) -> int:
         base_key = normalize_text(baseline)
         pred_key = normalize_text(prediction)
         decision = "unchanged"
+        digit_mismatch = (
+            use_anchor_digits
+            and bool(_digit_signature(baseline))
+            and _digit_signature(baseline) != _digit_signature(prediction)
+        )
         if pred_key == base_key:
             unchanged += 1
-        elif pred_key and len(pred_key) == len(base_key):
+        elif digit_mismatch:
+            row["prediction_before_post_filter"] = row.get("prediction", "")
+            row["raw_prediction_before_post_filter"] = row.get("raw_prediction", "")
+            row["prediction"] = baseline
+            row["raw_prediction"] = baseline
+            reverted += 1
+            decision = "reverted_anchor_digits"
+        elif (not use_same_length) or (pred_key and len(pred_key) == len(base_key)):
             kept += 1
-            decision = "kept_same_length"
+            decision = "kept_same_length" if use_same_length else "kept"
         else:
             row["prediction_before_post_filter"] = row.get("prediction", "")
             row["raw_prediction_before_post_filter"] = row.get("raw_prediction", "")
@@ -1289,17 +1326,27 @@ def post_filter_predictions(args: argparse.Namespace) -> int:
             reverted += 1
             decision = "reverted_length_mismatch"
         row["post_filter"] = {
-            "same_length": True,
+            "same_length": use_same_length,
+            "anchor_digits": use_anchor_digits,
             "decision": decision,
             "baseline_norm_len": len(base_key),
             "prediction_norm_len": len(pred_key),
+            "baseline_digits": _digit_signature(baseline),
+            "prediction_digits": _digit_signature(prediction),
         }
 
     write_jsonl(prediction_path, rows)
     print(
         json.dumps(
             {
-                "post_filter": "same_length",
+                "post_filter": "+".join(
+                    name
+                    for name, enabled in [
+                        ("same_length", use_same_length),
+                        ("anchor_digits", use_anchor_digits),
+                    ]
+                    if enabled
+                ),
                 "prediction_output": str(prediction_path),
                 "kept": kept,
                 "reverted": reverted,
@@ -1433,6 +1480,16 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         help="Tell COVO to prefer equal-length homophone substitutions over insertions/deletions.",
     )
     parser.add_argument(
+        "--trust-asr-top1",
+        action="store_true",
+        help="Tell COVO to treat ASR top-1 as a high-confidence external/neutral anchor.",
+    )
+    parser.add_argument(
+        "--preserve-anchor-digits",
+        action="store_true",
+        help="Tell COVO to keep Arabic numbers, decimals, percents, and years from ASR top-1.",
+    )
+    parser.add_argument(
         "--no-compact-evidence",
         dest="compact_evidence",
         action="store_false",
@@ -1479,6 +1536,11 @@ def parse_args() -> argparse.Namespace:
         "--post-filter-same-length",
         action="store_true",
         help="After COVO inference, keep only predictions with the same normalized character length as ASR top-1.",
+    )
+    run.add_argument(
+        "--post-filter-anchor-digits",
+        action="store_true",
+        help="After COVO inference, fall back to ASR top-1 if COVO changes ASR top-1 Arabic digit sequences.",
     )
     run.add_argument("--evaluate", action="store_true")
     run.set_defaults(func=cmd_run)

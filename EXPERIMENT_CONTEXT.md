@@ -4370,3 +4370,44 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Raw CER: `0.05483`, below the `6%` target.
   - Filler+number normalized CER: `0.04902`.
   - This demonstrates the bottleneck was candidate/anchor quality rather than KWS recall or scalar CB-Whisper reranking.
+
+#### COVO quality diagnosis on top of SenseVoice anchor
+
+- Goal:
+  - Improve COVO so it can safely use CB-Whisper n-best evidence after the strong SenseVoice anchor, instead of worsening the anchor.
+- Code additions:
+  - `src/analysis/cbwhisper_covo_bridge.py` now has optional `--trust-asr-top1` prompt text for strong external/neutral anchors.
+  - Added optional `--preserve-anchor-digits` prompt text and `--post-filter-anchor-digits` post-filter to prevent COVO from changing Arabic digit sequences from ASR top-1.
+  - These switches are off by default and do not affect previous experiments unless explicitly enabled.
+- Failed prompt-only A/B:
+  - `selector_spoken + trust_asr_top1 + preserve_anchor_digits + post_filter_anchor_digits`.
+  - Predictions: `src/logs/shuili_videos_covo_sensevoice_anchor_trust_digit_predictions_20260714.jsonl`.
+  - Raw CER worsened to `0.07700` versus SenseVoice-anchor baseline `0.05454`.
+  - Reason: selector-style prompting still over-trusts noisy same-pinyin n-best candidates.
+  - Rejected.
+- Failed conservative-correction A/B:
+  - `correction + trust_asr_top1 + preserve_anchor_digits + post_filter_anchor_digits`.
+  - Predictions: `src/logs/shuili_videos_covo_sensevoice_anchor_correction_trust_digit_predictions_20260714.jsonl`.
+  - Raw CER worsened to `0.07880`.
+  - Rejected.
+- Pseudo no-op COVO adaptation:
+  - Built pseudo-SFT rows from SenseVoice-anchor messages without using references:
+    - `src/logs/cbwhisper_covo_messages_shuili_videos_sensevoice_anchor_noop_pseudo_sft_20260714.jsonl`.
+    - Target is ASR top-1 itself, to teach COVO not to overwrite a strong anchor on weak evidence.
+  - Continued from `qwen35_ramc_oral_shuili_norm_domain_sft60k_1epoch_bf16` for 80 steps, lr `5e-7`.
+  - Output adapter: `cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_covo_sensevoice_anchor_noop_pseudo_sft80_20260714`.
+  - Training loss decreased from about `2.56` to `1.91`.
+  - Inference with digit post-filter:
+    - Predictions: `src/logs/shuili_videos_covo_sensevoice_anchor_noopft_trust_digit_predictions_20260714.jsonl`.
+    - Raw CER `0.07446`, normalized CER `0.06758`; still much worse than anchor.
+  - Additional same-length+digit filtering:
+    - Predictions: `src/logs/shuili_videos_covo_sensevoice_anchor_noopft_trust_digit_samelen_predictions_20260714.jsonl`.
+    - Raw CER `0.05832`, normalized CER `0.05340`; closer, but still worse than SenseVoice anchor (`0.05454` raw, `0.04902` normalized).
+  - Rejected as main result.
+- Error diagnosis:
+  - COVO still absorbs unsupported prefixes/suffixes from n-best, e.g. `权威机构... -> 是权威机构...`, `提示人们... -> 要提示人们...`, `钢铁生产... -> 我认为钢铁生产...`.
+  - Same-length edits are not reliably separable: among same-length changes after filtering, 1-character edits included `52` improved versus `61` worsened.
+  - Therefore prompt/filter tuning cannot reliably make COVO positive on top of a strong anchor.
+- Next useful requirement:
+  - To make COVO genuinely improve the SenseVoice anchor, we need additional supervision or external knowledge: water-domain term lists, course transcripts/slides, or a labeled development set from the same Shuili-video distribution.
+  - Without that, the cleanest deployable choice remains using SenseVoice anchor directly and treating current COVO as unsafe for automatic overwrite.
