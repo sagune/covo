@@ -1,3 +1,138 @@
+# CB-SenseVoice / COVO Research Workspace
+
+This workspace contains the ongoing contextual-biasing ASR experiments derived
+from CB-Whisper and COVO.  The current research direction is to migrate the
+CB-Whisper hotword/KWS idea from Whisper encoder states to SenseVoice encoder
+states, and then feed the resulting hotword-aware ASR evidence into a COVO-style
+post-correction model.
+
+The original CB-Whisper README is kept below for reproducibility.  This top
+section documents the current working workflow.
+
+## Current Goal
+
+Build a paper-clean CB-SenseVoice pipeline:
+
+1. Extract SenseVoice encoder hidden states for utterances and hotword audio.
+2. Train the existing lightweight TCResNet KWS model on SenseVoice similarity
+   matrices.
+3. Use KWS hotword evidence to bias ASR candidate generation and COVO
+   correction.
+4. Compare against original CB-Whisper, Whisper large-v3, SenseVoice-only, and
+   COVO-only baselines.
+
+The main constraint is that the method should remain lightweight and
+explainable.  Avoid heavy case-specific patches as main paper claims.
+
+## Environment
+
+Use the prepared conda environment:
+
+```bash
+conda activate /root/autodl-tmp/great
+```
+
+Most commands below are run from the repository root `/root/autodl-tmp` unless
+noted otherwise.
+
+## SenseVoice KWS Pipeline
+
+The SenseVoice KWS data root is:
+
+```text
+datasets/aishell/data_aishell_sensevoice
+```
+
+It reuses the original AISHELL/CB-Whisper metadata and keyword audio assets, but
+stores new SenseVoice hidden states under fresh `hs` and `keywords-hs`
+directories.
+
+Prepare the dataset skeleton:
+
+```bash
+python src/analysis/prepare_sensevoice_kws_dataset.py \
+  --source datasets/aishell/data_aishell \
+  --target datasets/aishell/data_aishell_sensevoice
+```
+
+Extract all AISHELL KWS and hotword hidden states:
+
+```bash
+src/scripts/run_sensevoice_kws_extraction_20260714.sh
+```
+
+This uses `iic/SenseVoiceSmall`, extracts `model.encoder(...)` outputs, strips
+the four SenseVoice query tokens, L2-normalizes the frame states, and saves the
+same quantized `.bin` format used by the existing KWS dataloader.  SenseVoice
+hidden-state dimension is 512.
+
+Train the SenseVoice KWS model:
+
+```bash
+cd src
+python run_CLI.py fit --config configs/train-sensevoice-kws.yaml
+```
+
+The training config mirrors the strong large-v3 KWS recipe while changing the
+feature source to SenseVoice hidden states.  The KWS model itself remains the
+lightweight 1-channel TCResNet over keyword/utterance similarity matrices.
+
+Current training artifacts are written to:
+
+```text
+src/outputs/aishell_sensevoice_kws/checkpoints/
+src/outputs/mlruns/
+src/logs/train_sensevoice_kws_20260714.log
+```
+
+As of the latest recorded run, the best validation checkpoint was around:
+
+```text
+src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=7-step=48040.ckpt
+```
+
+with validation `f1_zh` about `0.8748`, precision about `0.9343`, and recall
+about `0.8225`.
+
+## Important Files
+
+```text
+src/analysis/extract_sensevoice_hidden_states.py
+src/analysis/prepare_sensevoice_kws_dataset.py
+src/configs/train-sensevoice-kws.yaml
+src/scripts/run_sensevoice_kws_extraction_20260714.sh
+src/scripts/shutdown_after_sensevoice_kws_train_20260715.sh
+EXPERIMENT_CONTEXT.md
+```
+
+`EXPERIMENT_CONTEXT.md` is the durable experiment ledger.  Record major
+experiment settings, checkpoints, results, and failure reasons there.
+
+## COVO / Post-Correction Direction
+
+The strongest recent Shuili route used:
+
+1. SenseVoice as a clean ASR anchor.
+2. CB-Whisper-style hotword/candidate evidence.
+3. A COVO-style correction prompt with n-best, pinyin, consensus/confusable
+   evidence, and hotword signals.
+
+The next clean paper direction is to replace the external SenseVoice anchor
+with a full CB-SenseVoice workflow: SenseVoice hidden-state KWS, SenseVoice
+candidate/evidence generation, then COVO correction.
+
+## Working Rules
+
+- Commit code changes after each coherent step.
+- Keep generated logs, checkpoints, and datasets out of normal commits unless
+  explicitly needed.
+- For rejected routes, record why they failed before reverting or moving on.
+- Prefer method-level changes that can be explained in a paper over brittle
+  dataset-specific patches.
+
+---
+
+# Original CB-Whisper README
 
 # Adding User Feedback To Enhance CB-Whisper
 
