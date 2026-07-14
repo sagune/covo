@@ -4512,6 +4512,9 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Full extraction started:
   - Current detached script PID: `184570`; current extraction subprocess PID: `184573`.
   - Log: `src/logs/extract_sensevoice_aishell_kws_full_20260714.log`.
+  - Pipeline watcher PID: `184675`.
+  - Watcher log: `src/logs/sensevoice_kws_pipeline_20260714.log`.
+  - If extraction finishes cleanly, the watcher starts KWS training automatically and writes `src/logs/train_sensevoice_kws_20260714.log`.
   - Targets:
     - train KWS utterances: `data_aishell_sensevoice/kws/hs`;
     - KWS keyword audio states: `data_aishell_sensevoice/kws/keywords-hs/{natural,tts}`;
