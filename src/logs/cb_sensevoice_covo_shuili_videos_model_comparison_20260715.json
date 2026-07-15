@@ -1,0 +1,43 @@
+{
+  "date": "2026-07-15",
+  "dataset": "data_shuil_videos_largev3",
+  "split": "test",
+  "samples": 990,
+  "inference_constraints": {
+    "same_evidence": true,
+    "chinesehp_style_prompt": true,
+    "post_hoc_gate": false,
+    "post_filter_same_length": false,
+    "post_filter_anchor_digits": false
+  },
+  "cb_sensevoice": {
+    "mean_sample_cer": 0.06522250014469043,
+    "corpus_cer": 0.05519909416871108,
+    "entity_recall": 0.9684684684684685,
+    "exact_rows": 671
+  },
+  "original_covo": {
+    "adapter": "qwen35_text_rewrite_hardneg_dropout_lora_2epoch",
+    "mean_sample_cer": 0.06399057688566566,
+    "corpus_cer": 0.053311945650122664,
+    "entity_recall": 0.9774774774774775,
+    "exact_rows": 701,
+    "raw_correction_evaluator_cer": 0.052656412192129846,
+    "improved_rows": 115,
+    "worsened_rows": 88,
+    "unchanged_rows": 787,
+    "accepted": true
+  },
+  "hotword_use_covo": {
+    "adapter": "qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16",
+    "mean_sample_cer": 0.08910455354691607,
+    "corpus_cer": 0.08520475561426684,
+    "entity_recall": 0.9797297297297297,
+    "exact_rows": 641,
+    "raw_correction_evaluator_cer": 0.10984240822874398,
+    "improved_rows": 78,
+    "worsened_rows": 200,
+    "unchanged_rows": 712,
+    "accepted": false
+  }
+}

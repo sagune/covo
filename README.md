@@ -611,6 +611,21 @@ COVO reliability-label probe on 2026-06-27: `src/analysis/cbwhisper_covo_bridge.
 
 Compact reliability-label COVO training probe on 2026-06-27: the reliability prompt was shortened by keeping `max_nbest=6`, `max_pinyin=3`, `max_hotwords=6`, and removing the duplicate candidate-score block. Without retraining, this compact prompt improved the cleanliness-first pool to COVO evaluator CER `0.04408`, legacy mean/corpus CER `0.04625 / 0.04408`, and hotword recall `0.9108`. Continuing the current best adapter on AISHELL train reliability-labeled compact evidence for 40 and 80 steps both reached COVO evaluator CER `0.04362`; 80 steps had slightly better legacy mean CER (`0.04564` vs `0.04574`) while 40 steps had slightly higher hotword recall (`0.9087` vs `0.9076`). This nearly matches the old CER-best no-gate adapter (`0.04354`) while using the richer clean n-best pool and retaining higher recall than the old result. It is a useful direction, but not yet a clean replacement for the current main result.
 
+Full Shuili CB-SenseVoice + COVO comparison on 2026-07-15: the 990-row
+`data_shuil_videos_largev3` test set was decoded by end-to-end CB-SenseVoice,
+then passed to two historical COVO adapters with identical ChineseHP-style
+evidence (`6` n-best, consensus/uncertain spans, pinyin, and predicted
+hotwords). No gate or post-hoc fallback was used. Under the CB normalization,
+the CB-SenseVoice input has mean/corpus CER `0.06522 / 0.05520`, Entity Recall
+`0.96847`, and `671/990` exact rows. The original ChineseHP hard-negative COVO
+adapter improves these to mean/corpus CER `0.06399 / 0.05331`, Entity Recall
+`0.97748`, and `701/990` exact rows. The later hotword-use adapter increases
+recall to `0.97973`, but over-rewrites ordinary text: mean/corpus CER regresses
+to `0.08910 / 0.08520`, with only `641/990` exact rows. Therefore the original
+COVO is the accepted model for this integrated Shuili path; hotword-use is
+rejected despite its small recall gain. Machine-readable details are in
+`src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

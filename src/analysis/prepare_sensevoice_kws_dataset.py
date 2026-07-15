@@ -3,7 +3,8 @@
 
 The script preserves the original CB-Whisper dataset metadata and keyword
 audio assets through symlinks, while creating fresh ``hs`` and ``keywords-hs``
-directories for SenseVoice encoder states.
+directories for SenseVoice encoder states. Test-only datasets without a
+``kws`` training directory are supported as well.
 """
 
 from __future__ import annotations
@@ -66,7 +67,8 @@ def main() -> int:
     rel_symlink(source / "wav", target / "wav")
     if (source / "transcript").exists():
         rel_symlink(source / "transcript", target / "transcript")
-    prepare_kws(source, target)
+    if (source / "kws").is_dir():
+        prepare_kws(source, target)
     for split in [part.strip() for part in args.splits.split(",") if part.strip()]:
         prepare_hotword_split(source, target, split)
     print(f"prepared SenseVoice KWS dataset root: {target}")

@@ -4644,3 +4644,41 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - `src/logs/cb_sensevoice_covo_predictions_preserve2_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_preserve2_full_audit_summary_20260715.json`;
   - `src/logs/experiment_cb_sensevoice_covo_preserve2_full_20260715_stdout.log`.
+
+## Shuili CB-SenseVoice and historical COVO comparison (2026-07-15)
+
+- Dataset: full `data_shuil_videos_largev3` test set, `990` rows and `180`
+  domain hotwords.
+- CB-SenseVoice setup:
+  - SenseVoice utterance and natural-hotword hidden states, both 512-dimensional;
+  - SenseVoice KWS checkpoint `f1G-epoch=16-step=102085.ckpt`;
+  - neutral plus hotword-biased CTC candidates, beam `24`, no external ASR
+    anchor;
+  - CB-SenseVoice input mean/corpus CER `0.06522 / 0.05520`, Entity Recall
+    `0.96847`, exact `671/990`.
+- Fair COVO comparison:
+  - both adapters receive the same six reliability-labeled candidates,
+    consensus spans, uncertain spans, pinyin, and predicted KWS/prompt hotwords;
+  - both use the original ChineseHP-style correction prompt;
+  - no gate, same-length post-filter, digit post-filter, or fallback is applied.
+- Original COVO hard-negative adapter
+  (`qwen35_text_rewrite_hardneg_dropout_lora_2epoch`):
+  - CB-normalized mean/corpus CER `0.06399 / 0.05331`;
+  - Entity Recall `0.97748`, exact `701/990`;
+  - raw correction-evaluator CER `0.05379 -> 0.05266`;
+  - improved/worsened/unchanged `115 / 88 / 787`.
+- Hotword-use adapter
+  (`qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`):
+  - CB-normalized mean/corpus CER `0.08910 / 0.08520`;
+  - Entity Recall `0.97973`, exact `641/990`;
+  - raw correction-evaluator CER `0.05379 -> 0.10984`;
+  - improved/worsened/unchanged `78 / 200 / 712`.
+- Conclusion: the original COVO gives a small but genuine no-gate improvement
+  on this already-strong CB-SenseVoice evidence. The hotword-use continuation
+  learned stronger hotword retention but became too aggressive outside
+  hotwords, so its small recall gain does not justify the large CER regression.
+- Artifacts:
+  - `src/logs/cb_sensevoice_evidence_shuili_videos_full_20260715.jsonl`;
+  - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_original_covo_full_20260715.jsonl`;
+  - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_hotword_use_originalstyle_full_20260715.jsonl`;
+  - `src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
