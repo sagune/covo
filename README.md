@@ -688,6 +688,61 @@ Suspected reference errors such as `南路/南麓` and `饮水量/引水量` wer
 from the injected phrase list. This remains a deliberately invalid test-leak
 diagnostic, not a paper result.
 
+## Current consolidated results (2026-07-15)
+
+Metrics with different normalization rules are not directly interchangeable.
+AISHELL uses the original CB mean-sample CER convention. The two Shuili tables
+use corpus CER with Chinese/Arabic numbers normalized; filler removal is shown
+only where explicitly stated. `Independent` means the evaluated references
+were not used for model/lexicon fitting, while `Leaked diagnostic` must never
+be reported as a paper test result.
+
+### AISHELL hotword test (808 utterances)
+
+| System | CER | Hotword recall | Hotword CER | WER | Status |
+|---|---:|---:|---:|---:|---|
+| Naked SenseVoice | 8.554% | - | - | - | Independent |
+| SenseVoice KWS + Whisper-v3 | 7.174% | 92.155% | 5.228% | 46.906% | Independent |
+| End-to-end CB-SenseVoice | 6.202% | 83.204% | 10.979% | 40.099% | Independent |
+| CB-SenseVoice + preserve2 COVO | **4.379%** | 83.978% | - | - | Independent |
+| Candidate oracle | 3.686% | 85.128% | - | - | Upper bound |
+
+The accepted COVO row has `541/808` exact utterances. Under COVO's separate
+corpus evaluator, the same prediction is `4.137%` CER; this value must not be
+mixed with the CB mean-sample CER column above.
+
+### Original Shuili course recording (1152 utterances)
+
+| System | Number-normalized CER | Raw CER | Hotword recall | Edits | Exact | Status |
+|---|---:|---:|---:|---:|---:|---|
+| Naked SenseVoice | 4.636% | 4.654% | 82.884% | 731 | 722 | Independent |
+| CB-SenseVoice | 4.059% | 4.076% | 93.050% | 640 | 763 | Independent |
+| AISHELL DPO60 listwise COVO | **3.887%** | **3.905%** | **93.136%** | **613** | **774** | Independent |
+| Candidate oracle | 1.820% | - | - | - | - | Upper bound |
+
+### New Shuili video set (990 utterances)
+
+| System | CER | Filler+number CER | Hotword recall | Edits | Exact | Status |
+|---|---:|---:|---:|---:|---:|---|
+| Naked SenseVoice | 4.873% | 4.902% | 82.567% (259-term mentions) | 523 | 699 | Independent |
+| CB-SenseVoice, original 180 terms | 4.798% | - | 97.849% (historical 180-term mentions) | 515 | 696 | Independent |
+| CB-SenseVoice, expanded 259 terms | 4.072% | 4.074% | 95.157% | 437 | 745 | Leaked diagnostic |
+| Original COVO free generation | 4.304% | - | - | 462 | 748 | Rejected, leaked pool |
+| AISHELL oracle SFT free generation | 4.090% | - | - | 439 | 761 | Rejected, leaked pool |
+| SFT output projected to N-best | 3.950% | - | - | 424 | 764 | Diagnostic, leaked pool |
+| AISHELL SFT listwise | 3.764% | - | - | 404 | 767 | Superseded, leaked pool |
+| AISHELL DPO60 listwise | 3.736% | 3.722% | - | 401 | 768 | Best before direct test-label training |
+| Old-Shuili source continuation | 3.960% | - | - | 425 | 759 | Rejected distribution shift |
+| First direct test-term DPO, test-tuned | - | 3.636% | - | 382 | - | Explicit test leak |
+| Confusion-term DPO70, weight 0.5 | 3.540% | 3.522% | - | 380 | 787 | Explicit test leak |
+| **Confusion-term DPO70, test-tuned weight 0.3** | **3.503%** | **3.484%** | **95.642%** | **376** | **790** | **Explicit test leak** |
+| Candidate oracle | 2.227% | 2.208% | - | 239 | - | Upper bound on leaked pool |
+
+The final test-tuned row has `796` exact utterances after filler removal.
+Current 259-term aligned recall uses 826 mentions:
+naked SenseVoice `682/826`, CB-SenseVoice `786/826`, and the final leaked COVO
+`790/826`.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
