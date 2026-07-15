@@ -4872,3 +4872,26 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   discriminative candidate representation.
 - Machine-readable summary:
   `src/logs/cb_sensevoice_covo_listwise_summary_20260715.json`.
+
+## Original Shuili course-recording transfer (2026-07-15)
+
+- Dataset: all `1152` test utterances in `data_shuil_largev3`, the original
+  classroom lecture recording rather than the later 990-row video/subtitle
+  set.
+- Protocol: no filler removal; report both raw CER and Chinese/Arabic
+  number-equivalent CER. The tested DPO60 listwise adapter was trained only on
+  AISHELL CB-SenseVoice evidence, so this is an independent domain-transfer
+  result.
+- Number-normalized results:
+  - naked SenseVoice: CER `0.04636`, `731` edits, `722/1152` exact, aligned
+    hotword recall `0.82884`;
+  - CB-SenseVoice: CER `0.04059`, `640` edits, `763/1152` exact, recall
+    `0.93050`;
+  - AISHELL DPO60 listwise COVO: CER **`0.03887`**, `613` edits, `774/1152`
+    exact, recall `0.93136`.
+- COVO changes: improved/worsened/unchanged `61/40/1051`. Raw CER also
+  improves from CB-SenseVoice `0.04076` to `0.03905`.
+- Candidate oracle CER is `0.01820`, so the remaining gap is primarily
+  listwise candidate discrimination rather than candidate absence.
+- Machine-readable summary:
+  `src/logs/cb_sensevoice_covo_shuili_course_summary_20260715.json`.

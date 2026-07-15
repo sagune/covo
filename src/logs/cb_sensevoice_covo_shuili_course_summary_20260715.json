@@ -1,0 +1,44 @@
+{
+  "dataset": "data_shuil_largev3_course_recording_test",
+  "samples": 1152,
+  "metric": "corpus_cer_without_filler_removal",
+  "hotword_metric": "aligned_mention_substring_recall",
+  "naked_sensevoice": {
+    "raw_cer": 0.046536727826804646,
+    "number_normalized_cer": 0.04635677595281882,
+    "number_normalized_edits": 731,
+    "number_normalized_exact": 722,
+    "hotword_hits": 954,
+    "hotword_mentions": 1151,
+    "hotword_recall": 0.8288444830582102
+  },
+  "cb_sensevoice": {
+    "raw_cer": 0.04075931686877024,
+    "number_normalized_cer": 0.040585959794533576,
+    "number_normalized_edits": 640,
+    "number_normalized_exact": 763,
+    "hotword_hits": 1071,
+    "hotword_mentions": 1151,
+    "hotword_recall": 0.9304952215464813
+  },
+  "aishell_dpo60_listwise_covo": {
+    "raw_cer": 0.03904513999111168,
+    "number_normalized_cer": 0.038873739615701695,
+    "number_normalized_edits": 613,
+    "number_normalized_exact": 774,
+    "hotword_hits": 1072,
+    "hotword_mentions": 1151,
+    "hotword_recall": 0.9313640312771503,
+    "improved_samples": 61,
+    "worsened_samples": 40,
+    "unchanged_samples": 1051
+  },
+  "candidate_oracle": {
+    "cer": 0.01820026635
+  },
+  "protocol_notes": [
+    "The DPO60 listwise COVO adapter was trained on AISHELL CB-SenseVoice evidence, not this course-recording test set.",
+    "No filler words were removed during evaluation.",
+    "Chinese and Arabic numeric forms are treated as equivalent only in the number-normalized column."
+  ]
+}

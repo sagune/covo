@@ -657,6 +657,16 @@ to `0.03764`; a 60-step near-miss/no-op DPO continuation improves it to
 rejected. The DPO listwise model is the current best, but the sub-3% target has
 not been reached without test-label tuning.
 
+Independent course-recording transfer on 2026-07-15: the AISHELL-trained
+DPO60 listwise COVO was evaluated on all `1152` utterances of the original
+`data_shuil_largev3` classroom recording, without training on this test set or
+removing spoken fillers. Number-normalized corpus CER changes from naked
+SenseVoice `0.04636`, to CB-SenseVoice `0.04059`, and finally to listwise COVO
+`0.03887`. Aligned hotword recall changes from `0.82884`, to `0.93050`, and
+then `0.93136`. COVO reduces edits from `640` to `613`, with `61/40/1051`
+improved/worsened/unchanged rows. The candidate oracle is `0.01820`, leaving
+substantial candidate-selection headroom.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

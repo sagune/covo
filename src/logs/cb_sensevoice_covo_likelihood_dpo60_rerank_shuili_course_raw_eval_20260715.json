@@ -1,0 +1,21 @@
+{
+  "input": "src/logs/cb_sensevoice_covo_likelihood_dpo60_rerank_shuili_course_full_20260715.jsonl",
+  "samples": 1152,
+  "reference_chars": 15751,
+  "fillers": [],
+  "normalize_numbers": false,
+  "base_cer": 0.04075931686877024,
+  "prediction_cer": 0.03904513999111168,
+  "base_mean_sample_cer": 0.042064382950200534,
+  "prediction_mean_sample_cer": 0.04001240004495664,
+  "base_edits": 642,
+  "prediction_edits": 615,
+  "improved_samples": 61,
+  "worsened_samples": 40,
+  "unchanged_samples": 1051,
+  "base_exact": 761,
+  "prediction_exact": 772,
+  "ref_changed_by_filter": 0,
+  "base_changed_by_filter": 0,
+  "pred_changed_by_filter": 0
+}
