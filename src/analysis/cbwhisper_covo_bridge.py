@@ -1115,6 +1115,18 @@ def _simplify_hotword_rows(rows: List[Any]) -> List[Any]:
     return output
 
 
+def _simplify_keyword_mentions(rows: List[Any]) -> List[Any]:
+    output: List[Any] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        copied = dict(item)
+        copied["mention"] = simplify_text(copied.get("mention", ""))
+        if copied["mention"]:
+            output.append(copied)
+    return output
+
+
 def _simplify_candidates(rows: List[Any]) -> List[Any]:
     output: List[Any] = []
     for item in rows:
@@ -1154,7 +1166,9 @@ def simplify_input_block(input_block: Dict[str, Any]) -> Dict[str, Any]:
     if "prompt_hotwords" in simplified:
         simplified["prompt_hotwords"] = _simplify_hotword_rows(list(simplified.get("prompt_hotwords", []) or []))
     if "keyword_mentions" in simplified:
-        simplified["keyword_mentions"] = _simplify_hotword_rows(list(simplified.get("keyword_mentions", []) or []))
+        simplified["keyword_mentions"] = _simplify_keyword_mentions(
+            list(simplified.get("keyword_mentions", []) or [])
+        )
     if "oracle_hotwords" in simplified:
         simplified["oracle_hotwords"] = _simplify_hotword_rows(list(simplified.get("oracle_hotwords", []) or []))
     cbw = simplified.get("cbwhisper")

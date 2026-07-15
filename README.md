@@ -446,6 +446,53 @@ instead of only the filtered prompt words changed six candidate pools but left
 CER and recall exactly unchanged. That expansion was rejected and the compact
 filtered-hotword formulation was retained.
 
+### CB-SenseVoice + COVO
+
+CB-SenseVoice evidence is compatible with the existing COVO bridge. The
+current no-gate workflow uses six SenseVoice candidates, their pinyin and
+scores, and all available KWS/prompt hotword evidence with the conservative
+`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` adapter:
+
+```text
+CB-SenseVoice top1 + n-best + KWS evidence
+  -> compact reliability-labeled COVO prompt
+  -> Qwen3.5-4B + preserve2 LoRA
+  -> corrected final transcript
+```
+
+Full AISHELL hotword test (`808` rows):
+
+| System | Entity Recall | CB-normalized mean CER | Exact rows |
+| --- | ---: | ---: | ---: |
+| End-to-end CB-SenseVoice | 0.83204 | 0.06202 | 484 |
+| CB-SenseVoice + COVO preserve2 | **0.83978** | **0.04379** | **541** |
+
+COVO recovered `38/105` true hotwords that had entered the filtered prompt but
+were absent from every SenseVoice candidate. Across all mentions it gained 48
+hotwords and lost 42, so recall improves only modestly while CER improves
+substantially. No post-filter, fallback gate, or reference-derived field is
+used by the model prompt.
+
+The bridge now preserves `keyword_mentions` as evaluation-only metadata during
+simplified-Chinese conversion. These gold mentions are not rendered into the
+COVO prompt.
+
+Run from `src/`:
+
+```bash
+/root/autodl-tmp/great/bin/python analysis/cbwhisper_covo_bridge.py run \
+  --input logs/cb_sensevoice_evidence_aishell.jsonl \
+  --output logs/cb_sensevoice_covo_messages.jsonl \
+  --prediction-output logs/cb_sensevoice_covo_predictions.jsonl \
+  --adapter-path ../cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7 \
+  --max-nbest 6 --max-pinyin 3 \
+  --max-hotwords 8 --max-prompt-hotwords 6 \
+  --max-candidates-with-scores 6 \
+  --hotword-source all --include-pinyin \
+  --protect-supported-hotwords \
+  --batch-size 7 --disable-thinking --evaluate
+```
+
 Run the full workflow from `src/`:
 
 ```bash
@@ -501,7 +548,10 @@ The default bridge paths use the migration bundle:
 /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch
 ```
 
-This is intentionally a loose bridge rather than a hard code merge: CB-Whisper remains responsible for ASR, N-best, KWS, and hotword scoring; covo remains responsible for conservative generative correction and fallback-style evaluation.
+This is intentionally a loose bridge rather than a hard code merge: CB-Whisper
+or CB-SenseVoice remains responsible for ASR, N-best, KWS, and hotword scoring;
+COVO remains responsible for conservative generative correction and
+evaluation.
 
 Smoke test on 2026-06-12: a 2-sample AISHELL run with `CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_smoke.jsonl` successfully exported evidence, converted it to Qwen messages, loaded the migrated `Qwen3.5-4B` + hard-negative LoRA adapter, and evaluated the predictions. The smoke subset improved CER from `0.07143` to `0.00000`, with `1` improved sample, `0` worsened samples, and `1` unchanged sample. This is only a wiring check, not a reportable metric, but it confirms the CB-Whisper -> covo bridge can repair at least one real CB-Whisper over-correction case.
 

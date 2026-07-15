@@ -1,0 +1,24 @@
+{
+  "input": "logs/cb_sensevoice_evidence_aishell_full_20260715.jsonl",
+  "output": "logs/cb_sensevoice_covo_messages_preserve2_full_20260715.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py --input /root/autodl-tmp/src/logs/cb_sensevoice_covo_messages_preserve2_full_20260715.jsonl --output /root/autodl-tmp/src/logs/cb_sensevoice_covo_predictions_preserve2_full_20260715.jsonl --model-name-or-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B --adapter-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7 --batch-size 7 --max-new-tokens 128 --temperature 0.0 --top-p 1.0 --device auto --progress-every 100 --disable-thinking
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<00:48,  8.79it/s]Loading weights:   8%|▊         | 34/426 [00:00<00:02, 180.51it/s]Loading weights:  14%|█▎        | 58/426 [00:00<00:01, 205.01it/s]Loading weights:  19%|█▉        | 81/426 [00:00<00:01, 206.02it/s]Loading weights:  25%|██▍       | 106/426 [00:00<00:01, 213.35it/s]Loading weights:  31%|███▏      | 134/426 [00:00<00:01, 233.94it/s]Loading weights:  37%|███▋      | 159/426 [00:00<00:01, 232.40it/s]Loading weights:  44%|████▎     | 186/426 [00:00<00:01, 235.86it/s]Loading weights:  49%|████▉     | 210/426 [00:00<00:00, 222.21it/s]Loading weights:  56%|█████▌    | 238/426 [00:01<00:00, 229.76it/s]Loading weights:  62%|██████▏   | 262/426 [00:01<00:00, 214.42it/s]Loading weights:  68%|██████▊   | 290/426 [00:01<00:00, 228.64it/s]Loading weights:  74%|███████▎  | 314/426 [00:01<00:00, 207.06it/s]Loading weights:  80%|████████  | 342/426 [00:01<00:00, 222.89it/s]Loading weights:  86%|████████▌ | 365/426 [00:01<00:00, 202.29it/s]Loading weights:  93%|█████████▎| 396/426 [00:01<00:00, 228.82it/s]Loading weights:  99%|█████████▊| 420/426 [00:01<00:00, 209.80it/s]Loading weights: 100%|██████████| 426/426 [00:01<00:00, 214.30it/s]
+{"written": 700}
+{
+  "input": "/root/autodl-tmp/src/logs/cb_sensevoice_covo_messages_preserve2_full_20260715.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cb_sensevoice_covo_predictions_preserve2_full_20260715.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/evaluate_correction_jsonl.py --input /root/autodl-tmp/src/logs/cb_sensevoice_covo_predictions_preserve2_full_20260715.jsonl --prediction-field prediction --reference-field reference --baseline-field input.asr_top1
+{
+  "samples": 808,
+  "cer": 0.04136592937524253,
+  "baseline_cer": 0.07823050058207218,
+  "improved_samples": 238,
+  "worsened_samples": 44,
+  "unchanged_samples": 526
+}

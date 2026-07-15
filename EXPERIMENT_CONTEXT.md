@@ -4605,3 +4605,42 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - `src/logs/test_metrics_cb_sensevoice_full_20260715.csv`;
   - `src/logs/oracle_nbest_summary_cb_sensevoice_aishell.csv`;
   - `src/logs/cb_sensevoice_evidence_aishell_full_20260715.jsonl`.
+
+## CB-SenseVoice to COVO integration (2026-07-15)
+
+- Goal: let COVO recover correct lexical forms when KWS finds the hotword but
+  SenseVoice CTC does not place that exact form in n-best.
+- Paper-clean inference path:
+  - no gate or post-hoc fallback;
+  - COVO receives CB-SenseVoice top1, six reliability-labeled SenseVoice
+    candidates, three pinyin candidates, candidate scores, and KWS/prompt
+    hotwords;
+  - adapter:
+    `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.
+- Model sweep, first 100 rows:
+  - `hotword_use_sft60`, expanded/no-op, and protected SFT40 all substantially
+    reduced CER but over-corrected rare names;
+  - preserve2 gave the best balance and was selected for the full run.
+- Full AISHELL hotword test, 808 rows, CB normalization:
+  - CB-SenseVoice: mean CER `0.06202`, Entity Recall `0.83204`, exact `484`;
+  - CB-SenseVoice + COVO: mean CER `0.04379`, Entity Recall `0.83978`, exact
+    `541`;
+  - absolute CER improvement `0.01824`; recall improvement `0.00773`.
+- COVO correction evaluator:
+  - corpus CER `0.07823 -> 0.04137`;
+  - improved/worsened/unchanged rows: `238 / 44 / 526`.
+- Hotword flow audit over 944 mentions:
+  - base hits `787`, COVO hits `793`;
+  - COVO gained `48` and lost `42` base hotwords;
+  - among `105` true hotwords present in the filtered prompt but missing from
+    all SenseVoice candidates, COVO generated the correct form in `38` cases.
+- Bridge correctness fix:
+  - simplified-input conversion previously treated `keyword_mentions` as
+    ordinary hotword rows and dropped them because their key is `mention`, not
+    `text`;
+  - the bridge now preserves and simplifies this evaluation-only metadata;
+  - an assertion verifies the gold mentions remain outside the user prompt.
+- Artifacts:
+  - `src/logs/cb_sensevoice_covo_predictions_preserve2_full_20260715.jsonl`;
+  - `src/logs/cb_sensevoice_covo_preserve2_full_audit_summary_20260715.json`;
+  - `src/logs/experiment_cb_sensevoice_covo_preserve2_full_20260715_stdout.log`.

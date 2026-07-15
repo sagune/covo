@@ -1,0 +1,37 @@
+{
+  "dataset": "aishell_hotword_test",
+  "samples": 808,
+  "adapter": "qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7",
+  "inference": {
+    "max_nbest": 6,
+    "max_pinyin": 3,
+    "hotword_source": "all",
+    "protect_supported_hotwords": true,
+    "post_filter": false,
+    "gate": false
+  },
+  "cb_normalization": {
+    "baseline_mean_cer": 0.06202496963684972,
+    "prediction_mean_cer": 0.04378855115547165,
+    "baseline_entity_recall": 0.8320441988950277,
+    "prediction_entity_recall": 0.8397790055248618,
+    "baseline_exact": 484,
+    "prediction_exact": 541
+  },
+  "covo_evaluator": {
+    "baseline_cer": 0.07823050058207218,
+    "prediction_cer": 0.04136592937524253,
+    "improved": 238,
+    "worsened": 44,
+    "unchanged": 526
+  },
+  "hotword_flow": {
+    "mentions": 944,
+    "baseline_hits": 787,
+    "prediction_hits": 793,
+    "gained": 48,
+    "lost": 42,
+    "prompt_but_missing_from_candidates": 105,
+    "recovered_from_prompt_without_candidate": 38
+  }
+}
