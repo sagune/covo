@@ -4935,6 +4935,13 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - candidate oracle: CER `0.02208`.
 - Pure-homophone missed selections fall `42 -> 36`; cases where the exact
   reference is present but a homophone is selected fall `23 -> 15`.
+- Current aligned-mention hotword recall:
+  - naked SenseVoice: `682/826 = 0.82567`;
+  - CB-SenseVoice: `786/826 = 0.95157`;
+  - injected confusion model: **`790/826 = 0.95642`**.
+- Split by lexicon provenance, COVO changes old-180 recall from
+  `637/647 = 0.98454` to `639/647 = 0.98764`, and added-79 recall from
+  `149/179 = 0.83240` to `151/179 = 0.84358`.
 - This confirms that explicit phrase coverage helps, while also showing that
   terminology memorization alone cannot reach the oracle. The entire result
   remains test-leaked and is unsuitable for formal reporting.

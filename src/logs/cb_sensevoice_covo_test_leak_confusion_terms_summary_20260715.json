@@ -23,6 +23,35 @@
     "confusion_model_test_tuned_edits": 366,
     "candidate_oracle_cer": 0.02208261945554921
   },
+  "aligned_hotword_recall": {
+    "mentions": 826,
+    "naked_sensevoice": {
+      "hits": 682,
+      "recall": 0.8256658595641646
+    },
+    "cb_sensevoice": {
+      "hits": 786,
+      "recall": 0.9515738498789347
+    },
+    "confusion_model": {
+      "hits": 790,
+      "recall": 0.9564164648910412
+    },
+    "old_180_terms": {
+      "mentions": 647,
+      "cb_sensevoice_hits": 637,
+      "cb_sensevoice_recall": 0.9845440494590417,
+      "confusion_model_hits": 639,
+      "confusion_model_recall": 0.9876352395672334
+    },
+    "added_79_terms": {
+      "mentions": 179,
+      "cb_sensevoice_hits": 149,
+      "cb_sensevoice_recall": 0.8324022346368715,
+      "confusion_model_hits": 151,
+      "confusion_model_recall": 0.8435754189944135
+    }
+  },
   "homophone_audit": {
     "previous_missed_pure_homophone": 42,
     "new_missed_pure_homophone": 36,

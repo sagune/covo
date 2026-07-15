@@ -682,6 +682,8 @@ exact-homophone hard pairs. A 70-step DPO continuation lowers filler+number
 normalized CER to `0.03522` at weight `0.5`, or **`0.03484`** after leaked
 test-set interpolation tuning (`366` edits). Pure-homophone misses fall from
 `42` to `36`, and exact-reference homophone misses from `23` to `15`.
+Aligned hotword recall is `790/826 = 0.95642`, compared with CB-SenseVoice
+`786/826 = 0.95157` and naked SenseVoice `682/826 = 0.82567`.
 Suspected reference errors such as `南路/南麓` and `饮水量/引水量` were excluded
 from the injected phrase list. This remains a deliberately invalid test-leak
 diagnostic, not a paper result.
