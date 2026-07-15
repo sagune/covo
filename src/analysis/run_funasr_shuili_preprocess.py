@@ -21,6 +21,16 @@ def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:
                 yield json.loads(line)
 
 
+def read_utterance_ids(path: Path) -> List[str]:
+    utterance_ids = []
+    with path.open("r", encoding="utf-8-sig") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                utterance_ids.append(line.split()[0])
+    return utterance_ids
+
+
 def strip_asr_markup(text: Any) -> str:
     text = TAG_RE.sub("", str(text or ""))
     text = re.sub(r"\s+", "", text)
@@ -90,6 +100,7 @@ def build_model(args: argparse.Namespace):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", default="src/logs/cbwhisper_candidate_pool_shuili_v3_nbest10_multiprompt_t046_keep5_20260704.jsonl")
+    parser.add_argument("--uttid-file", default="", help="optional ordered utterance IDs replacing input row IDs")
     parser.add_argument("--wav-root", default="datasets/shuili/data_shuil_largev3/wav/test/S0001")
     parser.add_argument("--output", required=True)
     parser.add_argument("--summary-output", required=True)
@@ -106,6 +117,13 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = list(read_jsonl(Path(args.input)))
+    if args.uttid_file:
+        utterance_ids = read_utterance_ids(Path(args.uttid_file))
+        if len(utterance_ids) != len(rows):
+            raise ValueError(
+                f"utterance ID count ({len(utterance_ids)}) does not match input rows ({len(rows)})"
+            )
+        rows = [{**row, "id": utterance_ids[idx]} for idx, row in enumerate(rows)]
     if args.limit:
         rows = rows[: int(args.limit)]
 

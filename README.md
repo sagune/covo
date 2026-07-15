@@ -114,6 +114,17 @@ cross-encoder workflow, but it does not replace the previous true-v3 CB result
 step is improving SenseVoice KWS ranking/calibration rather than changing the
 CB reranker.
 
+The matching naked SenseVoice baseline was then decoded on the same 808 audio
+files with `iic/SenseVoiceSmall`, Chinese decoding, and ITN enabled. Its direct
+simplified/punctuation-normalized CER is `0.10376` (`1337/12885`, exact
+`268/808`). Under the exact numeric/surface normalization used by the current
+CB evaluator, CER is `0.08554` (`1105/12918`, exact `301/808`). Under the
+broader evaluation that treats all Chinese/Arabic number forms as equivalent,
+CER is `0.07756`. Therefore the SenseVoice-KWS + Whisper large-v3 CB result
+(`0.07174`) is better than naked SenseVoice on this subset, although the margin
+depends on number normalization. Predictions are in
+`src/logs/aishell808_funasr_sensevoice_small_full_20260715.jsonl`.
+
 ## Important Files
 
 ```text

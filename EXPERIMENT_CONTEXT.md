@@ -4544,3 +4544,21 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Artifacts:
   `src/logs/kws_threshold_sweep_sensevoice_tts_20260715.csv` and
   `src/logs/test_metrics_sensevoice_kws_cb_full_20260715.csv`.
+
+### Naked SenseVoice baseline on the same AISHELL 808 rows
+
+- Model: `iic/SenseVoiceSmall`, `language=zh`, ITN enabled.
+- Direct simplified/punctuation-normalized CER: `0.10376` (`1337/12885`),
+  exact `268/808`.
+- Current CB numeric/surface normalization: CER `0.08554` (`1105/12918`),
+  exact `301/808`.
+- Broader Chinese/Arabic-number-equivalent normalization: CER `0.07756`
+  (`1002/12919`), exact `314/808`.
+- Comparison: SenseVoice-KWS + Whisper large-v3 CB reaches CER `0.07174`, so it
+  beats naked SenseVoice by `0.01380` absolute CER under the CB normalization,
+  and by `0.00582` under the broader number-equivalent normalization.
+- Predictions:
+  `src/logs/aishell808_funasr_sensevoice_small_full_20260715.jsonl`.
+- `src/analysis/run_funasr_shuili_preprocess.py` now accepts `--uttid-file` so
+  ordered datasets whose evidence IDs are numeric can map back to real wav IDs
+  reproducibly.
