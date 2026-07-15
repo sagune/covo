@@ -1,0 +1,21 @@
+{
+  "input": "src/logs/cb_sensevoice_covo_predictions_shuili_videos_best_preserve2_originalstyle_full_20260715.jsonl",
+  "samples": 990,
+  "reference_chars": 10733,
+  "fillers": [],
+  "normalize_numbers": true,
+  "base_cer": 0.04798285661045374,
+  "prediction_cer": 0.0556228454299823,
+  "base_mean_sample_cer": 0.05770191588298721,
+  "prediction_mean_sample_cer": 0.06331103080648791,
+  "base_edits": 515,
+  "prediction_edits": 597,
+  "improved_samples": 80,
+  "worsened_samples": 74,
+  "unchanged_samples": 836,
+  "base_exact": 696,
+  "prediction_exact": 707,
+  "ref_changed_by_filter": 191,
+  "base_changed_by_filter": 191,
+  "pred_changed_by_filter": 336
+}

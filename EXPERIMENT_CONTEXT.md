@@ -4747,3 +4747,32 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   and reproduce the narrow CB-SenseVoice one-edit candidate geometry.
 - Machine-readable summary:
   `src/logs/covo_chinesehp_cb_sensevoice_distribution_audit_20260715.json`.
+
+## Number-normalized Shuili COVO evaluation (2026-07-15)
+
+- Policy: Arabic and Chinese numeric forms are evaluated as equivalent, with
+  no filler-word removal. Examples include `10到20 == 十到二十`,
+  `6400 == 六千四百`, `2025 == 二零二五`, `15.5 == 十五点五`, and
+  `70% == 百分之七十`.
+- The evaluator now reports both corpus CER and mean-sample CER.
+- Current end-to-end CB-SenseVoice input:
+  - corpus CER `0.04798`;
+  - mean-sample CER `0.05770`;
+  - exact `696/990`.
+- Original ChineseHP hard-negative COVO:
+  - corpus CER `0.04565`, mean-sample CER `0.05478`, exact `733/990`;
+  - improved/worsened/unchanged `116 / 79 / 795`;
+  - remains the best no-gate COVO on current end-to-end CB-SenseVoice evidence.
+- AISHELL preserve2/no-op COVO:
+  - corpus CER `0.05562`, mean-sample CER `0.06331`, exact `707/990`;
+  - still worse than the CB-SenseVoice input after number normalization.
+- Hotword-use COVO:
+  - corpus CER `0.05553`, mean-sample CER `0.06337`, exact `708/990`;
+  - number normalization removes most of its apparent digit-format damage, but
+    it still over-corrects non-numeric content.
+- Historical external SenseVoice-anchor + CB-Whisper candidates + hotword-use
+  COVO + length/digit post-filter remains strongest overall:
+  - corpus CER `0.04304`, mean-sample CER `0.05307`, exact `751/990`.
+- Decision: use number-normalized CER as the primary Shuili semantic metric,
+  while retaining raw CER as a surface-form diagnostic. Number normalization
+  alone does not make the hotword-specialized adapters safe without a gate.

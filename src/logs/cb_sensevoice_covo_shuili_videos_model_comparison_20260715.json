@@ -51,5 +51,33 @@
     "worsened_rows": 200,
     "unchanged_rows": 712,
     "accepted": false
+  },
+  "number_normalized_evaluation": {
+    "fillers_removed": false,
+    "cb_sensevoice": {
+      "mean_sample_cer": 0.05770191588298721,
+      "corpus_cer": 0.04798285661045374,
+      "exact_rows": 696
+    },
+    "original_covo": {
+      "mean_sample_cer": 0.05477605607262835,
+      "corpus_cer": 0.04565359172645113,
+      "exact_rows": 733
+    },
+    "aishell_best_preserve2_covo": {
+      "mean_sample_cer": 0.06331103080648791,
+      "corpus_cer": 0.0556228454299823,
+      "exact_rows": 707
+    },
+    "hotword_use_covo": {
+      "mean_sample_cer": 0.06336535556669501,
+      "corpus_cer": 0.05552967483462219,
+      "exact_rows": 708
+    },
+    "historical_external_sensevoice_anchor_hotword_use_with_post_filters": {
+      "mean_sample_cer": 0.053066429628094755,
+      "corpus_cer": 0.04304481505636821,
+      "exact_rows": 751
+    }
   }
 }

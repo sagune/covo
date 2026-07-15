@@ -628,6 +628,13 @@ integrated Shuili path; both AISHELL hotword-specialized adapters are rejected
 because their small recall gain is outweighed by generic over-correction.
 Machine-readable details are in
 `src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
+When Chinese and Arabic number forms are treated as equivalent, the current
+CB-SenseVoice input corpus CER is `0.04798`; original COVO improves it to
+`0.04565`, while preserve2 and hotword-use remain worse at `0.05562` and
+`0.05553`. The historical external SenseVoice-anchor route remains best at
+`0.04304`, but it includes same-length and digit post-filters. Shuili results
+should therefore report number-normalized CER as the semantic metric and raw
+CER as a surface-form diagnostic.
 
 ## License
 

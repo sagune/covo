@@ -188,6 +188,8 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
     chars = 0
     base_edits = 0
     pred_edits = 0
+    base_sample_cer = 0.0
+    pred_sample_cer = 0.0
     improved = 0
     worsened = 0
     unchanged = 0
@@ -215,6 +217,8 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
         pred_d = int(edit_distance(list(pred), list(ref)))
         base_edits += base_d
         pred_edits += pred_d
+        base_sample_cer += float(base_d / len(ref))
+        pred_sample_cer += float(pred_d / len(ref))
         improved += int(pred_d < base_d)
         worsened += int(pred_d > base_d)
         unchanged += int(pred_d == base_d)
@@ -232,6 +236,8 @@ def evaluate(args: argparse.Namespace) -> Dict[str, Any]:
         "normalize_numbers": bool(args.normalize_numbers),
         "base_cer": float(base_edits / chars) if chars else 0.0,
         "prediction_cer": float(pred_edits / chars) if chars else 0.0,
+        "base_mean_sample_cer": float(base_sample_cer / samples) if samples else 0.0,
+        "prediction_mean_sample_cer": float(pred_sample_cer / samples) if samples else 0.0,
         "base_edits": base_edits,
         "prediction_edits": pred_edits,
         "improved_samples": improved,
