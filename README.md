@@ -613,17 +613,20 @@ Compact reliability-label COVO training probe on 2026-06-27: the reliability pro
 
 Full Shuili CB-SenseVoice + COVO comparison on 2026-07-15: the 990-row
 `data_shuil_videos_largev3` test set was decoded by end-to-end CB-SenseVoice,
-then passed to two historical COVO adapters with identical ChineseHP-style
+then passed to three historical COVO adapters with identical ChineseHP-style
 evidence (`6` n-best, consensus/uncertain spans, pinyin, and predicted
 hotwords). No gate or post-hoc fallback was used. Under the CB normalization,
 the CB-SenseVoice input has mean/corpus CER `0.06522 / 0.05520`, Entity Recall
 `0.96847`, and `671/990` exact rows. The original ChineseHP hard-negative COVO
 adapter improves these to mean/corpus CER `0.06399 / 0.05331`, Entity Recall
-`0.97748`, and `701/990` exact rows. The later hotword-use adapter increases
-recall to `0.97973`, but over-rewrites ordinary text: mean/corpus CER regresses
-to `0.08910 / 0.08520`, with only `641/990` exact rows. Therefore the original
-COVO is the accepted model for this integrated Shuili path; hotword-use is
-rejected despite its small recall gain. Machine-readable details are in
+`0.97748`, and `701/990` exact rows. The prior AISHELL-best preserve2/no-op
+adapter increases recall to `0.97973`, but regresses mean/corpus CER to
+`0.08896 / 0.08520`, with only `642/990` exact rows. The later hotword-use
+adapter behaves almost identically (`0.08910 / 0.08520` CER, `0.97973` recall,
+`641/990` exact). Therefore the original COVO is the accepted model for this
+integrated Shuili path; both AISHELL hotword-specialized adapters are rejected
+because their small recall gain is outweighed by generic over-correction.
+Machine-readable details are in
 `src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
 
 ## License

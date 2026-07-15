@@ -4667,6 +4667,12 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Entity Recall `0.97748`, exact `701/990`;
   - raw correction-evaluator CER `0.05379 -> 0.05266`;
   - improved/worsened/unchanged `115 / 88 / 787`.
+- Prior AISHELL-best preserve2/no-op adapter
+  (`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`):
+  - CB-normalized mean/corpus CER `0.08896 / 0.08520`;
+  - Entity Recall `0.97973`, exact `642/990`;
+  - raw correction-evaluator CER `0.05379 -> 0.10956`;
+  - improved/worsened/unchanged `74 / 196 / 720`.
 - Hotword-use adapter
   (`qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16`):
   - CB-normalized mean/corpus CER `0.08910 / 0.08520`;
@@ -4674,11 +4680,15 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - raw correction-evaluator CER `0.05379 -> 0.10984`;
   - improved/worsened/unchanged `78 / 200 / 712`.
 - Conclusion: the original COVO gives a small but genuine no-gate improvement
-  on this already-strong CB-SenseVoice evidence. The hotword-use continuation
-  learned stronger hotword retention but became too aggressive outside
-  hotwords, so its small recall gain does not justify the large CER regression.
+  on this already-strong CB-SenseVoice evidence. The two AISHELL
+  hotword-specialized continuations learned stronger hotword retention but
+  became too aggressive outside hotwords on Shuili, so their small recall gain
+  does not justify the large CER regression. "Best" is dataset-specific here:
+  preserve2 remains the historical AISHELL best, while original COVO is the
+  current Shuili best under the fair no-gate comparison.
 - Artifacts:
   - `src/logs/cb_sensevoice_evidence_shuili_videos_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_original_covo_full_20260715.jsonl`;
+  - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_best_preserve2_originalstyle_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_hotword_use_originalstyle_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.

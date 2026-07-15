@@ -28,6 +28,18 @@
     "unchanged_rows": 787,
     "accepted": true
   },
+  "aishell_best_preserve2_covo": {
+    "adapter": "qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7",
+    "mean_sample_cer": 0.08896188476788365,
+    "corpus_cer": 0.08520475561426684,
+    "entity_recall": 0.9797297297297297,
+    "exact_rows": 642,
+    "raw_correction_evaluator_cer": 0.10955930923846371,
+    "improved_rows": 74,
+    "worsened_rows": 196,
+    "unchanged_rows": 720,
+    "accepted": false
+  },
   "hotword_use_covo": {
     "adapter": "qwen35_cbwhisper_hotword_use_sft60_from_protect_bf16",
     "mean_sample_cer": 0.08910455354691607,
