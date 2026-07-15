@@ -4838,3 +4838,37 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   ambiguous short terms unless train/dev evidence supports them.
 - Machine-readable summary:
   `src/logs/cb_sensevoice_shuili_error_hotwords_summary_20260715.json`.
+
+## Listwise COVO candidate selection (2026-07-15)
+
+- On the 259-hotword diagnostic evidence, the number-normalized CB-SenseVoice
+  input has corpus CER `0.04072` (`437` edits), while its six-candidate oracle
+  reaches `0.02227`. Candidate selection, rather than candidate availability,
+  is therefore the immediate COVO bottleneck.
+- Added `src/analysis/covo_candidate_likelihood_rerank.py`. It scores each
+  acoustic candidate by the conditional likelihood of the COVO JSON target and
+  optionally interpolates the CB-SenseVoice score. This constrains COVO to the
+  N-best search space and prevents unsupported free-form insertions.
+- AISHELL CB-SenseVoice supervision:
+  - `727/80` train/dev evidence rows from the 808-row source set;
+  - oracle-candidate SFT: `4636` repeated training rows, one full epoch;
+  - near-miss DPO: `798` CER pairs plus `416` no-op pairs, `60` steps;
+  - interpolation weight selected on AISHELL dev, never on Shuili test.
+- Results on current Shuili-video diagnostic:
+  - free-generation SFT: CER `0.04090`;
+  - SFT output projected to N-best: `0.03950`;
+  - SFT listwise likelihood: `0.03764`;
+  - DPO60 listwise likelihood: **`0.03736`**, `401` edits, `768/990`
+    exact, improved/worsened/unchanged `61/28/901`.
+- Independent old-Shuili source-domain experiment:
+  - `1152` source rows and zero exact/near-contained transcript overlap with
+    current video test;
+  - source top1/oracle CER `0.04059 / 0.01820`;
+  - hard-balanced full-coverage SFT transfers poorly to the current videos and
+    reaches only `0.03960`, so it is rejected.
+- Decision: accept DPO60 listwise COVO as the current best, but do not claim the
+  sub-3% target. The remaining gap is not recoverable by more prompt tuning;
+  it needs substantially more same-geometry source evidence or an audio-aware
+  discriminative candidate representation.
+- Machine-readable summary:
+  `src/logs/cb_sensevoice_covo_listwise_summary_20260715.json`.

@@ -647,6 +647,16 @@ regresses the stronger input to `0.04304` CER, so CB-SenseVoice top1 is the
 accepted output for this diagnostic. A reportable version must freeze a
 lexicon built only from train/dev data or an external domain glossary.
 
+Listwise COVO update on 2026-07-15: the expanded CB-SenseVoice candidate pool
+has a number-normalized oracle CER of `0.02227`, so COVO was changed from
+free-form rewriting to conditional-likelihood N-best scoring. Oracle-candidate
+SFT on independent AISHELL CB-SenseVoice evidence lowers Shuili diagnostic CER
+to `0.03764`; a 60-step near-miss/no-op DPO continuation improves it to
+`0.03736` (`437 -> 401` edits, `745 -> 768` exact rows). An independent
+1152-row old-Shuili source-domain continuation regresses to `0.03960` and is
+rejected. The DPO listwise model is the current best, but the sub-3% target has
+not been reached without test-label tuning.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

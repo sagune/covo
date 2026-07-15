@@ -1,0 +1,68 @@
+{
+  "dataset": "shuili_video_test_990",
+  "metric": "number_normalized_corpus_cer",
+  "test_derived_hotword_diagnostic": true,
+  "baseline": {
+    "system": "CB-SenseVoice expanded 259-hotword top1",
+    "cer": 0.040715550172365604,
+    "edits": 437,
+    "exact": 745
+  },
+  "candidate_oracle": {
+    "cer": 0.022268,
+    "note": "Diagnostic upper bound over the available N-best candidates."
+  },
+  "experiments": [
+    {
+      "system": "original COVO free generation",
+      "cer": 0.04304481505636821,
+      "decision": "rejected"
+    },
+    {
+      "system": "AISHELL CB-SenseVoice oracle-candidate SFT free generation",
+      "cer": 0.04090189136308581,
+      "decision": "rejected"
+    },
+    {
+      "system": "AISHELL oracle-candidate SFT projected to N-best",
+      "cer": 0.039504332432684246,
+      "decision": "diagnostic"
+    },
+    {
+      "system": "AISHELL oracle-candidate SFT listwise likelihood plus CB score",
+      "cer": 0.03764092052548216,
+      "edits": 404,
+      "exact": 767,
+      "decision": "superseded"
+    },
+    {
+      "system": "AISHELL near-miss DPO60 listwise likelihood plus CB score",
+      "cer": 0.037361408739401844,
+      "mean_sample_cer": 0.045888897047850846,
+      "edits": 401,
+      "exact": 768,
+      "improved": 61,
+      "worsened": 28,
+      "unchanged": 901,
+      "decision": "accepted_best"
+    },
+    {
+      "system": "independent old-Shuili source-domain SFT listwise likelihood",
+      "cer": 0.03959750302804435,
+      "edits": 425,
+      "exact": 759,
+      "decision": "rejected_distribution_shift"
+    }
+  ],
+  "training": {
+    "aishell_source_rows": 808,
+    "aishell_train_rows": 727,
+    "aishell_dev_rows": 80,
+    "dpo_pairs": 1214,
+    "old_shuili_source_rows": 1152,
+    "old_shuili_exact_overlap_with_video_test": 0,
+    "old_shuili_source_top1_cer": 0.040585959794533576,
+    "old_shuili_source_oracle_cer": 0.018200266345361153
+  },
+  "conclusion": "Listwise COVO is positive and substantially safer than free generation, but the reportable sub-3% target is not reached. More same-geometry train/dev evidence or an audio-aware scoring representation is required; test-label tuning is excluded."
+}
