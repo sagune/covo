@@ -697,6 +697,25 @@ only where explicitly stated. `Independent` means the evaluated references
 were not used for model/lexicon fitting, while `Leaked diagnostic` must never
 be reported as a paper test result.
 
+### Standalone KWS results
+
+| Dataset / model | Threshold | Precision | Recall | F1 | Notes |
+|---|---:|---:|---:|---:|---|
+| AISHELL previous large-v2 KWS, validation | learned | 91.33% | 82.18% | 86.51% | Previous accepted checkpoint |
+| AISHELL stale 1024-d large-v3-style KWS, test | 0.982 | 92.13% | 78.24% | 84.62% | Representation was not true v3 |
+| AISHELL true large-v3 KWS, validation | 0.974 | 93.34% | 82.51% | 87.59% | Best true-v3 checkpoint |
+| AISHELL true large-v3 KWS, test | 0.974 | 91.78% | 80.57% | 85.81% | Independent test |
+| AISHELL original ResNet1 natural KWS, test | 0.500 | 80.23% | 87.47% | 83.70% | Original-paper code, minimally adapted |
+| Shuili true-v3 TCResNet, fixed threshold | 0.974 | 95.15% | 47.88% | 63.70% | AISHELL-to-Shuili transfer |
+| Shuili true-v3 TCResNet, best-F1 natural | 0.942 | 78.68% | 62.33% | 69.56% | Threshold sweep |
+| Shuili true-v3 TCResNet, best-F1 TTS | 0.838 | 80.78% | 71.36% | 75.78% | Threshold sweep |
+| Shuili original ResNet1, best-F1 natural | 0.892 | 70.98% | 51.04% | 59.38% | Original-paper transfer baseline |
+| Shuili original ResNet1, best-F1 TTS | 0.144 | 11.88% | 13.37% | 12.58% | TTS transfer collapsed |
+
+The full chronological table above retains smoke tests, rejected settings,
+threshold sweeps, and per-run log paths. The consolidated tables below keep
+the principal full-set endpoint results and informative upper bounds.
+
 ### AISHELL hotword test (808 utterances)
 
 | System | CER | Hotword recall | Hotword CER | WER | Status |
