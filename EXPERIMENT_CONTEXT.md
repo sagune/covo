@@ -4562,3 +4562,46 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - `src/analysis/run_funasr_shuili_preprocess.py` now accepts `--uttid-file` so
   ordered datasets whose evidence IDs are numeric can map back to real wav IDs
   reproducibly.
+
+## End-to-end CB-SenseVoice recognition (2026-07-15)
+
+- Objective: replace both Whisper candidate generation and Whisper-side
+  reranking, rather than using SenseVoice only as a KWS encoder or external
+  anchor.
+- Implemented path:
+  - SenseVoice extracts 512-dimensional online encoder states from the audio;
+  - the trained SenseVoice KWS checkpoint filters contextual hotwords;
+  - neutral and hotword-biased CTC prefix beams generate candidates;
+  - the existing exact, phonetic, consensus, and acoustic evidence reranks the
+    SenseVoice candidates;
+  - the final transcript and optional COVO evidence are exported normally.
+- Main files:
+  - `src/model/sensevoice_ctc.py`;
+  - `src/model/cb_whisper.py` (`CBSenseVoice` configuration alias);
+  - `src/configs/cb-sensevoice-aishell.yaml`;
+  - `src/tests/test_sensevoice_ctc.py`.
+- Full AISHELL hotword test, 808 rows:
+  - Entity Recall `0.83204`;
+  - CER `0.06202`;
+  - Hotword Only CER `0.10979`;
+  - WER `0.40099`.
+- Comparison:
+  - naked SenseVoice CER under current CB normalization: `0.08554`;
+  - mixed SenseVoice-KWS + Whisper-large-v3 CB: Recall `0.92155`, CER `0.07174`;
+  - end-to-end CB-SenseVoice therefore improves generic CER but loses hotword
+    recall.
+- Candidate diagnosis:
+  - average n-best size `14.61` before evidence export truncation;
+  - top1/oracle Entity Recall `0.84158 / 0.85128`;
+  - top1/oracle CER `0.06202 / 0.03686`;
+  - candidate-oracle recall remains below standalone KWS recall `0.90658`, so
+    the dominant limitation is contextual candidate generation.
+- Rejected small experiment:
+  - a 100-row all-KWS CTC-bias probe changed six candidate sets but produced
+    exactly the same top1 CER `0.07202`, top1 recall `0.84112`, oracle CER
+    `0.05150`, and oracle recall `0.84112` as filtered-hotword bias;
+  - retain filtered prompt hotwords to avoid adding low-confidence distractors.
+- Full-run artifacts:
+  - `src/logs/test_metrics_cb_sensevoice_full_20260715.csv`;
+  - `src/logs/oracle_nbest_summary_cb_sensevoice_aishell.csv`;
+  - `src/logs/cb_sensevoice_evidence_aishell_full_20260715.jsonl`.

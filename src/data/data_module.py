@@ -29,6 +29,7 @@ class KWSDataMod(LightningDataModule):
         features_size: Tuple[int, int] = None,
         test_split: str = 'test',
         whisper_ckpt: str = 'openai/whisper-large-v2',
+        asr_backend: str = 'whisper',
         max_duration: Optional[float] = None,
         resample_every_epoch: bool = True,
         **kwargs
@@ -41,6 +42,9 @@ class KWSDataMod(LightningDataModule):
         # training data parameters    
         self.batch_size = batch_size
         self.whisper_ckpt = whisper_ckpt
+        self.asr_backend = str(asr_backend).strip().lower()
+        if self.asr_backend not in {'whisper', 'sensevoice'}:
+            raise ValueError(f'unsupported ASR backend: {self.asr_backend}')
         self.sampling = sampling
         self.num_workers = num_workers
         self.resample_every_epoch = resample_every_epoch
@@ -190,7 +194,7 @@ class KWSDataMod(LightningDataModule):
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
                     wav_folder = os.path.join(self.test_info.root, 'wav'),
-                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
                 )
             elif self.test_info.name == 'acl':
                 self.test_dataset = ACL6060KeywordDataset(
@@ -200,7 +204,7 @@ class KWSDataMod(LightningDataModule):
                     keywords_per_group = self.hotwords_per_group,
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
-                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
                 )
             elif self.test_info.name == 'shuili':
                 hotword_root = os.path.join(self.test_info.root, 'hotword') if os.path.isdir(os.path.join(self.test_info.root, 'hotword')) else self.test_info.root
@@ -214,7 +218,7 @@ class KWSDataMod(LightningDataModule):
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
                     wav_folder = wav_root,
-                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt)
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
                 )
 
     def train_dataloader(self): 

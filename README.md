@@ -407,6 +407,54 @@ Current-code Shuili medium-package rerun with the previous best KWS checkpoint: 
 | 2026-05-06 | original `Enhance-CB-Whisper` CB-Whisper on Shuili | same original ResNet KWS checkpoint | Original CB-Whisper + original KWS, adapted only for local data format, current Transformers compatibility, and Chinese normalization | 0.0679 | N/A | N/A | N/A | Rejected as a baseline only. Compared with the current Shuili setting above (Entity Recall 0.8666, CER 0.0807), original CB-Whisper collapses mainly because the original KWS candidate source has almost no transfer recall on Shuili. The original evaluation script reports Entity Recall only, so CER/WER are not available from this run. |
 | 2026-05-06 | original `Enhance-CB-Whisper` on AISHELL test | original ResNet KWS trained on local `dataaishell/kws` TTS data | Original CB-Whisper baseline after replacing outdated prompt internals with the current Transformers `prompt_ids` path and adding CER reporting | 0.7578 | 0.1121 | N/A | N/A | This is the usable original-code baseline. The earlier original-code AISHELL run was artificially low because prompt tokens were forced in a way that bypassed Whisper's current language/task-token handling. Current full log: `original/Enhance-CB-Whisper/src/logs/cbwhisper_aishell_original_kws_test_stdout.log`. |
 
+## End-to-end CB-SenseVoice
+
+The recognition side can now run without loading Whisper. The new
+`configs/cb-sensevoice-aishell.yaml` workflow is:
+
+```text
+audio
+  -> SenseVoice encoder hidden states
+  -> SenseVoice-based KWS and hotword filtering
+  -> neutral + hotword-biased SenseVoice CTC prefix beam search
+  -> acoustic/exact/phonetic/consensus reranking
+  -> final transcript and COVO evidence
+```
+
+The contextual CTC scorer rewards only token extensions that advance a
+filtered hotword prefix, while the neutral beam preserves ordinary ASR
+candidates. The reranker uses the original SenseVoice CTC acoustic score; no
+Whisper checkpoint or Whisper-generated candidate is used on this path.
+
+Full AISHELL hotword test (`808` rows, 2026-07-15):
+
+| System | Entity Recall | CER | Hotword Only CER | WER |
+| --- | ---: | ---: | ---: | ---: |
+| Naked SenseVoice, current CB normalization | N/A | 0.08554 | N/A | N/A |
+| SenseVoice KWS + Whisper-large-v3 CB | 0.92155 | 0.07174 | 0.05228 | 0.46906 |
+| End-to-end CB-SenseVoice | 0.83204 | **0.06202** | 0.10979 | 0.40099 |
+
+CB-SenseVoice improves CER by `0.02352` absolute over naked SenseVoice and by
+`0.00972` over the mixed SenseVoice-KWS/Whisper path. Its remaining weakness is
+hotword realization: candidate-oracle Entity Recall is only `0.85128`, versus
+the standalone KWS recall ceiling of `0.90658`. Candidate-oracle CER is
+`0.03686`, so the next research target is better contextual CTC candidate
+generation rather than another hand-tuned reranking formula.
+
+An additional 100-row probe that biased decoding with all detected KWS words
+instead of only the filtered prompt words changed six candidate pools but left
+CER and recall exactly unchanged. That expansion was rejected and the compact
+filtered-hotword formulation was retained.
+
+Run the full workflow from `src/`:
+
+```bash
+CBW_METRICS_OUT=logs/test_metrics_cb_sensevoice.csv \
+CBW_EVIDENCE_OUT=logs/cb_sensevoice_evidence_aishell.jsonl \
+/root/autodl-tmp/great/bin/python run_CLI.py test \
+  --config configs/cb-sensevoice-aishell.yaml
+```
+
 ## CB-Whisper + covo workflow
 
 The current code can export CB-Whisper evidence for a downstream covo/Qwen text-rewrite corrector without changing the normal CB-Whisper metrics path. Set `CBW_EVIDENCE_OUT` during a CB-Whisper test run:

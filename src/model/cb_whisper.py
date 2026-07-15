@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from transformers import WhisperProcessor, WhisperModel
 from .model import KWSModel
 from .pba_whisper import PBAWhisper
+from .sensevoice_ctc import ContextualHotwordScorer, ctc_prefix_beam_search
 import sys
 sys.path.insert(1, '../data')
 from dataset import AishellHotwordDataset, ACL6060KeywordDataset
@@ -104,6 +105,14 @@ class CBWhisper(pl.LightningModule):
         whisper_ckpt: str,
         kws_ckpt: str,
         language: str,
+        asr_backend: str = "whisper",
+        sensevoice_ckpt: str = "iic/SenseVoiceSmall",
+        sensevoice_language: str = "zh",
+        sensevoice_use_itn: bool = True,
+        sensevoice_beam_size: int = 24,
+        sensevoice_token_topk: int = 32,
+        sensevoice_hotword_token_weight: float = 1.2,
+        sensevoice_hotword_completion_weight: float = 0.8,
         use_precomputed_kws_features: bool = False,
         force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
@@ -185,14 +194,34 @@ class CBWhisper(pl.LightningModule):
         # save hyperparameters
         self.save_hyperparameters()  
 
-        # tokenizer/processor for prompting and decoding
-        self.processor_whisper = WhisperProcessor.from_pretrained(
-            self.hparams.whisper_ckpt,
-            task = 'transcribe'
-        )   
+        self.hparams.asr_backend = str(self.hparams.asr_backend).strip().lower()
+        if self.hparams.asr_backend not in {"whisper", "sensevoice"}:
+            raise ValueError(f"unsupported ASR backend: {self.hparams.asr_backend}")
 
-        # create an instance of PBAWhisper
-        self.whisper = PBAWhisper.from_pretrained(self.hparams.whisper_ckpt)
+        self.processor_whisper = None
+        self.whisper = None
+        self.sensevoice_model = None
+        self.sensevoice_tokenizer = None
+        self._sensevoice_frontend = None
+        if self.hparams.asr_backend == "whisper":
+            self.processor_whisper = WhisperProcessor.from_pretrained(
+                self.hparams.whisper_ckpt,
+                task='transcribe',
+            )
+            self.whisper = PBAWhisper.from_pretrained(self.hparams.whisper_ckpt)
+        else:
+            from funasr import AutoModel
+
+            sensevoice = AutoModel(
+                model=self.hparams.sensevoice_ckpt,
+                device="cpu",
+                disable_update=True,
+            )
+            self.sensevoice_model = sensevoice.model
+            self.sensevoice_model.eval()
+            self.sensevoice_model.requires_grad_(False)
+            self.sensevoice_tokenizer = sensevoice.kwargs["tokenizer"]
+            self._sensevoice_frontend = sensevoice.kwargs["frontend"]
 
         # create an instance of a KWSModel
         # some older checkpoints can miss hyperparameters such as
@@ -212,7 +241,14 @@ class CBWhisper(pl.LightningModule):
 
         database_dim = self.kw_database.hidden_dim()
         self.encoder = None
-        if not self.hparams.use_precomputed_kws_features:
+        if self.hparams.asr_backend == "sensevoice":
+            encoder_dim = int(getattr(self.sensevoice_model, "encoder_output_size", 0) or 0)
+            if encoder_dim > 0 and database_dim is not None and int(database_dim) != encoder_dim:
+                raise ValueError(
+                    "SenseVoice KWS encoder/database hidden-state dimension mismatch: "
+                    f"model={self.hparams.sensevoice_ckpt} has dim={encoder_dim}, database has dim={database_dim}."
+                )
+        elif not self.hparams.use_precomputed_kws_features:
             # Online CB-Whisper inference extracts KWS features with Whisper.
             # Dataset evaluation can instead reuse precomputed similarity matrices,
             # which also supports non-Whisper encoders such as SenseVoice.
@@ -246,6 +282,7 @@ class CBWhisper(pl.LightningModule):
         self._keyword_spotting_cache = {}
         self._active_kws_attention_mask = None
         self._active_precomputed_kws_features = None
+        self._active_sensevoice_hidden_states = None
         self._debug_log_path = os.getenv("CBW_DEBUG_LOG", "logs/runtime_probe.jsonl")
         if self._debug_log_path.lower() in {"", "none", "off", "0"}:
             self._debug_log_path = ""
@@ -1680,7 +1717,10 @@ class CBWhisper(pl.LightningModule):
                     )
             return self._finalize_kws_keywords(keywords, keyword_scores)
 
-        if num_groups > 0:
+        if isinstance(self._active_sensevoice_hidden_states, torch.Tensor):
+            utt_hs = self._active_sensevoice_hidden_states.to(self.device).float()
+
+        if utt_hs is None and num_groups > 0 and self.encoder is not None:
             try:
                 input_features = self._cast_features_for_module(input_features, self.encoder)
                 with torch.inference_mode():
@@ -2399,12 +2439,259 @@ class CBWhisper(pl.LightningModule):
 
         return kw_ids    
 
+    def _sensevoice_encode_audio(self, audio_path: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        from funasr.utils.load_utils import extract_fbank, load_audio_text_image_video
+
+        if not audio_path or not os.path.exists(audio_path):
+            raise FileNotFoundError(f"SenseVoice input audio does not exist: {audio_path}")
+        frontend = self._sensevoice_frontend
+        audio = load_audio_text_image_video(
+            audio_path,
+            fs=frontend.fs,
+            audio_fs=16000,
+            data_type="sound",
+            tokenizer=self.sensevoice_tokenizer,
+        )
+        speech, speech_lengths = extract_fbank(audio, data_type="sound", frontend=frontend)
+        device = next(self.sensevoice_model.parameters()).device
+        speech = speech.to(device)
+        speech_lengths = speech_lengths.to(device)
+        model = self.sensevoice_model
+        language = str(getattr(self.hparams, "sensevoice_language", "zh"))
+        language_id = model.lid_dict[language] if language in model.lid_dict else model.lid_dict["auto"]
+        language_query = model.embed(torch.tensor([[language_id]], device=device, dtype=torch.long)).repeat(
+            speech.size(0), 1, 1
+        )
+        textnorm = "withitn" if bool(getattr(self.hparams, "sensevoice_use_itn", True)) else "woitn"
+        textnorm_query = model.embed(
+            torch.tensor([[model.textnorm_dict[textnorm]]], device=device, dtype=torch.long)
+        ).repeat(speech.size(0), 1, 1)
+        speech = torch.cat((textnorm_query, speech), dim=1)
+        speech_lengths = speech_lengths + 1
+        event_emo_query = model.embed(torch.tensor([[1, 2]], device=device, dtype=torch.long)).repeat(
+            speech.size(0), 1, 1
+        )
+        speech = torch.cat((language_query, event_emo_query, speech), dim=1)
+        speech_lengths = speech_lengths + 3
+        with torch.inference_mode():
+            encoder_out, encoder_out_lens = model.encoder(speech, speech_lengths)
+            if isinstance(encoder_out, tuple):
+                encoder_out = encoder_out[0]
+            log_probs = model.ctc.log_softmax(encoder_out)
+        valid_len = int(encoder_out_lens[0].item())
+        speech_start = min(4, valid_len)
+        speech_hidden = encoder_out[:, speech_start:valid_len, :].float()
+        speech_hidden = speech_hidden / torch.linalg.norm(speech_hidden, dim=-1, keepdim=True).clamp_min(1e-8)
+        self._active_sensevoice_hidden_states = speech_hidden.unsqueeze(1)
+        return log_probs[0, speech_start:valid_len, :], speech_hidden
+
+    def _sensevoice_prepare_keyword_state(self, num_segments: int = 1):
+        if not self.hparams.prompt:
+            self._set_empty_keyword_prompt_state(num_segments)
+            return
+        if self.hparams.oracle == "kws":
+            dummy = torch.empty((num_segments, 1, 1), device=self.device)
+            keywords, keyword_scores = self._kws_keywords_from_features(dummy, num_segments)
+        else:
+            keywords, keyword_scores = self._oracle_keywords_from_buffer(num_segments)
+        prompt_keywords = [
+            self._select_prompt_keywords(items, keyword_scores[idx])
+            for idx, items in enumerate(keywords)
+        ]
+        prompt_keyword_scores = [
+            {word: float(keyword_scores[idx].get(word, 0.0)) for word in items}
+            for idx, items in enumerate(prompt_keywords)
+        ]
+        prompt_weights = [
+            self._normalize_prompt_weights(items, prompt_keyword_scores[idx])
+            for idx, items in enumerate(prompt_keywords)
+        ]
+        prompt_token_lists = [
+            [list(self.sensevoice_tokenizer.encode(str(word))) for word in items]
+            for items in prompt_keywords
+        ]
+        self._set_keyword_prompt_state(
+            keywords,
+            keyword_scores,
+            prompt_keywords,
+            prompt_keyword_scores,
+            prompt_token_lists,
+            prompt_weights,
+        )
+
+    @staticmethod
+    def _strip_sensevoice_markup(text: str) -> str:
+        text = re.sub(r"<\|[^|]+\|>", "", str(text or ""))
+        return text.replace("▁", " ").strip()
+
+    def _sensevoice_decode_candidates(self, log_probs: torch.Tensor) -> List[dict]:
+        beam_size = max(2, int(getattr(self.hparams, "sensevoice_beam_size", 24)))
+        token_topk = max(4, int(getattr(self.hparams, "sensevoice_token_topk", 32)))
+        vocab_size = int(log_probs.size(-1))
+        excluded = set(range(1, 16)) | set(range(25000, vocab_size))
+        neutral = ctc_prefix_beam_search(
+            log_probs,
+            beam_size=beam_size,
+            token_topk=token_topk,
+            blank_id=int(self.sensevoice_model.blank_id),
+            excluded_token_ids=excluded,
+        )
+
+        prompt_keywords = self._latest_prompt_keywords[0] if self._latest_prompt_keywords else []
+        keyword_scores = self._latest_prompt_keyword_scores[0] if self._latest_prompt_keyword_scores else {}
+        hotword_entries = []
+        for keyword in prompt_keywords:
+            token_ids = [
+                int(token) for token in self.sensevoice_tokenizer.encode(str(keyword))
+                if int(token) not in excluded and int(token) != int(self.sensevoice_model.blank_id)
+            ]
+            if token_ids:
+                hotword_entries.append((token_ids, float(keyword_scores.get(keyword, 0.0))))
+        biased = []
+        if hotword_entries:
+            scorer = ContextualHotwordScorer(
+                hotword_entries,
+                token_weight=float(getattr(self.hparams, "sensevoice_hotword_token_weight", 1.2)),
+                completion_weight=float(getattr(self.hparams, "sensevoice_hotword_completion_weight", 0.8)),
+            )
+            biased = ctc_prefix_beam_search(
+                log_probs,
+                beam_size=beam_size,
+                token_topk=token_topk,
+                blank_id=int(self.sensevoice_model.blank_id),
+                hotword_scorer=scorer,
+                excluded_token_ids=excluded,
+            )
+
+        merged = {}
+        source_keys = {"sensevoice_neutral": [], "sensevoice_hotword": []}
+        for source, rows in (("sensevoice_neutral", neutral), ("sensevoice_hotword", biased)):
+            for row in rows:
+                text = self._strip_sensevoice_markup(self.sensevoice_tokenizer.decode(list(row.token_ids)))
+                key = self._normalize_surface_text(text)
+                if not key:
+                    continue
+                if key not in source_keys[source]:
+                    source_keys[source].append(key)
+                item = merged.get(key)
+                candidate = {
+                    "candidate": text,
+                    "token_ids": list(row.token_ids),
+                    "asr_score": float(row.acoustic_score),
+                    "search_score": float(row.search_score),
+                    "ctc_hotword_score": float(row.hotword_score),
+                    "source": source,
+                }
+                if item is None or float(candidate["asr_score"]) > float(item["asr_score"]):
+                    merged[key] = candidate
+                elif source not in str(item.get("source", "")):
+                    item["source"] = str(item.get("source", "")) + "+" + source
+        ranked_rows = sorted(merged.values(), key=lambda item: float(item["search_score"]), reverse=True)
+        generation_cap = max(
+            int(getattr(self.hparams, "rescore_nbest", 8)),
+            int(getattr(self.hparams, "rescore_generation_cap", 16)),
+        )
+        reserve_each = max(1, generation_cap // 2)
+        ordered_keys = []
+        for source in ("sensevoice_neutral", "sensevoice_hotword"):
+            for key in source_keys[source][:reserve_each]:
+                if key not in ordered_keys:
+                    ordered_keys.append(key)
+        for item in ranked_rows:
+            key = self._normalize_surface_text(str(item.get("candidate", "")))
+            if key and key not in ordered_keys:
+                ordered_keys.append(key)
+            if len(ordered_keys) >= generation_cap:
+                break
+        return [merged[key] for key in ordered_keys[:generation_cap]]
+
+    def _forward_sensevoice(self, audio_path: str, oracle: List[str]) -> str:
+        self.oracle_buffer = oracle
+        self._keyword_spotting_cache = {}
+        log_probs, _ = self._sensevoice_encode_audio(audio_path)
+        try:
+            self._sensevoice_prepare_keyword_state(num_segments=1)
+            decoded = self._sensevoice_decode_candidates(log_probs)
+        finally:
+            self._active_sensevoice_hidden_states = None
+        if not decoded:
+            self._latest_forward_candidates = []
+            return ""
+
+        keywords = self._latest_keywords[0] if self._latest_keywords else []
+        keyword_scores = self._latest_keyword_scores[0] if self._latest_keyword_scores else {}
+        keywords = self._select_rescore_keywords(keywords, keyword_scores)
+        normalized_keywords, normalized_scores = self._normalize_rescore_keyword_inputs(keywords, keyword_scores)
+        candidate_stats = []
+        for row in decoded:
+            candidate = str(row["candidate"])
+            normalized = self._normalize_text_for_rescore(candidate)
+            exact_stats = self._keyword_exact_stats(normalized, normalized_keywords, normalized_scores)
+            phonetic_stats = self._phonetic_keyword_stats(normalized, normalized_keywords, normalized_scores)
+            candidate_stats.append({
+                **row,
+                "rescore_candidate": normalized,
+                "exact_score": float(exact_stats["score"]),
+                "exact_weighted_score": float(exact_stats.get("weighted_coverage", 0.0)),
+                "exact_stats": exact_stats,
+                "phonetic_score": float(phonetic_stats["score"]),
+                "phonetic_stats": phonetic_stats,
+            })
+        scored, baseline_idx, _ = self._score_shortform_candidates(
+            candidate_stats,
+            keyword_weight=float(getattr(self.hparams, "rescore_keyword_weight", 1.8)),
+        )
+        if not scored:
+            scored = candidate_stats
+        baseline_text = ""
+        if 0 <= baseline_idx < len(candidate_stats):
+            baseline_text = str(candidate_stats[baseline_idx].get("candidate", ""))
+        self._latest_forward_candidates = []
+        for rank, item in enumerate(scored, start=1):
+            self._latest_forward_candidates.append({
+                "rank": rank,
+                "text": str(item.get("candidate", "")),
+                "source": str(item.get("source", "sensevoice_ctc")),
+                "total_score": float(item.get("total_score", item.get("search_score", 0.0))),
+                "asr_score": float(item.get("asr_score", 0.0)),
+                "search_score": float(item.get("search_score", 0.0)),
+                "ctc_hotword_score": float(item.get("ctc_hotword_score", 0.0)),
+                "hotword_score": float(item.get("hotword_score", 0.0)),
+                "exact_score": float(item.get("exact_score", 0.0)),
+                "exact_weighted_score": float(item.get("exact_weighted_score", 0.0)),
+                "exact_stats": dict(item.get("exact_stats", {}) or {}),
+                "phonetic_score": float(item.get("phonetic_score", 0.0)),
+                "phonetic_score_used": float(item.get("phonetic_score_used", 0.0)),
+                "consensus_score": float(item.get("consensus_score", 0.0)),
+                "consensus_score_used": float(item.get("consensus_score_used", 0.0)),
+                "consensus_support": int(item.get("consensus_support", 0)),
+                "consensus_keywords": list(item.get("consensus_keywords", []) or []),
+                "baseline_candidate": str(item.get("candidate", "")) == baseline_text,
+            })
+        return str(scored[0].get("candidate", "")).strip()
+
     def forward(
         self,
-        input_features: torch.Tensor,
-        attention_mask: torch.Tensor,
-        oracle: List[str] = []
+        input_features: Optional[torch.Tensor],
+        attention_mask: Optional[torch.Tensor],
+        oracle: List[str] = [],
+        audio_path: Optional[str] = None,
     ):
+        if self.hparams.asr_backend == "sensevoice":
+            dbg_idx = self._debug_counters["forward"]
+            self._debug_counters["forward"] += 1
+            pred = self._forward_sensevoice(str(audio_path or ""), oracle)
+            if self._debug_should_log_idx(dbg_idx):
+                self._debug_log(
+                    "cb_sensevoice_forward",
+                    idx=int(dbg_idx),
+                    audio_path=str(audio_path or ""),
+                    pred=str(pred),
+                    keywords=self._latest_keywords[0][:8] if self._latest_keywords else [],
+                    prompt_keywords=self._latest_prompt_keywords[0][:4] if self._latest_prompt_keywords else [],
+                    candidates=self._json_safe_for_covo(self._latest_forward_candidates[:8]),
+                )
+            return pred
         expected_mels = int(getattr(self.processor_whisper.feature_extractor, "feature_size", 0))
         if expected_mels > 0 and int(input_features.size(1)) != expected_mels:
             raise ValueError(
@@ -2933,7 +3220,7 @@ class CBWhisper(pl.LightningModule):
         record_id = str(batch.get("id", batch.get("code", batch_idx)))
         return {
             "id": record_id,
-            "source": "cbwhisper",
+            "source": "cb_sensevoice" if self.hparams.asr_backend == "sensevoice" else "cbwhisper",
             "dataset": str(getattr(self.hparams, "dataset", "")),
             "split": str(getattr(self.hparams, "split", "")),
             "reference": str(batch.get("transcript", "")),
@@ -2949,6 +3236,8 @@ class CBWhisper(pl.LightningModule):
                     "batch_idx": int(batch_idx),
                     "candidate_count": int(len(candidates)),
                     "candidates": candidates,
+                    "asr_backend": str(getattr(self.hparams, "asr_backend", "whisper")),
+                    "sensevoice_ckpt": str(getattr(self.hparams, "sensevoice_ckpt", "")),
                     "whisper_ckpt": str(getattr(self.hparams, "whisper_ckpt", "")),
                     "encoder_ckpt": str(getattr(self.hparams, "encoder_ckpt", "")),
                     "kws_ckpt": str(getattr(self.hparams, "kws_ckpt", "")),
@@ -2984,12 +3273,15 @@ class CBWhisper(pl.LightningModule):
         self._debug_counters["test_step"] += 1
 
         if self._debug_should_log_idx(dbg_idx):
+            utterance_features = batch["utterance"].get("features")
+            utterance_attention_mask = batch["utterance"].get("attention_mask")
             self._debug_log(
                 "test_step_in",
                 idx=dbg_idx,
                 batch_idx=int(batch_idx),
-                utterance_features_shape=list(batch["utterance"]["features"].shape),
-                utterance_attention_mask_shape=list(batch["utterance"]["attention_mask"].shape),
+                utterance_features_shape=list(utterance_features.shape) if isinstance(utterance_features, torch.Tensor) else None,
+                utterance_attention_mask_shape=list(utterance_attention_mask.shape) if isinstance(utterance_attention_mask, torch.Tensor) else None,
+                audio_path=str(batch["utterance"].get("audio", "")),
                 transcript_preview=str(batch.get("transcript", ""))[:120],
             )
 
@@ -3007,9 +3299,10 @@ class CBWhisper(pl.LightningModule):
         )
         try:
             preds = self.forward(
-                input_features = batch['utterance']['features'],
-                attention_mask = batch['utterance']['attention_mask'],
-                oracle = oracle
+                input_features=batch['utterance'].get('features'),
+                attention_mask=batch['utterance'].get('attention_mask'),
+                oracle=oracle,
+                audio_path=batch['utterance'].get('audio'),
             )
         finally:
             self._active_precomputed_kws_features = None
@@ -3056,7 +3349,7 @@ class CBWhisper(pl.LightningModule):
             ),
             'oracle_diag': {
                 'enabled': bool(self._oracle_nbest_diagnostic),
-                'is_shortform': bool(batch['utterance']['features'].shape[-1] <= N_FRAMES),
+                'is_shortform': True if self.hparams.asr_backend == "sensevoice" else bool(batch['utterance']['features'].shape[-1] <= N_FRAMES),
                 'nbest_size': int(len(self._latest_forward_candidates)),
                 'selected_rank': 1,
                 'candidates': list(self._latest_forward_candidates),
@@ -3195,6 +3488,10 @@ class CBWhisper(pl.LightningModule):
             self._post_test_progress_bar.close()
             self._post_test_progress_bar = None
         print(results)
+
+
+class CBSenseVoice(CBWhisper):
+    """End-to-end SenseVoice specialization of the contextual-bias pipeline."""
 
 
 class Flexlist(list):

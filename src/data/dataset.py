@@ -336,29 +336,26 @@ class AishellHotwordDataset(Dataset):
             item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (group['max_length'], hidden_states.size(dim=1)), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
 
         # load utterance audio
-        if self.load_audio:
+        if self.load_audio and self.feature_extractor is not None:
             # load utterance audio and preprocess it
             waveform, sample_rate = torchaudio.load(item['utterance']['audio'])
             if waveform.size(dim=0) > 1:
                 waveform = torch.mean(torchaudio.functional.resample(waveform, sample_rate, SAMPLE_RATE), dim=0, keepdim=True)
             else:
                 waveform = torchaudio.functional.resample(waveform, sample_rate, SAMPLE_RATE)
-            # whether or not the audio has duration smaller than 30 seconds
             is_shortform = waveform.shape[-1] <= N_SAMPLES
-            
-            # extract features
-            if is_shortform:
-                output_features = self.feature_extractor(
-                    waveform[0],
-                    sampling_rate = SAMPLE_RATE,
-                    return_tensors = 'pt',
-                    truncation = True if is_shortform else False,
-                    padding = 'max_length' if is_shortform else 'longest',
-                    return_attention_mask = True
-                )
-            features = output_features.input_features
-            attention_mask = output_features.attention_mask
-            item['utterance'].update([('features', features), ('attention_mask', attention_mask)])
+            output_features = self.feature_extractor(
+                waveform[0],
+                sampling_rate=SAMPLE_RATE,
+                return_tensors='pt',
+                truncation=True if is_shortform else False,
+                padding='max_length' if is_shortform else 'longest',
+                return_attention_mask=True,
+            )
+            item['utterance'].update([
+                ('features', output_features.input_features),
+                ('attention_mask', output_features.attention_mask),
+            ])
 
         return item
 
@@ -495,27 +492,25 @@ class ACL6060KeywordDataset(Dataset):
             item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (group['max_length'], hidden_states.size(dim=1)), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
 
         # load utterance audio
-        if self.load_audio:
+        if self.load_audio and self.feature_extractor is not None:
             # load utterance audio and preprocess it
             waveform, sample_rate = torchaudio.load(item['utterance']['audio'])
             if waveform.size(dim=0) > 1:
                 waveform = torch.mean(torchaudio.functional.resample(waveform, sample_rate, SAMPLE_RATE), dim=0, keepdim=True)
             else:
                 waveform = torchaudio.functional.resample(waveform, sample_rate, SAMPLE_RATE)
-            # whether or not the audio has duration smaller than 30 seconds
             is_shortform = waveform.shape[-1] <= N_SAMPLES
-            # extract features
-            if is_shortform:
-                output_features = self.feature_extractor(
-                    waveform[0],
-                    sampling_rate = SAMPLE_RATE,
-                    return_tensors = 'pt',
-                    truncation = True if is_shortform else False,
-                    padding = 'max_length' if is_shortform else 'longest',
-                    return_attention_mask = True
-                )
-            features = output_features.input_features
-            attention_mask = output_features.attention_mask
-            item['utterance'].update([('features', features), ('attention_mask', attention_mask)])
+            output_features = self.feature_extractor(
+                waveform[0],
+                sampling_rate=SAMPLE_RATE,
+                return_tensors='pt',
+                truncation=True if is_shortform else False,
+                padding='max_length' if is_shortform else 'longest',
+                return_attention_mask=True,
+            )
+            item['utterance'].update([
+                ('features', output_features.input_features),
+                ('attention_mask', output_features.attention_mask),
+            ])
 
         return item
