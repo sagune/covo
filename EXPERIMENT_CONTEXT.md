@@ -4776,3 +4776,41 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Decision: use number-normalized CER as the primary Shuili semantic metric,
   while retaining raw CER as a surface-form diagnostic. Number normalization
   alone does not make the hotword-specialized adapters safe without a gate.
+
+## Naked SenseVoice versus CB-SenseVoice hotword trade-off (2026-07-15)
+
+- Dataset and metric: the same 990-row Shuili-video test set, with number
+  normalization and no filler removal.
+- Overall:
+  - naked SenseVoice corpus CER `0.04873` (`523` edits);
+  - CB-SenseVoice corpus CER `0.04798` (`515` edits);
+  - absolute gain `0.00075`, only `8` net edits removed.
+- True-hotword rows (`361` rows):
+  - CER improves from `0.03749` to `0.03481`;
+  - edits fall from `168` to `156`, a net reduction of `12`.
+- Rows without true hotwords (`629` rows):
+  - CER regresses from `0.05678` to `0.05742`;
+  - edits rise from `355` to `359`, a net increase of `4`.
+- Hotword recall:
+  - alignment-based Entity Recall improves from `0.93708` to `0.96854`, an
+    absolute gain of `0.03146`;
+  - direct lexical recall over 651 mentions improves from `0.95392` (`621`
+    hits) to `0.97849` (`637` hits);
+  - CB-SenseVoice gains 18 mentions and loses 2, for a net gain of 16.
+- Main recovered terms include `引水` (6 mentions), `水量` (2), `防洪`,
+  `灌溉`, `调水`, `汉江`, `丹江口`, `丹江口水库`, `唐白河`, `鄂北`,
+  `高效节水`, and `节水技`.
+- The two lost hotword mentions are both `生态`, changed to `生产`.
+- Sample-level cost:
+  - only `51/990` outputs change;
+  - `25` improve, `18` worsen, and `947` have the same edit count;
+  - `26` gross edits are removed while `18` are introduced;
+  - CB-SenseVoice repairs 11 previously wrong rows to exact, but breaks 14
+    naked-SenseVoice exact rows, so exact count falls from `699` to `696`.
+- Representative generic regressions include `水 -> 水利`, `工艺 -> 工业`,
+  `中水 -> 供水`, `取水 -> 蓄水`, and `生态 -> 生产`.
+- Conclusion: CB-SenseVoice successfully raises hotword recall by about 3.15
+  percentage points. All net CER improvement comes from true-hotword rows; the
+  contextual beam slightly harms non-hotword recognition and exact-match rate.
+- Machine-readable summary:
+  `src/logs/naked_sensevoice_vs_cb_sensevoice_hotword_tradeoff_20260715.json`.

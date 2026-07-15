@@ -1,0 +1,76 @@
+{
+  "date": "2026-07-15",
+  "dataset": "data_shuil_videos_largev3",
+  "samples": 990,
+  "evaluation": {
+    "normalize_numbers": true,
+    "remove_fillers": false
+  },
+  "overall": {
+    "reference_chars": 10733,
+    "naked_sensevoice_cer": 0.048728221373334574,
+    "cb_sensevoice_cer": 0.04798285661045374,
+    "naked_sensevoice_edits": 523,
+    "cb_sensevoice_edits": 515,
+    "net_edits_removed": 8
+  },
+  "true_hotword_rows": {
+    "samples": 361,
+    "reference_chars": 4481,
+    "naked_sensevoice_cer": 0.0374916313322919,
+    "cb_sensevoice_cer": 0.03481365766569962,
+    "naked_sensevoice_edits": 168,
+    "cb_sensevoice_edits": 156,
+    "net_edits_removed": 12
+  },
+  "non_hotword_rows": {
+    "samples": 629,
+    "reference_chars": 6252,
+    "naked_sensevoice_cer": 0.056781829814459374,
+    "cb_sensevoice_cer": 0.057421625079974406,
+    "naked_sensevoice_edits": 355,
+    "cb_sensevoice_edits": 359,
+    "net_edits_added": 4
+  },
+  "hotword_recall": {
+    "entity_recall_naked": 0.9370786516853933,
+    "entity_recall_cb": 0.9685393258426966,
+    "entity_recall_absolute_gain": 0.03146067415730335,
+    "direct_mentions": 651,
+    "direct_hits_naked": 621,
+    "direct_hits_cb": 637,
+    "direct_recall_naked": 0.9539170506912442,
+    "direct_recall_cb": 0.978494623655914,
+    "mentions_gained": 18,
+    "mentions_lost": 2
+  },
+  "sample_deltas": {
+    "outputs_changed": 51,
+    "improved": 25,
+    "worsened": 18,
+    "unchanged": 947,
+    "gross_edits_removed": 26,
+    "gross_edits_added": 18,
+    "naked_correct_cb_broken": 14,
+    "naked_wrong_cb_exact": 11,
+    "naked_exact": 699,
+    "cb_exact": 696
+  },
+  "gained_hotwords": {
+    "引水": 6,
+    "水量": 2,
+    "节水技": 1,
+    "高效节水": 1,
+    "灌溉": 1,
+    "防洪": 1,
+    "唐白河": 1,
+    "调水": 1,
+    "汉江": 1,
+    "丹江口": 1,
+    "丹江口水库": 1,
+    "鄂北": 1
+  },
+  "lost_hotwords": {
+    "生态": 2
+  }
+}
