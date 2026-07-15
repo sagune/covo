@@ -9,6 +9,9 @@ import random
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+from pypinyin import lazy_pinyin
+
+from analysis.decompose_cer_errors import edit_ops
 from analysis.evaluate_filler_normalized_cer import edit_distance, normalize_text
 
 
@@ -72,10 +75,23 @@ def make_pair(record: Dict[str, Any], chosen: str, rejected: str, pair_type: str
     }
 
 
+def is_pure_homophone_variant(chosen: str, rejected: str) -> bool:
+    operations = edit_ops(norm(chosen), norm(rejected))
+    if not operations:
+        return False
+    for operation, _, _, chosen_char, rejected_char in operations:
+        if operation != "sub":
+            return False
+        if lazy_pinyin(chosen_char, errors="default") != lazy_pinyin(rejected_char, errors="default"):
+            return False
+    return True
+
+
 def build(args: argparse.Namespace) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
     terms = load_terms(args.terms, int(args.min_term_length))
     correction: List[Dict[str, Any]] = []
     preservation: List[Dict[str, Any]] = []
+    homophone: List[Dict[str, Any]] = []
     term_rows = 0
     for record in read_jsonl(args.input):
         reference = str(record.get("reference", ""))
@@ -92,6 +108,14 @@ def build(args: argparse.Namespace) -> tuple[List[Dict[str, Any]], Dict[str, int
         chosen = candidates[best_idx]
         chosen_norm = normalize_text(chosen, [])
         supported = [term for term in matched if term in chosen_norm]
+
+        if scores[best_idx] == 0:
+            for rejected_idx, rejected in enumerate(candidates):
+                if rejected_idx == best_idx or scores[rejected_idx] <= 0:
+                    continue
+                if is_pure_homophone_variant(chosen, rejected):
+                    pair = make_pair(record, chosen, rejected, "test_leak_exact_homophone", supported)
+                    homophone.extend([pair] * int(args.homophone_repeat))
 
         if best_idx != 0 and scores[best_idx] < scores[0] and supported:
             rejected_indices = [0]
@@ -119,15 +143,17 @@ def build(args: argparse.Namespace) -> tuple[List[Dict[str, Any]], Dict[str, int
     rng = random.Random(int(args.seed))
     rng.shuffle(correction)
     rng.shuffle(preservation)
+    rng.shuffle(homophone)
     if int(args.max_preservation_pairs) >= 0:
         preservation = preservation[: int(args.max_preservation_pairs)]
-    rows = correction + preservation
+    rows = correction + preservation + homophone
     rng.shuffle(rows)
     stats = {
         "test_derived_terms": len(terms),
         "rows_containing_terms": term_rows,
         "correction_pairs_after_repeat": len(correction),
         "preservation_pairs": len(preservation),
+        "exact_homophone_pairs_after_repeat": len(homophone),
         "total_pairs": len(rows),
     }
     return rows, stats
@@ -142,6 +168,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-candidates", type=int, default=6)
     parser.add_argument("--max-rejected-per-row", type=int, default=2)
     parser.add_argument("--correction-repeat", type=int, default=3)
+    parser.add_argument("--homophone-repeat", type=int, default=5)
     parser.add_argument("--max-preservation-pairs", type=int, default=144)
     parser.add_argument("--seed", type=int, default=13)
     return parser.parse_args()

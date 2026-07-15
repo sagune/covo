@@ -676,6 +676,16 @@ model reaches `0.03636` versus the original model's test-tuned `0.03703`, a
 gain of only seven edits. This result is diagnostic only and must never be
 reported as an untuned paper result.
 
+Test-leaked confusion coverage was then tightened with 20 manually checked
+professional phrases injected directly into the COVO evidence and 408 repeated
+exact-homophone hard pairs. A 70-step DPO continuation lowers filler+number
+normalized CER to `0.03522` at weight `0.5`, or **`0.03484`** after leaked
+test-set interpolation tuning (`366` edits). Pure-homophone misses fall from
+`42` to `36`, and exact-reference homophone misses from `23` to `15`.
+Suspected reference errors such as `南路/南麓` and `饮水量/引水量` were excluded
+from the injected phrase list. This remains a deliberately invalid test-leak
+diagnostic, not a paper result.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

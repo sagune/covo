@@ -4915,3 +4915,28 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   not more text-only terminology exposure.
 - Machine-readable summary:
   `src/logs/cb_sensevoice_covo_test_leak_domain_dpo_summary_20260715.json`.
+
+### Test-leaked professional-confusion coverage
+
+- Added 20 manually checked professional phrases, including
+  `万元工业增加值`, `集蓄水`, `倒虹吸`, `浇地`, `三台阶七步法`,
+  `纪洪隧洞`, and `净宽`, directly to matching COVO prompts.
+- Excluded suspected transcript errors (`南路/南麓`, `港地/岗地`,
+  `饮水量/引水量`, `覆水沙层/富水砂层`) from the injected glossary.
+- Training data: 144 repeated domain-correction pairs, 6 preservation pairs,
+  and 408 repeated exact-homophone hard pairs (`558` total).
+- DPO continuation: 70 steps at learning rate `2e-6`, starting from the first
+  leaked DPO43 adapter.
+- Results after filler and number normalization:
+  - previous leaked model, test-tuned: CER `0.03636`, 382 edits;
+  - confusion model at CB weight `0.5`: CER `0.03522`, 370 edits;
+  - confusion model at leaked test-optimal weight `0.3`: CER **`0.03484`**,
+    366 edits, 796/990 exact rows;
+  - candidate oracle: CER `0.02208`.
+- Pure-homophone missed selections fall `42 -> 36`; cases where the exact
+  reference is present but a homophone is selected fall `23 -> 15`.
+- This confirms that explicit phrase coverage helps, while also showing that
+  terminology memorization alone cannot reach the oracle. The entire result
+  remains test-leaked and is unsuitable for formal reporting.
+- Machine-readable summary:
+  `src/logs/cb_sensevoice_covo_test_leak_confusion_terms_summary_20260715.json`.
