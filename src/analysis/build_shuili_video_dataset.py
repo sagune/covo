@@ -120,6 +120,27 @@ def extract_hotword_candidates(texts: list[str], old_hotwords: list[str], max_ho
     return output
 
 
+def load_explicit_hotwords(path: str, texts: list[str]) -> list[str]:
+    if not str(path or "").strip():
+        return []
+    corpus = "\n".join(texts)
+    output = []
+    seen = set()
+    for raw in Path(path).read_text(encoding="utf-8-sig").splitlines():
+        term = raw.strip()
+        if not term or term.startswith("#") or term in seen:
+            continue
+        if len(term) < 2 or len(term) > 8:
+            continue
+        if any(ch.isdigit() or ("a" <= ch.lower() <= "z") for ch in term):
+            continue
+        if term not in corpus:
+            continue
+        output.append(term)
+        seen.add(term)
+    return output
+
+
 def read_srt(path: Path, bac_prefix: str, speaker: str) -> list[Segment]:
     raw = path.read_text(encoding="utf-8-sig", errors="ignore")
     blocks = [block.strip() for block in re.split(r"\n\s*\n", raw) if block.strip()]
@@ -317,6 +338,11 @@ def main() -> None:
     parser.add_argument("--hotword-source", default="/root/autodl-tmp/datasets/shuili/data_shuil_largev3")
     parser.add_argument("--expand-hotwords", action="store_true")
     parser.add_argument("--max-hotwords", type=int, default=360)
+    parser.add_argument(
+        "--extra-hotwords-file",
+        default="",
+        help="Optional explicit hotwords, kept ahead of automatically ranked expansion terms.",
+    )
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
@@ -350,11 +376,16 @@ def main() -> None:
         for line in (Path(args.hotword_source) / "hotword" / "test" / "hotword.txt").read_text(encoding="utf-8-sig").splitlines()
         if line.strip()
     ]
+    explicit_hotwords = load_explicit_hotwords(
+        args.extra_hotwords_file,
+        texts=[seg.text for seg in all_segments],
+    )
+    seed_hotwords = list(dict.fromkeys(src_hotwords + explicit_hotwords))
     hotwords = extract_hotword_candidates(
         texts=[seg.text for seg in all_segments],
-        old_hotwords=src_hotwords,
-        max_hotwords=max(len(src_hotwords), int(args.max_hotwords)),
-    ) if args.expand_hotwords else src_hotwords
+        old_hotwords=seed_hotwords,
+        max_hotwords=max(len(seed_hotwords), int(args.max_hotwords)),
+    ) if args.expand_hotwords else seed_hotwords
     hotwords = copy_hotword_assets(Path(args.hotword_source), target, hotwords=hotwords)
     keyword_audio_written = write_keyword_audio_for_new_terms(
         target_root=target,
@@ -367,6 +398,7 @@ def main() -> None:
         "target": str(target),
         "segments": len(all_segments),
         "hotwords": len(hotwords),
+        "explicit_hotwords": len(explicit_hotwords),
         "keyword_audio_written": keyword_audio_written,
         "summary": str(target / "build_summary.json"),
     }, ensure_ascii=False, indent=2))

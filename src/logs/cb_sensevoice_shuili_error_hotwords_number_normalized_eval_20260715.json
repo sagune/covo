@@ -1,0 +1,21 @@
+{
+  "input": "logs/cb_sensevoice_evidence_shuili_error_hotwords_full_20260715.jsonl",
+  "samples": 990,
+  "reference_chars": 10733,
+  "fillers": [],
+  "normalize_numbers": true,
+  "base_cer": 0.040715550172365604,
+  "prediction_cer": 0.040715550172365604,
+  "base_mean_sample_cer": 0.049909980254012415,
+  "prediction_mean_sample_cer": 0.049909980254012415,
+  "base_edits": 437,
+  "prediction_edits": 437,
+  "improved_samples": 0,
+  "worsened_samples": 0,
+  "unchanged_samples": 990,
+  "base_exact": 745,
+  "prediction_exact": 745,
+  "ref_changed_by_filter": 191,
+  "base_changed_by_filter": 190,
+  "pred_changed_by_filter": 190
+}

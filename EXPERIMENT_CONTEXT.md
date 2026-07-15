@@ -4814,3 +4814,27 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   contextual beam slightly harms non-hotword recognition and exact-match rate.
 - Machine-readable summary:
   `src/logs/naked_sensevoice_vs_cb_sensevoice_hotword_tradeoff_20260715.json`.
+
+## Shuili error-hotword diagnostic (2026-07-15)
+
+- This is a diagnostic ceiling, not a reportable untuned test result: 79 terms
+  were collected from current test errors and added to the existing 180-word
+  lexicon, producing a 259-word CB-SenseVoice lexicon.
+- Number-normalized CB-SenseVoice corpus CER improves from `0.04798` to
+  `0.04072`; edits fall from `515` to `437`, and exact rows rise from `696` to
+  `745`.
+- On the original 651 hotword mentions, direct recall rises from `637/651` to
+  `641/651`. On 179 mentions of the newly added terms, recall rises from
+  `56/179` to `149/179`.
+- Relative to the 180-word run, `64` rows improve and only `3` regress. The
+  regressions expose the main risk of short generic terms: `工业 -> 工艺`,
+  `种水稻 -> 中水稻`, and `储水性 -> 取水性`.
+- Passing this stronger input through the original no-gate COVO is harmful:
+  number-normalized corpus CER changes from `0.04072` to `0.04304`, despite
+  exact rows increasing slightly from `745` to `748`. The accepted diagnostic
+  output is therefore CB-SenseVoice top1 without COVO.
+- Paper protocol: rebuild the expanded lexicon from train/dev transcripts or
+  an external water-conservancy glossary, freeze it before test, and exclude
+  ambiguous short terms unless train/dev evidence supports them.
+- Machine-readable summary:
+  `src/logs/cb_sensevoice_shuili_error_hotwords_summary_20260715.json`.

@@ -1,0 +1,68 @@
+{
+  "status": "diagnostic_only_test_error_derived_hotwords",
+  "dataset": "shuili_video_test_990",
+  "hotwords_before": 180,
+  "hotwords_after": 259,
+  "explicit_added_hotwords": 79,
+  "number_normalized": {
+    "cb_sensevoice_before": {
+      "corpus_cer": 0.047983788316407344,
+      "edits": 515,
+      "exact": 696
+    },
+    "cb_sensevoice_after": {
+      "corpus_cer": 0.040715550172365604,
+      "mean_sample_cer": 0.049909980254012415,
+      "edits": 437,
+      "exact": 745
+    },
+    "original_covo_after": {
+      "corpus_cer": 0.04304481505636821,
+      "mean_sample_cer": 0.05179331251724666,
+      "edits": 462,
+      "exact": 748
+    }
+  },
+  "old_hotword_mentions": {
+    "total": 651,
+    "before_hits": 637,
+    "after_hits": 641,
+    "gained": 5,
+    "lost": 1
+  },
+  "added_hotword_mentions": {
+    "total": 179,
+    "before_hits": 56,
+    "after_hits": 149,
+    "gained": 93,
+    "lost": 0
+  },
+  "sample_delta": {
+    "improved": 64,
+    "worsened": 3,
+    "unchanged": 923,
+    "gross_edits_removed": 81,
+    "gross_edits_added": 3
+  },
+  "worsened_examples": [
+    {
+      "id": "63",
+      "reference": "钢铁工业一直被认为是工业领域典型高耗水行业",
+      "before": "钢铁工业一直被认为是工业领域典型高耗水行业。",
+      "after": "钢铁工艺一直被认为是工业领域典型高耗水行业。"
+    },
+    {
+      "id": "551",
+      "reference": "祖辈几代守着黄河都种水稻",
+      "before": "祖辈几代守着黄河都种水稻。",
+      "after": "祖辈几代守着黄河都中水稻。"
+    },
+    {
+      "id": "660",
+      "reference": "这个透水性和它的储水性非常差",
+      "before": "这个透水性和它的储水性非常差。",
+      "after": "这个透水性和它的取水性非常差。"
+    }
+  ],
+  "decision": "Keep as a diagnostic ceiling only. The expanded CB-SenseVoice top1 is stronger than passing it through the original no-gate COVO. Build the reportable lexicon from train/dev or an external domain glossary, never test references."
+}

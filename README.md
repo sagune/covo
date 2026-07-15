@@ -636,6 +636,17 @@ CB-SenseVoice input corpus CER is `0.04798`; original COVO improves it to
 should therefore report number-normalized CER as the semantic metric and raw
 CER as a surface-form diagnostic.
 
+Shuili error-hotword diagnostic on 2026-07-15: an explicit, corpus-backed
+hotword extension path was added to `src/analysis/build_shuili_video_dataset.py`.
+Adding 79 terms identified from current test errors expands the lexicon from
+180 to 259 words and lowers number-normalized CB-SenseVoice corpus CER from
+`0.04798` to `0.04072` (`515 -> 437` edits; `696 -> 745` exact rows). This run
+is a diagnostic upper bound and must not be reported as an untuned paper test
+because its lexicon was derived from test errors. The original no-gate COVO
+regresses the stronger input to `0.04304` CER, so CB-SenseVoice top1 is the
+accepted output for this diagnostic. A reportable version must freeze a
+lexicon built only from train/dev data or an external domain glossary.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
