@@ -4692,3 +4692,58 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_best_preserve2_originalstyle_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_predictions_shuili_videos_hotword_use_originalstyle_full_20260715.jsonl`;
   - `src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
+
+## ChineseHP-to-CB-SenseVoice data-distribution audit (2026-07-15)
+
+- Objective: explain why COVO transfers poorly from ChineseHP/AISHELL to the
+  current 990-row Shuili CB-SenseVoice evidence.
+- Candidate ceiling is not the main problem:
+  - ChineseHP train has `9.88` unique candidates on average, top1/oracle corpus
+    CER `0.05536 / 0.02662`, and oracle exact rate `0.7661`;
+  - current Shuili raw evidence has `7.88` unique candidates, top1/oracle corpus
+    CER `0.05407 / 0.02746`, and oracle exact rate `0.8414`;
+  - therefore Shuili has a comparable oracle ceiling, but COVO sees only about
+    six candidates after prompt truncation.
+- Candidate geometry is different:
+  - ChineseHP native candidates have mean edit distance `1.25` from top1 and
+    `78.9%` are within one edit;
+  - the hotword-use continuation training data is broader: mean distance `2.29`,
+    only `45.0%` within one edit;
+  - the old external-SenseVoice-anchor plus CB-Whisper evidence matched that
+    training distribution (`2.13`, `45.4%`);
+  - current end-to-end CB-SenseVoice evidence is much narrower (`1.08`, `91.8%`),
+    so it mostly offers clusters of ambiguous one-character homophones instead
+    of the broader alternatives learned by the hotword-use adapter.
+- The no-op/correction prior is reversed:
+  - ChineseHP original train top1 exact rate is `56.2%`;
+  - hotword-use continuation train top1 exact rate is only `32.0%`;
+  - current Shuili top1 exact rate is `68.2%`;
+  - a model continued on the hotword-use set therefore expects to correct far
+    more often than is appropriate for current Shuili.
+- Hotword reliability is strongly mismatched:
+  - at least one prompt hotword occurs in the reference for `82.7%` of
+    hotword-use training rows;
+  - the corresponding rate is only `26.9%` on current Shuili, so `73.1%` of
+    rows have an entirely false prompt-hotword set;
+  - this makes predicted hotwords much less trustworthy than during training.
+- Text-style mismatch:
+  - ChineseHP has no Arabic digits in its references; hotword-use training has
+    Arabic digits in `10.1%` of top1 rows but none in references, implicitly
+    teaching Arabic-to-Chinese number rewriting;
+  - current Shuili retains Arabic digits in about `19.5%` of references;
+  - `179/200` worsened hotword-use rows changed top1 Arabic digits, making this
+    the dominant observed regression;
+  - oral fillers occur in `9.8%` of Shuili references versus `1.7%` of
+    ChineseHP references.
+- Prompt/schema mismatch:
+  - original ChineseHP COVO training uses edit JSON and about `570` input tokens
+    on average;
+  - current inference uses full-text JSON and about `1248` input tokens;
+  - `30.1%` of current prompts exceed the hotword continuation's `1280`-token
+    training length, although inference itself does not truncate them.
+- Conclusion: the current failure is distribution shift, not lack of oracle
+  candidates. The largest clean training fixes are to preserve Shuili number
+  style, heavily increase no-op examples, train with mostly false KWS prompts,
+  and reproduce the narrow CB-SenseVoice one-edit candidate geometry.
+- Machine-readable summary:
+  `src/logs/covo_chinesehp_cb_sensevoice_distribution_audit_20260715.json`.
