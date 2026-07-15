@@ -4895,3 +4895,23 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   listwise candidate discrimination rather than candidate absence.
 - Machine-readable summary:
   `src/logs/cb_sensevoice_covo_shuili_course_summary_20260715.json`.
+
+## Explicit Shuili-video test-leak diagnostic (2026-07-15)
+
+- This experiment intentionally uses test references and test-derived terms;
+  it is not a valid paper test result.
+- The 259-term leaked lexicon matches 432/990 rows. It produces 225 repeated
+  domain-correction pairs and 119 term-preservation pairs (`344` total).
+- DPO continuation: 43 steps, learning rate `1e-6`, starting from the AISHELL
+  DPO60 listwise adapter.
+- With the original AISHELL-selected CB weight `0.1`, CER regresses from
+  `0.03722` to `0.03769` after filler and number normalization.
+- With interpolation also tuned on the leaked test set:
+  - original DPO60 best: weight `0.75`, CER `0.03703`, 389 edits;
+  - leaked DPO43 best: weight `0.5`, CER **`0.03636`**, 382 edits;
+  - candidate oracle: CER `0.02208`.
+- Interpretation: memorizing test-domain term preferences provides only a
+  seven-edit gain. The remaining errors require acoustic candidate evidence,
+  not more text-only terminology exposure.
+- Machine-readable summary:
+  `src/logs/cb_sensevoice_covo_test_leak_domain_dpo_summary_20260715.json`.

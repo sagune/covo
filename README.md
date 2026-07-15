@@ -667,6 +667,15 @@ then `0.93136`. COVO reduces edits from `640` to `613`, with `61/40/1051`
 improved/worsened/unchanged rows. The candidate oracle is `0.01820`, leaving
 substantial candidate-selection headroom.
 
+Explicit test-leak diagnostic on 2026-07-15: `259` terms and oracle candidate
+labels from the 990-row Shuili-video test set were used to build `344` domain
+DPO pairs. A 43-step continuation does not improve the fixed AISHELL-selected
+score interpolation (`0.03722 -> 0.03769` filler+number-normalized CER). When
+the CB interpolation weight is also tuned on the same test set, the leaked
+model reaches `0.03636` versus the original model's test-tuned `0.03703`, a
+gain of only seven edits. This result is diagnostic only and must never be
+reported as an untuned paper result.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
