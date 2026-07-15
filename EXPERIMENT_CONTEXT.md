@@ -4523,3 +4523,24 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - Run `python run_CLI.py fit --config configs/train-sensevoice-kws.yaml` from `src/`.
   - Validate the resulting SenseVoice-KWS checkpoint on AISHELL dev/test.
   - Wire the checkpoint into the CB-SenseVoice recognition workflow.
+
+## SenseVoice KWS full validation (2026-07-15)
+
+- Feature encoder: `iic/SenseVoiceSmall`, 512-dimensional normalized encoder
+  states with four query tokens removed.
+- Best checkpoint:
+  `src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt`.
+- Best validation point: F1 `0.88416`, precision `0.95420`, recall `0.82380`,
+  threshold `0.954`.
+- Full AISHELL hotword test TTS threshold sweep: best threshold `0.787`,
+  precision `0.90948`, recall `0.90658`, F1 `0.90803`.
+- Full 808-row large-v3 CB test with precomputed SenseVoice KWS matrices:
+  Entity Recall `0.92155`, CER `0.07174`, Hotword Only CER `0.05228`, WER
+  `0.46906`.
+- Decision: the SenseVoice KWS migration is functional and competitive, but
+  this first CB result is slightly below the prior true-v3 CB result (Recall
+  `0.92707`, CER `0.07102`). Keep it as a validated migration baseline, not the
+  promoted best model.
+- Artifacts:
+  `src/logs/kws_threshold_sweep_sensevoice_tts_20260715.csv` and
+  `src/logs/test_metrics_sensevoice_kws_cb_full_20260715.csv`.

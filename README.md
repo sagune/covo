@@ -85,14 +85,34 @@ src/outputs/mlruns/
 src/logs/train_sensevoice_kws_20260714.log
 ```
 
-As of the latest recorded run, the best validation checkpoint was around:
+The full run stopped normally after epoch 21. The best validation checkpoint is:
 
 ```text
-src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=7-step=48040.ckpt
+src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt
 ```
 
-with validation `f1_zh` about `0.8748`, precision about `0.9343`, and recall
-about `0.8225`.
+Its validation metrics are `f1_zh=0.88416`, precision `0.95420`, recall
+`0.82380`, and selected threshold `0.954`.
+
+## SenseVoice KWS and CB Validation (2026-07-15)
+
+On the full 808-row AISHELL hotword test subset with TTS keyword states, the
+SenseVoice KWS checkpoint reaches its best test F1 at threshold `0.787`:
+precision `0.90948`, recall `0.90658`, and F1 `0.90803`. At the conservative
+validation threshold `0.954`, precision is `0.95721` and recall is `0.83121`.
+The sweep is stored in
+`src/logs/kws_threshold_sweep_sensevoice_tts_20260715.csv`.
+
+CB-Whisper evaluation now supports reusing precomputed KWS similarity matrices.
+This lets the large-v3 ASR decoder consume KWS evidence produced from the
+512-dimensional SenseVoice states without loading a mismatched Whisper KWS
+encoder. The full 808-row result is Entity Recall `0.92155`, CER `0.07174`,
+Hotword Only CER `0.05228`, and WER `0.46906`; metrics are in
+`src/logs/test_metrics_sensevoice_kws_cb_full_20260715.csv`. This validates the
+cross-encoder workflow, but it does not replace the previous true-v3 CB result
+(`0.92707` recall, `0.07102` CER, `0.04531` Hotword Only CER). The likely next
+step is improving SenseVoice KWS ranking/calibration rather than changing the
+CB reranker.
 
 ## Important Files
 
