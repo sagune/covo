@@ -104,6 +104,7 @@ class CBWhisper(pl.LightningModule):
         whisper_ckpt: str,
         kws_ckpt: str,
         language: str,
+        use_precomputed_kws_features: bool = False,
         force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
         oracle: Union[bool, str] = 'kws',
@@ -209,21 +210,24 @@ class CBWhisper(pl.LightningModule):
             keywords_per_group = self.hparams.keywords_per_group
         )
 
-        # instantiate WhisperModel object and get encoder
-        self.encoder = WhisperModel.from_pretrained(self.hparams.encoder_ckpt).encoder
-        self.encoder.eval()
-        self.encoder.requires_grad_(False)
-        encoder_dim = int(getattr(getattr(self.encoder, "config", None), "d_model", 0))
         database_dim = self.kw_database.hidden_dim()
-        if encoder_dim > 0 and database_dim is not None and int(database_dim) != encoder_dim:
-            raise ValueError(
-                "KWS encoder/database hidden-state dimension mismatch: "
-                f"encoder_ckpt={self.hparams.encoder_ckpt} has d_model={encoder_dim}, "
-                f"but keyword database under root={self.hparams.root}, split={self.hparams.split}, "
-                f"kw_type={self.hparams.kw_type} has dim={database_dim}. "
-                "Use the same Whisper encoder/profile to extract hotword keyword hidden states "
-                "and to run online KWS encoding."
-            )
+        self.encoder = None
+        if not self.hparams.use_precomputed_kws_features:
+            # Online CB-Whisper inference extracts KWS features with Whisper.
+            # Dataset evaluation can instead reuse precomputed similarity matrices,
+            # which also supports non-Whisper encoders such as SenseVoice.
+            self.encoder = WhisperModel.from_pretrained(self.hparams.encoder_ckpt).encoder
+            self.encoder.eval()
+            self.encoder.requires_grad_(False)
+            encoder_dim = int(getattr(getattr(self.encoder, "config", None), "d_model", 0))
+            if encoder_dim > 0 and database_dim is not None and int(database_dim) != encoder_dim:
+                raise ValueError(
+                    "KWS encoder/database hidden-state dimension mismatch: "
+                    f"encoder_ckpt={self.hparams.encoder_ckpt} has d_model={encoder_dim}, "
+                    f"but keyword database under root={self.hparams.root}, split={self.hparams.split}, "
+                    f"kw_type={self.hparams.kw_type} has dim={database_dim}. "
+                    "Use matching hidden states or enable precomputed KWS features for evaluation."
+                )
 
         # check if oracle is valid
         if isinstance(self.hparams.oracle, bool):
@@ -241,6 +245,7 @@ class CBWhisper(pl.LightningModule):
         self._latest_full_prompt_ids = []
         self._keyword_spotting_cache = {}
         self._active_kws_attention_mask = None
+        self._active_precomputed_kws_features = None
         self._debug_log_path = os.getenv("CBW_DEBUG_LOG", "logs/runtime_probe.jsonl")
         if self._debug_log_path.lower() in {"", "none", "off", "0"}:
             self._debug_log_path = ""
@@ -1649,6 +1654,32 @@ class CBWhisper(pl.LightningModule):
         keyword_scores = [dict() for _ in range(num_segments)]
         utt_hs = None
 
+        precomputed_groups = self._active_precomputed_kws_features
+        if self.hparams.use_precomputed_kws_features and precomputed_groups is not None:
+            for idx, matrices in enumerate(precomputed_groups[:num_groups]):
+                kw_group = self.kw_database.group(idx, device=self.device)
+                matrices = matrices.to(self.device)
+                chunk_size = max(1, int(getattr(self.hparams, "kws_infer_chunk_size", 16)))
+                probs_parts = []
+                with torch.inference_mode():
+                    for matrices_chunk in torch.split(matrices, chunk_size, dim=0):
+                        kws_chunk = self.kws.forward(input_features=matrices_chunk)
+                        probs_parts.append(torch.softmax(kws_chunk.logits, dim=1)[:, 1])
+                probs_pos = torch.cat(probs_parts, dim=0)
+                topk = min(max(1, int(self.hparams.kws_topk_per_group)), probs_pos.numel())
+                top_vals, top_idx = torch.topk(probs_pos, k=topk)
+                selected_idx = top_idx[top_vals >= float(self.hparams.kws_positive_threshold)]
+                if selected_idx.numel() == 0 and top_idx.numel() > 0:
+                    selected_idx = top_idx[:1]
+                for cand_idx in selected_idx.tolist():
+                    kw = kw_group["keywords"][cand_idx]
+                    keywords[0].append(kw)
+                    keyword_scores[0][kw] = max(
+                        float(keyword_scores[0].get(kw, 0.0)),
+                        float(probs_pos[cand_idx].item()),
+                    )
+            return self._finalize_kws_keywords(keywords, keyword_scores)
+
         if num_groups > 0:
             try:
                 input_features = self._cast_features_for_module(input_features, self.encoder)
@@ -1699,6 +1730,13 @@ class CBWhisper(pl.LightningModule):
                     if score_v > prev:
                         keyword_scores[seg_idx][kw] = score_v
 
+        return self._finalize_kws_keywords(keywords, keyword_scores)
+
+    def _finalize_kws_keywords(
+        self,
+        keywords: List[List[str]],
+        keyword_scores: List[dict],
+    ) -> Tuple[List[List[str]], List[dict]]:
         keywords = [list(dict.fromkeys(kwds)) for kwds in keywords]
         keywords = [self._sort_keywords_by_score(kwds, keyword_scores[i]) for i, kwds in enumerate(keywords)]
         max_kw = int(self.hparams.kws_max_prompt_keywords)
@@ -2964,11 +3002,17 @@ class CBWhisper(pl.LightningModule):
             oracle = []
         
         # get predictions from the CB-Whisper for the given setting
-        preds = self.forward(
-            input_features = batch['utterance']['features'],
-            attention_mask = batch['utterance']['attention_mask'],
-            oracle = oracle
+        self._active_precomputed_kws_features = (
+            batch.get('features') if self.hparams.use_precomputed_kws_features else None
         )
+        try:
+            preds = self.forward(
+                input_features = batch['utterance']['features'],
+                attention_mask = batch['utterance']['attention_mask'],
+                oracle = oracle
+            )
+        finally:
+            self._active_precomputed_kws_features = None
 
         # Build keyword mentions for evaluation.
         # ACL provides `batch['keywords']`; AISHELL does not, so recover mentions from hotword_labels.
