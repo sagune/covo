@@ -1,0 +1,38 @@
+{
+  "experiment": "speechio_formal_cross_domain_sensevoice_covo",
+  "adapter": "qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7",
+  "subsets": {
+    "ZH00000": {
+      "samples": 879,
+      "formal_target": {
+        "sensevoice_cer": 0.25863384850219423,
+        "covo_cer": 0.2580137378362908,
+        "improved": 12,
+        "worsened": 1,
+        "unchanged": 866
+      },
+      "verbatim_target": {
+        "sensevoice_cer": 0.03176940879444561,
+        "covo_cer": 0.03176940879444561,
+        "improved": 10,
+        "worsened": 3,
+        "unchanged": 866
+      }
+    },
+    "ZH00006": {
+      "samples": 1561,
+      "formal_target": {
+        "sensevoice_cer": 0.19851065580515098,
+        "covo_cer": 0.19785238212786965,
+        "improved": 15,
+        "worsened": 4,
+        "unchanged": 1542
+      },
+      "verbatim_target": {
+        "sensevoice_cer": 0.06733290268647642,
+        "covo_cer": 0.06767488695520006
+      }
+    }
+  },
+  "note": "Two public Speechio-Formal domains; formal and verbatim targets are reported separately."
+}

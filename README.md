@@ -834,6 +834,21 @@ comparison is not based on a small sample.  The comparison is still system
 level rather than a strict architecture ablation because the upstream models,
 streaming constraints, and training data differ.
 
+We also checked two independent public Speechio-Formal domains with the same
+SenseVoice/COVO pipeline.  The COVO adapter was trained on AISHELL evidence and
+was not retrained on Speechio-Formal.
+
+| Speechio-Formal domain | Samples | SenseVoice formal CER | COVO formal CER | Changed samples |
+|---|---:|---:|---:|---:|
+| ZH00000 | 879 | 25.8634% | **25.8014%** | 12 better / 1 worse |
+| ZH00006 | 1561 | 19.8511% | **19.7852%** | 15 better / 4 worse |
+
+The cross-domain result is consistent across both subsets but small.  It is
+not evidence that the existing COVO adapter matches FormalASR: FormalASR is
+trained specifically for spoken-to-formal rewriting, whereas our adapter is
+trained for conservative ASR correction.  The full comparison summary is
+`src/logs/speechio_formal_cross_domain_summary_20260719.json`.
+
 #### Entity-retrieval follow-up
 
 To address the entity gap, we built a phonetic entity-retrieval evidence pool
