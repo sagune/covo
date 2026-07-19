@@ -950,3 +950,23 @@ speaker/sentence partition. The full evaluation gives:
 The full-split files are `src/logs/thchs30_full_*`. The earlier 1,339-row
 result is retained as a mirror-subset pilot and should not be used as the main
 comparison.
+
+### Comparable 2025 paper
+
+The main reason for adding THCHS-30 was comparison with **ASR-EC Benchmark:
+Evaluating Large Language Models on Chinese ASR Error Correction** (EMNLP
+2025 Industry Track). On its synthetic THCHS-30/AISHELL error-correction
+benchmark, the paper reports CER values of 12.42% and 8.11% for its two ASR
+baselines, 12.36% and 7.88% after text-only LoRA correction, and 5.96% and
+5.12% for its multimodal correction setting. Our complete original THCHS-30
+evaluation reaches 5.60% with SenseVoiceSmall+COVO: it is 0.36 percentage
+points below the paper's 5.96% setting, but 0.48 points above its 5.12%
+setting.
+
+This is recorded as **comparable in magnitude, not a strict same-protocol
+win**: the paper first generates synthetic ASR errors with Kaldi-K1/K2 and
+evaluates correction, while our 5.60% is direct recognition plus COVO on the
+complete original test audio. A fair claim requires reproducing the paper's
+ASR-EC error-generation protocol.
+
+Reference: [ASR-EC Benchmark, EMNLP 2025](https://aclanthology.org/2025.emnlp-industry.110.pdf).
