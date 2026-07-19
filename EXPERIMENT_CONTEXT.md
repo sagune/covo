@@ -4965,6 +4965,7 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 | System | Corpus CER | Mean-sample CER | Edits | Exact |
 |---|---:|---:|---:|---:|
 | SenseVoiceSmall | `0.062914` | `0.063890` | `6591` | `4454/7176` |
+| SenseVoiceSmall + original COVO | `0.057053` | `0.058197` | `5977` | `4769/7176` |
 | SenseVoiceSmall + COVO | **`0.037647`** | **`0.039554`** | **`3944`** | **`4982/7176`** |
 
 - COVO changes by error count: improved `1085`, worsened `34`, equal `6057`.
@@ -4980,3 +4981,19 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   - COVO messages: `src/logs/aishell_full_sensevoice_covo_messages_best_noop_20260719.jsonl`;
   - COVO predictions: `src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl`;
   - unified summary: `src/logs/aishell_full_sensevoice_covo_best_noop_20260719_summary.json`.
+
+### Original COVO control
+
+- Adapter: `qwen35_text_rewrite_hardneg_dropout_lora_2epoch`.
+- It uses the exact same 7176 SenseVoice top-1 messages and inference settings as
+  the improved-adapter experiment; only the LoRA adapter changes.
+- Unified corpus/mean-sample CER: `0.057053 / 0.058197`.
+- It improves `629` rows, worsens `180`, and leaves `6367` with equal edit
+  count relative to naked SenseVoice.
+- Compared with the improved COVO (`0.037647`), the original model rewrites
+  more correct content incorrectly and has substantially weaker AISHELL error
+  correction.
+- Predictions:
+  `src/logs/aishell_full_sensevoice_covo_predictions_original_20260719.jsonl`.
+- Machine-readable comparison:
+  `src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.

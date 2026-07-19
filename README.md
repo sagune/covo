@@ -774,6 +774,7 @@ oracle, or output post-filter is used.
 | System | Corpus CER | Mean-sample CER | Edits | Exact | Status |
 |---|---:|---:|---:|---:|---|
 | SenseVoiceSmall | 6.2914% | 6.3890% | 6591 | 4454/7176 | Full, independent |
+| SenseVoiceSmall + original COVO | 5.7053% | 5.8197% | 5977 | 4769/7176 | Full, independent |
 | **SenseVoiceSmall + COVO** | **3.7647%** | **3.9554%** | **3944** | **4982/7176** | **Full, independent** |
 
 COVO improves `1085` utterances, worsens `34`, and leaves the edit count equal
@@ -782,6 +783,10 @@ on `6057`.  The corpus CER reduction is `2.5267` absolute percentage points and
 simplified Chinese, removes spaces/punctuation, and retains Chinese characters,
 digits, and ASCII letters.  The machine-readable summary is
 `src/logs/aishell_full_sensevoice_covo_best_noop_20260719_summary.json`.
+The original-COVO comparison uses
+`qwen35_text_rewrite_hardneg_dropout_lora_2epoch`; it improves `629` samples,
+worsens `180`, and is recorded in
+`src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.
 
 ## License
 
