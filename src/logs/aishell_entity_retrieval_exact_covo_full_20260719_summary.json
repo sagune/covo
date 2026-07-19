@@ -1,0 +1,32 @@
+{
+  "experiment": "aishell_entity_retrieval_exact_pinyin_covo_full",
+  "date": "2026-07-19",
+  "samples": 7176,
+  "entity_repository": "AISHELL-NER train+dev only",
+  "retrieval": {
+    "pinyin_distance": 0,
+    "max_candidates": 8,
+    "same_length_variants": true,
+    "test_lexicon": false
+  },
+  "adapter": "qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7",
+  "baseline": {
+    "cer": 0.03773206700711115,
+    "nne_cer": 0.03295821632920212,
+    "ne_cer": 0.08277716904074112,
+    "ne_recall": 0.8284703801945181
+  },
+  "retrieval_covo": {
+    "cer": 0.03538395456497876,
+    "nne_cer": 0.032926546038046574,
+    "ne_cer": 0.058571570873592986,
+    "ne_recall": 0.8815207780725022,
+    "improved_samples": 1268,
+    "worsened_samples": 91,
+    "unchanged_samples": 5817
+  },
+  "artifacts": {
+    "log": "src/logs/experiment_aishell_entity_retrieval_exact_covo_full_20260719.log",
+    "predictions": "src/logs/aishell_entity_retrieval_exact_covo_predictions_full_20260719.jsonl"
+  }
+}

@@ -826,6 +826,28 @@ python src/analysis/evaluate_aishell_ner.py \
   --predictions src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl
 ```
 
+#### Entity-retrieval follow-up
+
+To address the entity gap, we built a phonetic entity-retrieval evidence pool
+from AISHELL-NER train and dev annotations only.  Retrieval requires an exact
+whole-span pinyin match; the test annotations are not used as a lexicon.  The
+retrieved entity is offered as a same-length alternative to the SenseVoice
+anchor and is passed to the same best COVO adapter.  The full 7176-utterance
+run used batch size 10 and no output gate.
+
+| System | CER | NNE-CER | NE-CER | NE recall | Improved | Worsened |
+|---|---:|---:|---:|---:|---:|---:|
+| SenseVoiceSmall + COVO, no retrieval | 3.7732% | 3.2958% | 8.2777% | 82.85% | - | - |
+| **SenseVoiceSmall + exact-pinyin entity retrieval + COVO** | **3.5384%** | **3.2927%** | **5.8572%** | **88.15%** | **1268** | 91 |
+
+This is a useful positive result: overall CER improves by 0.2348 absolute
+points, entity CER improves by 2.4205 points, and entity recall rises by 5.30
+points.  It is still 1.18 recall points below RASTAR's reported 89.33%, so the
+remaining work is entity-span detection and candidate precision, not a larger
+general-purpose entity list.  The run log is
+`src/logs/experiment_aishell_entity_retrieval_exact_covo_full_20260719.log`;
+the large JSONL inputs and outputs remain local under `src/logs/`.
+
 Two additional 2026 targets are useful but not yet strict head-to-head tests.
 EC-BERT reports only relative AISHELL-1 reductions in its public abstract, so
 an absolute comparison requires its full table and ASR hypotheses.  The new

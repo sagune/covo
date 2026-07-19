@@ -1,0 +1,94 @@
+{
+  "input": "logs/aishell_full_sensevoice_entity_retrieval_exact_all_20260719.jsonl",
+  "output": "logs/aishell_entity_retrieval_exact_covo_messages_full_20260719.jsonl",
+  "written": 7176
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py --input /root/autodl-tmp/src/logs/aishell_entity_retrieval_exact_covo_messages_full_20260719.jsonl --output /root/autodl-tmp/src/logs/aishell_entity_retrieval_exact_covo_predictions_full_20260719.jsonl --model-name-or-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B --adapter-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7 --batch-size 10 --max-new-tokens 128 --temperature 0.0 --top-p 1.0 --device auto --progress-every 100 --disable-thinking
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<01:00,  6.98it/s]Loading weights:   8%|▊         | 34/426 [00:00<00:02, 164.87it/s]Loading weights:  14%|█▍        | 61/426 [00:00<00:01, 196.59it/s]Loading weights:  21%|██        | 89/426 [00:00<00:01, 220.78it/s]Loading weights:  27%|██▋       | 114/426 [00:00<00:01, 225.06it/s]Loading weights:  33%|███▎      | 140/426 [00:00<00:01, 236.07it/s]Loading weights:  39%|███▊      | 165/426 [00:00<00:01, 227.27it/s]Loading weights:  44%|████▍     | 189/426 [00:00<00:01, 218.55it/s]Loading weights:  50%|████▉     | 212/426 [00:01<00:00, 216.04it/s]Loading weights:  56%|█████▌    | 239/426 [00:01<00:00, 225.32it/s]Loading weights:  62%|██████▏   | 262/426 [00:01<00:00, 222.57it/s]Loading weights:  68%|██████▊   | 289/426 [00:01<00:00, 235.85it/s]Loading weights:  73%|███████▎  | 313/426 [00:01<00:00, 218.78it/s]Loading weights:  81%|████████  | 343/426 [00:01<00:00, 240.66it/s]Loading weights:  86%|████████▋ | 368/426 [00:01<00:00, 223.25it/s]Loading weights:  93%|█████████▎| 396/426 [00:01<00:00, 234.52it/s]Loading weights:  99%|█████████▊| 420/426 [00:01<00:00, 224.63it/s]Loading weights: 100%|██████████| 426/426 [00:01<00:00, 219.12it/s]
+{"written": 100}
+{"written": 200}
+{"written": 300}
+{"written": 400}
+{"written": 500}
+{"written": 600}
+{"written": 700}
+{"written": 800}
+{"written": 900}
+{"written": 1000}
+{"written": 1100}
+{"written": 1200}
+{"written": 1300}
+{"written": 1400}
+{"written": 1500}
+{"written": 1600}
+{"written": 1700}
+{"written": 1800}
+{"written": 1900}
+{"written": 2000}
+{"written": 2100}
+{"written": 2200}
+{"written": 2300}
+{"written": 2400}
+{"written": 2500}
+{"written": 2600}
+{"written": 2700}
+{"written": 2800}
+{"written": 2900}
+{"written": 3000}
+{"written": 3100}
+{"written": 3200}
+{"written": 3300}
+{"written": 3400}
+{"written": 3500}
+{"written": 3600}
+{"written": 3700}
+{"written": 3800}
+{"written": 3900}
+{"written": 4000}
+{"written": 4100}
+{"written": 4200}
+{"written": 4300}
+{"written": 4400}
+{"written": 4500}
+{"written": 4600}
+{"written": 4700}
+{"written": 4800}
+{"written": 4900}
+{"written": 5000}
+{"written": 5100}
+{"written": 5200}
+{"written": 5300}
+{"written": 5400}
+{"written": 5500}
+{"written": 5600}
+{"written": 5700}
+{"written": 5800}
+{"written": 5900}
+{"written": 6000}
+{"written": 6100}
+{"written": 6200}
+{"written": 6300}
+{"written": 6400}
+{"written": 6500}
+{"written": 6600}
+{"written": 6700}
+{"written": 6800}
+{"written": 6900}
+{"written": 7000}
+{"written": 7100}
+{
+  "input": "/root/autodl-tmp/src/logs/aishell_entity_retrieval_exact_covo_messages_full_20260719.jsonl",
+  "output": "/root/autodl-tmp/src/logs/aishell_entity_retrieval_exact_covo_predictions_full_20260719.jsonl",
+  "written": 7176
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/evaluate_correction_jsonl.py --input /root/autodl-tmp/src/logs/aishell_entity_retrieval_exact_covo_predictions_full_20260719.jsonl --prediction-field prediction --reference-field reference --baseline-field input.asr_top1
+{
+  "samples": 7176,
+  "cer": 0.03540304491003675,
+  "baseline_cer": 0.06297904834629886,
+  "improved_samples": 1268,
+  "worsened_samples": 91,
+  "unchanged_samples": 5817
+}
