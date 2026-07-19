@@ -1192,7 +1192,7 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
         reference = str(nested_get(record, args.reference_field, "")).strip()
         input_block = dict(record.get("input", {}) or {})
         if not str(input_block.get("asr_top1", "")).strip():
-            asr_top1 = str(record.get("asr_top1", "")).strip()
+            asr_top1 = str(record.get("asr_top1", record.get("prediction", ""))).strip()
             if asr_top1:
                 input_block["asr_top1"] = asr_top1
         if not input_block.get("nbest") and record.get("nbest"):

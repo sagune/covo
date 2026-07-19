@@ -4947,3 +4947,36 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   remains test-leaked and is unsuitable for formal reporting.
 - Machine-readable summary:
   `src/logs/cb_sensevoice_covo_test_leak_confusion_terms_summary_20260715.json`.
+
+## Full AISHELL-1 SenseVoice + COVO (2026-07-19)
+
+- Scope: all `7176` official AISHELL-1 test utterances, not the 808-row
+  AISHELL-1-NE/hotword subset.
+- Environment: `/root/autodl-tmp/great`; ASR model `iic/SenseVoiceSmall`,
+  `language=zh`, ITN enabled.
+- COVO adapter:
+  `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.
+  It was selected by earlier experiments and does not use AISHELL test labels.
+- Evidence: naked SenseVoice top-1 only.  No KWS/context biasing, test lexicon,
+  N-best oracle, gate, same-length filter, or digit post-filter was used.
+- Shared evaluation normalization: OpenCC `t2s`; remove spaces and punctuation;
+  retain CJK characters, digits, and ASCII letters.
+
+| System | Corpus CER | Mean-sample CER | Edits | Exact |
+|---|---:|---:|---:|---:|
+| SenseVoiceSmall | `0.062914` | `0.063890` | `6591` | `4454/7176` |
+| SenseVoiceSmall + COVO | **`0.037647`** | **`0.039554`** | **`3944`** | **`4982/7176`** |
+
+- COVO changes by error count: improved `1085`, worsened `34`, equal `6057`.
+- Absolute/relative corpus CER reduction: `0.025267` / `40.16%`.
+- The bundled COVO evaluator gives `0.062979 -> 0.037751`; the small difference
+  is due only to its normalization convention.
+- Bridge update: `cbwhisper_covo_bridge.py` now accepts generic ASR JSONL with a
+  top-level `prediction` when `asr_top1` is absent, enabling a reusable
+  SenseVoice-to-COVO workflow without data conversion.
+- Artifacts:
+  - SenseVoice output: `src/logs/aishell_full_sensevoice_test_full_20260719.jsonl`;
+  - SenseVoice summary: `src/logs/aishell_full_sensevoice_test_full_20260719_summary.json`;
+  - COVO messages: `src/logs/aishell_full_sensevoice_covo_messages_best_noop_20260719.jsonl`;
+  - COVO predictions: `src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl`;
+  - unified summary: `src/logs/aishell_full_sensevoice_covo_best_noop_20260719_summary.json`.

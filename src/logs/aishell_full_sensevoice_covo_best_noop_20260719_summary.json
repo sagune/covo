@@ -1,0 +1,19 @@
+{
+  "samples": 7176,
+  "normalization": "OpenCC t2s; keep CJK/digits/ASCII letters; remove spaces/punctuation",
+  "sensevoice_corpus_cer": 0.0629140337145148,
+  "covo_corpus_cer": 0.03764723850251045,
+  "absolute_cer_reduction": 0.025266795212004353,
+  "relative_cer_reduction": 0.4016082536792596,
+  "sensevoice_mean_sample_cer": 0.06389045071902036,
+  "covo_mean_sample_cer": 0.03955357910881866,
+  "sensevoice_edits": 6591,
+  "covo_edits": 3944,
+  "ref_chars": 104762,
+  "sensevoice_exact": 4454,
+  "covo_exact": 4982,
+  "improved": 1085,
+  "worsened": 34,
+  "equal_error_count": 6057,
+  "adapter": "qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7"
+}

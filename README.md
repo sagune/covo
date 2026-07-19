@@ -762,6 +762,27 @@ Current 259-term aligned recall uses 826 mentions:
 naked SenseVoice `682/826`, CB-SenseVoice `786/826`, and the final leaked COVO
 `790/826`.
 
+### Standard AISHELL-1 test (7176 utterances)
+
+This experiment uses the complete official AISHELL-1 test split rather than the
+808-utterance hotword subset.  SenseVoice is decoded without KWS/context biasing,
+and its top-1 is passed to the previously selected, non-leaked COVO adapter
+`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.  COVO receives
+one SenseVoice hypothesis per utterance; no test lexicon, rule gate, N-best
+oracle, or output post-filter is used.
+
+| System | Corpus CER | Mean-sample CER | Edits | Exact | Status |
+|---|---:|---:|---:|---:|---|
+| SenseVoiceSmall | 6.2914% | 6.3890% | 6591 | 4454/7176 | Full, independent |
+| **SenseVoiceSmall + COVO** | **3.7647%** | **3.9554%** | **3944** | **4982/7176** | **Full, independent** |
+
+COVO improves `1085` utterances, worsens `34`, and leaves the edit count equal
+on `6057`.  The corpus CER reduction is `2.5267` absolute percentage points and
+`40.16%` relative.  The shared normalization converts traditional Chinese to
+simplified Chinese, removes spaces/punctuation, and retains Chinese characters,
+digits, and ASCII letters.  The machine-readable summary is
+`src/logs/aishell_full_sensevoice_covo_best_noop_20260719_summary.json`.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
