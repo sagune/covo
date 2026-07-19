@@ -802,6 +802,7 @@ the different upstream ASR hypotheses prevent a strict component-only claim.
 | System | CER | NNE-CER | NE-CER | NE recall | Comparison |
 |---|---:|---:|---:|---:|---|
 | DBA-wav2vec 2.0 (Hu et al., 2026) | 6.97% | - | - | - | AISHELL-1 ASR |
+| Streaming Decoder-Only LLM ASR (Wan et al., 2026) | 5.10% | - | - | - | AISHELL-1 ASR |
 | RASTAR-8B (An et al., 2026) | 4.21% | 4.05% | 6.21% | 89.33% | AISHELL-1 NEC |
 | SenseVoiceSmall | 6.2950% | 6.0216% | 8.8754% | 81.26% | Local full evaluation |
 | **SenseVoiceSmall + COVO** | **3.7732%** | **3.2958%** | 8.2777% | 82.85% | Local full evaluation |
@@ -825,6 +826,13 @@ python src/analysis/evaluate_aishell_ner.py \
   --annotations datasets/aishell_ner/data/aishell_ner_transcript.test.txt \
   --predictions src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl
 ```
+
+The streaming decoder-only LLM paper is a cleaner ordinary-ASR comparison than
+FormalASR: it evaluates AISHELL-1 with CER 5.1% and AISHELL-2 with CER 5.5%.
+Our full AISHELL-1 run is already on the same official test split, so the
+comparison is not based on a small sample.  The comparison is still system
+level rather than a strict architecture ablation because the upstream models,
+streaming constraints, and training data differ.
 
 #### Entity-retrieval follow-up
 
