@@ -1002,3 +1002,24 @@ closest direct CER references to our 5.60% full-test result.
 
 References: [Interspeech 2018](https://www.isca-archive.org/interspeech_2018/li18k_interspeech.pdf),
 [Interspeech 2024](https://www.isca-archive.org/interspeech_2024/li24s_interspeech.pdf).
+
+## ST-CMDS Pilot Evaluation (2026-07-19)
+
+The archive `/root/autodl-tmp/ST-CMDS-20170001_1-OS.tar.gz` contains 102,600
+16-kHz utterances, but does not provide a canonical train/dev/test directory
+split. Therefore, a deterministic 2,000-utterance pilot was selected with
+seed `20260719`, stratified by the archive's A/I device suffix (1,036 A and
+964 I utterances). This is a validation pilot rather than a full-dataset or
+paper-protocol result.
+
+| System | Samples | CER | Improved | Worsened |
+|---|---:|---:|---:|---:|
+| SenseVoiceSmall baseline | 2,000 | 0.06101 | - | - |
+| SenseVoiceSmall + current best COVO adapter | 2,000 | **0.05788** | 51 | 11 |
+
+SenseVoice's direct summary reports 0.06092 CER; the table uses the correction
+evaluator's normalization for both rows. The COVO run used the AISHELL-trained
+preservation adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+with one SenseVoice top-1 candidate and no hotword evidence. Reproduction
+artifacts are `src/logs/stcmds_pilot2000_{sensevoice,covo_*}.*`; the archive
+itself and extracted audio remain local and are not tracked by git.

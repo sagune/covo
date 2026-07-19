@@ -1,0 +1,11 @@
+{
+  "input": "src/logs/stcmds_pilot2000.jsonl",
+  "output": "src/logs/stcmds_pilot2000_sensevoice.jsonl",
+  "model": "iic/SenseVoiceSmall",
+  "model_label": "sensevoice_stcmds_pilot2000",
+  "rows": 2000,
+  "cer": 0.0609211797726959,
+  "edits": 1324,
+  "ref_chars": 21733,
+  "exact": 1203
+}
