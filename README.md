@@ -916,3 +916,22 @@ See the [LICENSE.md](LICENSE.md) file for details.
 If you use any of the resources in this repository, please cite the following paper:
 
 Citation will be added in the future.
+## THCHS-30 Evaluation (2026-07-19)
+
+The THCHS-30 test split was obtained from the domestic HF-Mirror mirror
+(`urarik/thchs30`), not from the official OpenSLR endpoint. The downloaded
+Parquet test shard contains 1,339 utterances with embedded 16-kHz audio. It
+was extracted by `src/analysis/prepare_thchs30.py` into
+`datasets/thchs30/test_wav` and evaluated with the same SenseVoice/COVO CER
+normalization used by the existing correction evaluator.
+
+| System | Samples | CER | Improved | Worsened |
+|---|---:|---:|---:|---:|
+| SenseVoiceSmall baseline | 1,339 | 0.06698 | - | - |
+| SenseVoiceSmall + current best COVO adapter | 1,339 | **0.04733** | 331 | 14 |
+
+The COVO run used the current best AISHELL-trained preservation adapter
+`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`, with only the
+SenseVoice top-1 supplied as evidence and no hotword evidence. This is a
+cross-domain pilot result, not a direct reproduction of THCHS-30 paper
+baselines; the exact evaluation files are under `src/logs/thchs30_*`.
