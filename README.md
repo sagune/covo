@@ -856,6 +856,34 @@ for its segment-only Breeze-ASR-25 baseline, but states that its dataset and
 term metadata will be released upon publication.  We should run that benchmark
 when the files become public instead of approximating its test set.
 
+#### FormalASR / Speechio-Formal pilot
+
+FormalASR (arXiv:2605.19266) is a 2026 paper with a comparatively weak public
+baseline on Speechio-Formal: Qwen3-ASR-1.7B reports 23.93% CER and
+FormalASR-1.7B reports 14.99%.  This benchmark rewrites spoken transcripts into
+formal text, so it must not be mixed with ordinary verbatim-ASR numbers.  We
+therefore ran a reproducible pilot on the public ZH00006 subset (1561 items),
+using the embedded audio and both its formal and verbatim references.
+
+| System | Formal-target CER | Verbatim-target CER |
+|---|---:|---:|
+| SenseVoiceSmall | 19.8511% | 6.7333% |
+| SenseVoiceSmall + existing COVO adapter | 19.7852% | 6.7675% |
+
+On the formal target, COVO changed 15 samples positively and 4 negatively,
+for only 0.0658 absolute CER-point improvement.  On the verbatim target it
+slightly worsened CER by 0.0342 points.  The formal and verbatim references
+themselves differ by 15.3583 CER points on this subset, which explains why a
+verbatim-trained COVO adapter is not an adequate substitute for FormalASR's
+formalization training.  This is a pilot subset, not a claim on the complete
+43,178-item Speechio-Formal test set; the large raw audio artifacts remain
+local and are intentionally excluded from git.
+
+Reproduction helpers are `src/analysis/prepare_speechio_formal.py` and
+`src/analysis/build_speechio_covo_evidence.py`.  The corresponding summaries
+are in `src/logs/speechio_formal_zh00006_sensevoice_summary.json` and
+`src/logs/speechio_formal_zh00006_covo_summary_20260719.json`.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.

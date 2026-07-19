@@ -1,0 +1,24 @@
+{
+  "experiment": "speechio_formal_zh00006_sensevoice_covo",
+  "paper": "FormalASR arXiv:2605.19266",
+  "dataset": "Speechio-Formal",
+  "subset": "ZH00006",
+  "samples": 1561,
+  "targets": {
+    "formal": {
+      "sensevoice_cer": 0.19851065580515098,
+      "covo_cer": 0.19785238212786965
+    },
+    "verbatim": {
+      "sensevoice_cer": 0.06733290268647642,
+      "covo_cer": 0.06767488695520006
+    }
+  },
+  "verbatim_to_formal_reference_cer": 0.15358347733070024,
+  "covo_delta_formal_abs": -0.00065827367728133,
+  "covo_delta_verbatim_abs": 0.00034198424872364,
+  "covo_improved": 15,
+  "covo_worsened": 4,
+  "covo_unchanged": 1542,
+  "note": "Pilot subset only; not the full 43178-row Speechio-Formal test set."
+}

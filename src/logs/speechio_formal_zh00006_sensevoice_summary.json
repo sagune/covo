@@ -1,0 +1,11 @@
+{
+  "input": "src/logs/speechio_formal_zh00006.jsonl",
+  "output": "src/logs/speechio_formal_zh00006_sensevoice.jsonl",
+  "model": "iic/SenseVoiceSmall",
+  "model_label": "SenseVoiceSmall",
+  "rows": 1561,
+  "cer": 0.19851065580515098,
+  "edits": 4825,
+  "ref_chars": 24306,
+  "exact": 357
+}

@@ -159,6 +159,7 @@ def main() -> int:
             out = {
                 "id": utt_id,
                 "reference": ref,
+                "verbatim_reference": str(row.get("verbatim_reference", "")),
                 "wav": str(wav),
                 "model": args.model_label or args.model,
                 "prediction": hyp,
