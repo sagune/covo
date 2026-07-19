@@ -879,6 +879,28 @@ for its segment-only Breeze-ASR-25 baseline, but states that its dataset and
 term metadata will be released upon publication.  We should run that benchmark
 when the files become public instead of approximating its test set.
 
+### 2025 paper comparison record
+
+The following 2025 papers were discussed as comparison targets. They are kept
+separate by task and protocol rather than merged into the ordinary-ASR table.
+
+| Paper | Dataset/task | Reported result | Relation to our result |
+|---|---|---:|---|
+| Adaptive Context Biasing in Transformer-Based ASR Systems | AISHELL context-biased subset | 5.56% dev / 6.01% test CER | Our full AISHELL SenseVoice+COVO CER is 3.7732%, but the subsets and upstream ASR differ |
+| Generative Annotation for ASR Named Entity Correction | AISHELL entity correction | Best CER 9.85%, NE-CER 7.41%, NE recall 87.31% | Our full AISHELL entity-retrieval COVO is 3.5384% CER, 5.8572% NE-CER, 88.15% recall; not identical entity protocol |
+| PARCO: Phoneme-Augmented Robust Contextual ASR | AISHELL-1 contextual biasing | 4.22% CER with 1000 distractors | Our 3.5384% is lower, but PARCO's THCHS-30 cross-domain result has no public absolute CER |
+| ASR-EC Benchmark | Synthetic THCHS-30/AISHELL error correction | Baseline 12.42%/8.11%; LoRA 12.36%/7.88%; multimodal 5.96%/5.12% | Our complete THCHS-30 SenseVoice+COVO is 5.60%; same magnitude, not same protocol |
+| Lightweight Prompt Biasing for Contextual ASR | In-house entity-biasing set | 30.7%/18.0% relative entity-WER reduction | No public absolute CER or common test set |
+
+The AISHELL rows are useful contextual comparisons, while the THCHS-30 row is
+the reason we performed the complete THCHS-30 evaluation above. The ASR-EC
+paper's numbers come from generated ASR errors and correction evaluation, not
+direct recognition on the original audio. References:
+[Adaptive Context Biasing](https://www.nature.com/articles/s41598-025-00299-2),
+[Generative Annotation](https://aclanthology.org/2025.emnlp-main.1052/),
+[PARCO](https://arxiv.org/abs/2509.04357),
+[ASR-EC Benchmark](https://aclanthology.org/2025.emnlp-industry.110.pdf).
+
 #### FormalASR / Speechio-Formal pilot
 
 FormalASR (arXiv:2605.19266) is a 2026 paper with a comparatively weak public
@@ -970,3 +992,13 @@ complete original test audio. A fair claim requires reproducing the paper's
 ASR-EC error-generation protocol.
 
 Reference: [ASR-EC Benchmark, EMNLP 2025](https://aclanthology.org/2025.emnlp-industry.110.pdf).
+
+For completeness, the earlier direct THCHS-30 reference results used during
+the comparison are also recorded here: Interspeech 2018 reports 11.93% for
+LSTM, 10.97% for TDNN-LSTM, and 10.38% for mGRUIP-B; Interspeech 2024 reports
+8.60% for Whisper-medium, 6.80% for Whisper-large-v2, and 6.00% for its
+HuBERT-CTC system. These use the original clean test split and remain the
+closest direct CER references to our 5.60% full-test result.
+
+References: [Interspeech 2018](https://www.isca-archive.org/interspeech_2018/li18k_interspeech.pdf),
+[Interspeech 2024](https://www.isca-archive.org/interspeech_2024/li24s_interspeech.pdf).
