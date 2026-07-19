@@ -788,6 +788,52 @@ The original-COVO comparison uses
 worsens `180`, and is recorded in
 `src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.
 
+### 2026 paper comparison
+
+We use 2026 academic systems with public evaluation protocols rather than
+industrial APIs.  The closest post-correction comparison is RASTAR, evaluated
+on AISHELL-1 with AISHELL-NER annotations.  Its ASR hypotheses come from the
+DANCER Conformer and its entity repository includes entities from the complete
+AISHELL-1 train, development, and test splits.  Our row uses the full 7176-item
+official test split, the AISHELL-only `preserve2` COVO adapter, no test lexicon,
+and no output gate.  Therefore the overall system numbers are informative, but
+the different upstream ASR hypotheses prevent a strict component-only claim.
+
+| System | CER | NNE-CER | NE-CER | NE recall | Comparison |
+|---|---:|---:|---:|---:|---|
+| DBA-wav2vec 2.0 (Hu et al., 2026) | 6.97% | - | - | - | AISHELL-1 ASR |
+| RASTAR-8B (An et al., 2026) | 4.21% | 4.05% | 6.21% | 89.33% | AISHELL-1 NEC |
+| SenseVoiceSmall | 6.2950% | 6.0216% | 8.8754% | 81.26% | Local full evaluation |
+| **SenseVoiceSmall + COVO** | **3.7732%** | **3.2958%** | 8.2777% | 82.85% | Local full evaluation |
+
+The result supports a bounded claim: our system is better on overall and
+non-entity CER, while RASTAR remains stronger on named entities.  The latter is
+the next useful target; presenting only overall CER would hide this weakness.
+The local entity-aware scorer uses character-level minimum-edit alignment and
+exact entity-span recall, so small differences from another implementation are
+possible.  Reproduce both local rows with:
+
+```bash
+git clone --depth 1 https://github.com/Alibaba-NLP/AISHELL-NER.git \
+  datasets/aishell_ner
+
+python src/analysis/evaluate_aishell_ner.py \
+  --annotations datasets/aishell_ner/data/aishell_ner_transcript.test.txt \
+  --predictions src/logs/aishell_full_sensevoice_test_full_20260719.jsonl
+
+python src/analysis/evaluate_aishell_ner.py \
+  --annotations datasets/aishell_ner/data/aishell_ner_transcript.test.txt \
+  --predictions src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl
+```
+
+Two additional 2026 targets are useful but not yet strict head-to-head tests.
+EC-BERT reports only relative AISHELL-1 reductions in its public abstract, so
+an absolute comparison requires its full table and ASR hypotheses.  The new
+Mandarin technical-lecture benchmark reports 11.37% CER and 52.50% term recall
+for its segment-only Breeze-ASR-25 baseline, but states that its dataset and
+term metadata will be released upon publication.  We should run that benchmark
+when the files become public instead of approximating its test set.
+
 ## License
 
 See the [LICENSE.md](LICENSE.md) file for details.
