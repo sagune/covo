@@ -1,0 +1,11 @@
+{
+  "input": "src/logs/thchs30_full_test.jsonl",
+  "output": "src/logs/thchs30_full_sensevoice.jsonl",
+  "model": "iic/SenseVoiceSmall",
+  "model_label": "sensevoice_thchs30_full",
+  "rows": 2495,
+  "cer": 0.07946856628748197,
+  "edits": 6448,
+  "ref_chars": 81139,
+  "exact": 633
+}

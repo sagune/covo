@@ -13,9 +13,34 @@ import pyarrow.parquet as pq
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--parquet", type=Path, required=True)
-    parser.add_argument("--audio-dir", type=Path, required=True)
+    parser.add_argument("--metadata", type=Path)
+    parser.add_argument("--audio-root", type=Path)
+    parser.add_argument("--audio-dir", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+
+    if args.metadata:
+        if not args.audio_root:
+            raise ValueError("--audio-root is required with --metadata")
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        rows = 0
+        with args.metadata.open(encoding="utf-8") as source, args.output.open("w", encoding="utf-8") as target:
+            for line in source:
+                item = json.loads(line)
+                filename = Path(item["file_name"]).name
+                reference = str(item.get("text") or "").strip()
+                wav_path = args.audio_root / filename
+                if not reference or not wav_path.exists():
+                    continue
+                target.write(json.dumps({
+                    "id": wav_path.stem,
+                    "reference": reference,
+                    "wav": str(wav_path),
+                    "source": "THCHS-30",
+                }, ensure_ascii=False, separators=(",", ":")) + "\n")
+                rows += 1
+        print(json.dumps({"rows": rows, "output": str(args.output)}, ensure_ascii=False))
+        return
 
     table = pq.read_table(args.parquet, columns=["audio", "sentence"])
     args.audio_dir.mkdir(parents=True, exist_ok=True)

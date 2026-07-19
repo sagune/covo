@@ -935,3 +935,18 @@ The COVO run used the current best AISHELL-trained preservation adapter
 SenseVoice top-1 supplied as evidence and no hotword evidence. This is a
 cross-domain pilot result, not a direct reproduction of THCHS-30 paper
 baselines; the exact evaluation files are under `src/logs/thchs30_*`.
+
+### Complete test split
+
+The domestic mirror repository `FluidInference/THCHS-30-tests` was then used
+to obtain the complete 2,495-utterance test split matching the original
+speaker/sentence partition. The full evaluation gives:
+
+| System | Samples | CER | Improved | Worsened |
+|---|---:|---:|---:|---:|
+| SenseVoiceSmall baseline | 2,495 | 0.07959 | - | - |
+| SenseVoiceSmall + current best COVO adapter | 2,495 | **0.05601** | 676 | 17 |
+
+The full-split files are `src/logs/thchs30_full_*`. The earlier 1,339-row
+result is retained as a mirror-subset pilot and should not be used as the main
+comparison.
