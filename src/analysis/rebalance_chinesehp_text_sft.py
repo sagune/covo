@@ -14,10 +14,20 @@ def main() -> int:
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--recoverable-copies", type=int, default=2)
+    parser.add_argument(
+        "--top1-exact-keep-rate",
+        type=float,
+        default=1.0,
+        help="Fraction of already-correct top-1 rows to retain (0..1).",
+    )
     parser.add_argument("--seed", type=int, default=20260720)
     args = parser.parse_args()
 
-    rows = []
+    if not 0.0 <= args.top1_exact_keep_rate <= 1.0:
+        parser.error("--top1-exact-keep-rate must be between 0 and 1")
+
+    exact_rows = []
+    error_rows = []
     counts = {"top1_exact": 0, "recoverable_error": 0, "outside_nbest_error": 0}
     with args.input.open("r", encoding="utf-8") as handle:
         for line in handle:
@@ -30,16 +40,20 @@ def main() -> int:
             nbest = {str(item) for item in input_block.get("nbest", [])}
             if top1 == reference:
                 counts["top1_exact"] += 1
-                copies = 1
+                exact_rows.append(row)
             elif reference in nbest:
                 counts["recoverable_error"] += 1
                 copies = max(1, int(args.recoverable_copies))
+                error_rows.extend(row for _ in range(copies))
             else:
                 counts["outside_nbest_error"] += 1
-                copies = 1
-            rows.extend(row for _ in range(copies))
+                error_rows.append(row)
 
-    random.Random(args.seed).shuffle(rows)
+    rng = random.Random(args.seed)
+    rng.shuffle(exact_rows)
+    exact_keep = round(len(exact_rows) * args.top1_exact_keep_rate)
+    rows = exact_rows[:exact_keep] + error_rows
+    rng.shuffle(rows)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as writer:
         for row in rows:
@@ -50,6 +64,8 @@ def main() -> int:
         "source_rows": sum(counts.values()),
         "output_rows": len(rows),
         "recoverable_copies": args.recoverable_copies,
+        "top1_exact_keep_rate": args.top1_exact_keep_rate,
+        "retained_top1_exact": exact_keep,
         "seed": args.seed,
         "counts": counts,
     }, ensure_ascii=False, indent=2))

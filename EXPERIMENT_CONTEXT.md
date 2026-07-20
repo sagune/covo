@@ -4997,3 +4997,21 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   `src/logs/aishell_full_sensevoice_covo_predictions_original_20260719.jsonl`.
 - Machine-readable comparison:
   `src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.
+## Queued ST-CMDS error-focused curriculum continuation (2026-07-20)
+
+- This experiment is queued behind the running hard-balanced ST-CMDS SFT and
+  starts only if that pipeline produces its full test metrics file.
+- Starting adapter:
+  `qwen35_stcmds_chinesehp_hardbalanced_1epoch_from_full_20260720`.
+- Training composition from the same fixed ST-CMDS train split:
+  - retain `29257/58514` already-correct top-1 rows as no-op rehearsal;
+  - duplicate all `21381` errors whose reference is present in N-best;
+  - retain all `15523` errors whose reference is outside N-best;
+  - total `87542` rows, shuffled with seed `20260721`.
+- Method: one full continuation epoch at learning rate `3e-7`, effective batch
+  size `16`, followed by full dev and test inference. This is a second-stage
+  correction curriculum, not a rule, gate, or test-set patch.
+- Estimated runtime from the current measured step time: about `8.0` hours for
+  training and roughly `0.5` hour for dev/test evaluation.
+- Runner: `src/scripts/run_stcmds_covo_error_curriculum.sh`.
+- Queue guard: `src/scripts/queue_stcmds_error_curriculum.sh`.
