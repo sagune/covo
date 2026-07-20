@@ -1023,3 +1023,29 @@ preservation adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_
 with one SenseVoice top-1 candidate and no hotword evidence. Reproduction
 artifacts are `src/logs/stcmds_pilot2000_{sensevoice,covo_*}.*`; the archive
 itself and extracted audio remain local and are not tracked by git.
+
+## ST-CMDS ChineseHP-Style COVO Fine-Tuning (2026-07-20)
+
+ST-CMDS was deterministically divided with seed `20260719` into 95,418 train,
+2,052 dev, and 5,130 held-out test utterances. SenseVoiceSmall CTC prefix beam
+search used an internal beam size of 32 and retained up to ten simplified,
+punctuation-free, de-duplicated hypotheses per utterance. Each hypothesis was
+paired with its Pinyin, following the ChineseHP input structure. The assistant
+training target was the complete corrected sentence as `{"text":"..."}`.
+
+Training continued from the previous best SenseVoice candidate model
+`qwen35_cb_sensevoice_oracle_correction_dpo60_20260715` for one full epoch
+(5,964 optimizer steps) on the complete ST-CMDS train split. Final train loss
+was 0.2583 and dev loss was 0.2392.
+
+| System | Test samples | CER | Improved | Worsened | Unchanged |
+|---|---:|---:|---:|---:|---:|
+| SenseVoiceSmall CTC beam top-1 | 5,130 | 0.05641 | - | - | - |
+| ST-CMDS ChineseHP-style COVO | 5,130 | **0.05167** | 545 | 330 | 4,255 |
+
+This is a 0.474 percentage-point absolute and 8.40% relative CER reduction
+over the matching SenseVoice top-1. The result uses a held-out test split; no
+test transcript was used for training or checkpoint selection. The final
+adapter is `qwen35_stcmds_chinesehp_text_1epoch_from_dpo60_20260719`, and the
+machine-readable metrics are in
+`src/logs/stcmds_chinesehp_covo_from_dpo60_metrics_20260719.json`.

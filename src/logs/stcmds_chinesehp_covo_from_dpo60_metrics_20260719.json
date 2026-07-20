@@ -1,0 +1,8 @@
+{
+  "samples": 5130,
+  "cer": 0.051671028969250216,
+  "baseline_cer": 0.05640724320282036,
+  "improved_samples": 545,
+  "worsened_samples": 330,
+  "unchanged_samples": 4255
+}
