@@ -1041,6 +1041,7 @@ was 0.2583 and dev loss was 0.2392.
 | System | Test samples | CER | Improved | Worsened | Unchanged |
 |---|---:|---:|---:|---:|---:|
 | SenseVoiceSmall CTC beam top-1 | 5,130 | 0.05641 | - | - | - |
+| Starting DPO60 adapter, no ST-CMDS tuning | 5,130 | 0.06969 | 498 | 1,065 | 3,567 |
 | ST-CMDS ChineseHP-style COVO | 5,130 | **0.05167** | 545 | 330 | 4,255 |
 
 This is a 0.474 percentage-point absolute and 8.40% relative CER reduction
@@ -1049,3 +1050,12 @@ test transcript was used for training or checkpoint selection. The final
 adapter is `qwen35_stcmds_chinesehp_text_1epoch_from_dpo60_20260719`, and the
 machine-readable metrics are in
 `src/logs/stcmds_chinesehp_covo_from_dpo60_metrics_20260719.json`.
+
+The starting DPO60 adapter was also evaluated with exactly the same 5,130
+prompts and decoding settings. Its 0.06969 CER is worse than SenseVoice top-1,
+because it was trained for AISHELL CB-SenseVoice listwise evidence rather than
+free generation from the compact ChineseHP prompt. Relative to that starting
+checkpoint, ST-CMDS fine-tuning reduces CER by 25.86%, removes 1,012 corpus
+edits, and increases exact utterances from 2,863 to 3,353. On direct paired
+comparison, the fine-tuned model is better on 1,012 utterances, worse on 237,
+and tied on 3,881.
