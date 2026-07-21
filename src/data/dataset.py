@@ -13,6 +13,37 @@ from whisper.audio import SAMPLE_RATE, N_SAMPLES
 from hs_utils import load_hidden_states
 
 
+def _resolve_hotword_audio_path(wav_folder: str, split: str, code: str) -> str:
+    extensions = ('.wav', '.mp3', '.opus')
+    candidates = []
+    for extension in extensions:
+        candidates.extend([
+            os.path.join(wav_folder, split, code + extension),
+            os.path.join(wav_folder, code + extension),
+        ])
+    aishell_match = re.match(r'BAC\d+(?P<subfolder>.+)W\d+', code)
+    if aishell_match is not None:
+        for extension in extensions:
+            candidates.insert(
+                0,
+                os.path.join(wav_folder, split, aishell_match.group('subfolder'), code + extension),
+            )
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
+
+
+def _infer_hotword_speaker(code: str) -> str:
+    aishell_match = re.match(r'BAC\d{3}S(?P<speaker>\d{4}).+', code)
+    if aishell_match is not None:
+        return aishell_match.group('speaker')
+    stcmds_match = re.search(r'P(?P<speaker>\d+)[AI]', code)
+    if stcmds_match is not None:
+        return stcmds_match.group('speaker')
+    return code
+
+
 def _assert_hidden_state_dim_match(left: torch.Tensor, right: torch.Tensor, context: str):
     if left is None or right is None:
         return
@@ -292,18 +323,17 @@ class AishellHotwordDataset(Dataset):
         
         # get transcripts
         with open(os.path.join(self.split_folder, 'text'), 'r') as f:
-            self.metadata = [[i_.strip() for i_ in line.split()] for line in f.readlines()]
-        regex = re.compile('BAC\d+(?P<subfolder>.+)W\d+')
+            self.metadata = [line.strip().split(maxsplit=1) for line in f if line.strip()]
 
         # create dataset
         self.dataset = [{
             'transcript': item[1],
             'utterance': {
-                'audio': os.path.join(wav_folder, split, regex.match(item[0]).group('subfolder'), item[0] + '.wav') if self.load_audio else None,
+                'audio': _resolve_hotword_audio_path(wav_folder, split, item[0]) if self.load_audio else None,
                 'hidden_states': os.path.join(self.split_folder, 'hs', item[0] + '.bin')
             },
             'hotword_labels': [torch.tensor([1 if hotword in item[1] else 0 for hotword in self.hotwords[i:i+self.hotwords_per_group]]) for i in range(0, len(self.hotwords), self.hotwords_per_group)],
-            'speaker': re.match('BAC\d{3}S(?P<speaker>\d{4}).+', item[0]).groups('speaker')
+            'speaker': _infer_hotword_speaker(item[0])
         } for item in self.metadata]
         
     def __len__(self):

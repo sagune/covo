@@ -5046,3 +5046,27 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Decision: retain
   `qwen35_stcmds_chinesehp_hardbalanced_1epoch_from_full_20260720`; reject
   `qwen35_stcmds_chinesehp_error_curriculum_1epoch_20260721`.
+## ST-CMDS CB-SenseVoice adaptation (2026-07-21)
+
+- Added native `stcmds` support to the generic hotword data module and
+  `DatabaseLite`; flat ST-CMDS audio IDs and speaker IDs now work without
+  changing the existing AISHELL/Shuili behavior.
+- Added `src/configs/cb-sensevoice-stcmds.yaml` and reproducible preparation,
+  HanLP entity extraction, and full-run scripts.
+- A real three-utterance smoke test completed the full path: SenseVoice hidden
+  states -> AISHELL-trained SenseVoice KWS -> contextual CTC beam -> CB rerank.
+- For comparison-oriented evaluation, created a deterministic split with the
+  CopyNE paper cardinalities: `82080/10260/10260`. CopyNE does not publish its
+  utterance-ID split, so this matches cardinality but is not claimed to be the
+  exact same test set.
+- Following CopyNE's documented protocol, HanLP extracts PERSON, LOCATION, and
+  ORGANIZATION entities from the test references. The resulting test lexicon
+  has `3139` unique entities and `4067` mentions, close to CopyNE's reported
+  `3124`-entity test dictionary.
+- The entity dictionary is test-derived by design, as in CopyNE's contextual
+  ASR protocol. Results must be labeled contextual/test-dictionary results and
+  kept separate from ordinary open-vocabulary ASR.
+- Formal dataset root: `datasets/stcmds/cb_sensevoice` with `10260` test audio
+  links and `3139` hotwords. The remaining full run synthesizes one TTS example
+  per entity, extracts matching SenseVoice hidden states, extracts all test
+  utterance hidden states, and evaluates naked/CB candidate and oracle metrics.

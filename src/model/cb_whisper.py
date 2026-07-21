@@ -3510,7 +3510,7 @@ class DatabaseLite:
         keywords_per_group: int = 100
     ):
         # check dataset
-        assert dataset in ['aishell', 'acl', 'shuili'], f'DatabaseLite: the dataset is not supported, got {dataset}'
+        assert dataset in ['aishell', 'acl', 'shuili', 'stcmds'], f'DatabaseLite: the dataset is not supported, got {dataset}'
         # check split
         if dataset == 'acl':
             assert split in ['dev', 'test'], f'DatabaseLite: the split is not supported, got {split} for {dataset}'
@@ -3518,7 +3518,7 @@ class DatabaseLite:
         assert kw_type in ['tts', 'natural'], f'DatabaseLite: the keyword type is not supported, got {kw_type} for {dataset}'
 
         # get database
-        if dataset in ['aishell', 'shuili']:
+        if dataset in ['aishell', 'shuili', 'stcmds']:
             self.database = AishellHotwordDataset(
                 root = root,
                 split = split,
