@@ -5015,3 +5015,34 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   training and roughly `0.5` hour for dev/test evaluation.
 - Runner: `src/scripts/run_stcmds_covo_error_curriculum.sh`.
 - Queue guard: `src/scripts/queue_stcmds_error_curriculum.sh`.
+## ST-CMDS hard-balanced and error-curriculum results (2026-07-21)
+
+- All runs use the fixed `95418/2052/5130` ST-CMDS train/dev/test split,
+  SenseVoice ChineseHP-style N-best evidence, and full-sentence COVO output.
+- SenseVoice top-1 test baseline: CER `0.056407` (`3168` edits).
+- First full ST-CMDS SFT: CER `0.051671` (`2902` edits), exact `3353/5130`.
+- Hard-balanced SFT is the accepted new best:
+  - dev CER `0.055010`; test CER `0.051048` (`2867` edits);
+  - exact `3357/5130`; improved/worsened/unchanged versus top-1
+    `680/439/4011`;
+  - relative test CER reduction versus SenseVoice: `9.50%`;
+  - N-best oracle remains `0.021651` (`1216` edits, `4349/5130` exact), so
+    substantial candidate-selection headroom remains.
+- The queued second-stage error curriculum completed all `5472` steps in
+  `8h20m`, but is rejected:
+  - dev CER `0.056751`; test CER `0.053683` (`3015` edits);
+  - exact `3230/5130`; improved/worsened/unchanged versus top-1
+    `754/654/3722`;
+  - relative to hard-balanced output, it changes `419` rows, improves `112`,
+    worsens `256`, and introduces `148` net edits.
+- Failure mechanism: reducing exact-top1 rehearsal from all `58514` rows to
+  `29257` makes the model more willing to edit. Wrong-to-exact repairs increase
+  from `429` to `477`, but broken baseline-exact rows increase from `263` to
+  `438`. Recoverable-error CER improves `0.07157 -> 0.06787`, while top1-exact
+  CER regresses `0.00846 -> 0.01397`.
+- Cross-entropy is misleading here: second-stage dev loss decreases
+  `0.23395 -> 0.23299`, even while dev/test CER regress. Future selection must
+  use generation CER and exact-preservation metrics, not eval loss alone.
+- Decision: retain
+  `qwen35_stcmds_chinesehp_hardbalanced_1epoch_from_full_20260720`; reject
+  `qwen35_stcmds_chinesehp_error_curriculum_1epoch_20260721`.
