@@ -1205,3 +1205,27 @@ References:
 - <https://arxiv.org/abs/2604.12398>
 - <https://arxiv.org/abs/2509.12647>
 - Related CTC word-spotting baseline: <https://arxiv.org/abs/2605.18222>
+
+### Full AISHELL-NE result
+
+One full epoch used all 17,301 aligned AISHELL training utterances (20,000
+hotword spans), 2,162 optimizer steps, and no skipped samples. Compared with
+the identical standalone CB-SenseVoice configuration, the adapter improves
+both recognition and contextual recall without COVO or a fallback gate.
+
+| System | Local mean CER | Mention recall | Recall@400 | R1 Recall@226 | Unified corpus CER |
+|---|---:|---:|---:|---:|---:|
+| CB-SenseVoice | 6.2025% | 83.2044% | 313/400 (78.25%) | 141/226 (62.39%) | 7.8231% |
+| + position/pronunciation adapter | **6.0861%** | **83.7569%** | **318/400 (79.50%)** | **146/226 (64.60%)** | **7.6911%** |
+
+The designated-hotword funnel changes from KWS/prompt/n-best/top1
+`380/369/316/313` to `380/369/321/318`. The unchanged KWS and prompt counts,
+followed by five additional n-best and top1 hits, isolate the gain to
+context-aware candidate generation.
+
+Artifacts:
+
+- `src/outputs/sensevoice_context_adapter/pac_position_aishell_full_20260721.pt`
+- `src/logs/test_metrics_cb_sensevoice_context_adapter_aishell808_20260721.csv`
+- `src/logs/cb_sensevoice_context_adapter_aishell808_evidence_20260721.jsonl`
+- `src/logs/aishellne808_cb_sensevoice_context_adapter_eval_20260721.json`

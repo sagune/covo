@@ -1,0 +1,40 @@
+{
+  "dataset": "Test-Aishell1-NE/Test-Aishell1-Middle",
+  "system": "CB-SenseVoice + position/pronunciation context adapter",
+  "samples": 808,
+  "training_rows": 17301,
+  "training_hotword_spans": 20000,
+  "optimizer_steps": 2162,
+  "skipped_training_samples": 0,
+  "local_mean_cer": 0.06086057151404651,
+  "local_mention_recall": 0.8375690607734807,
+  "unified_corpus_cer": 0.07691113698098564,
+  "unified_edits": 991,
+  "unified_reference_chars": 12885,
+  "exact_utterances": 436,
+  "designated_hotword_funnel": {
+    "kws": 380,
+    "prompt": 369,
+    "any_nbest": 321,
+    "top1": 318,
+    "total": 400
+  },
+  "r1_hotwords": {
+    "hits": 146,
+    "total": 226,
+    "recall": 0.6460176991150443
+  },
+  "baseline": {
+    "local_mean_cer": 0.06202496963684972,
+    "local_mention_recall": 0.8320441988950277,
+    "unified_corpus_cer": 0.07823050058207218,
+    "designated_hotword_funnel": {
+      "kws": 380,
+      "prompt": 369,
+      "any_nbest": 316,
+      "top1": 313,
+      "total": 400
+    },
+    "r1_hits": 141
+  }
+}
