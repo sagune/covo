@@ -5123,3 +5123,19 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Local Recall is currently mention-level. Recompute designated-list
   Recall@400 and R1 Recall@226 before claiming a strict paper comparison.
 - The complete comparison table and source links are recorded in `README.md`.
+
+## ST-CMDS full CB-SenseVoice result (2026-07-21)
+
+- The full CopyNE-cardinality test evaluation completed normally on all
+  `10260` utterances; no evaluation process remains active.
+- Test-derived contextual dictionary: `3139` unique HanLP
+  PERSON/LOCATION/ORGANIZATION entities.
+- Final metrics: entity recall `0.879351`, CER `0.053331`, hotword-sentence
+  CER `0.057075`, hotword-only CER `0.071991`, and WER `0.342593`.
+- Mean candidate count is `13.9673`; reference-aware oracle CER is `0.019355`,
+  versus deployed top-1 CER `0.053331`. Candidate selection is therefore the
+  clearest remaining source of headroom.
+- Metrics and oracle files are
+  `src/logs/test_metrics_cb_sensevoice_stcmds_full_20260721.csv`,
+  `src/logs/oracle_nbest_summary_cb_sensevoice_stcmds.csv`, and
+  `src/logs/oracle_nbest_detail_cb_sensevoice_stcmds.csv`.

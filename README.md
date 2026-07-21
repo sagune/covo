@@ -1099,3 +1099,29 @@ References: [SeACo-Paraformer](https://arxiv.org/abs/2308.03266),
 [Confidence-based Homophone Detector](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf),
 [GLCLAP](https://www.isca-archive.org/interspeech_2025/kong25_interspeech.pdf),
 and [PAC](https://arxiv.org/abs/2509.12647).
+
+## ST-CMDS Full CB-SenseVoice Result (2026-07-21)
+
+The complete contextual evaluation finished successfully on all 10,260 test
+utterances from the deterministic CopyNE-cardinality split. The run used the
+3,139-entry HanLP PERSON/LOCATION/ORGANIZATION dictionary derived from the
+test references, the AISHELL-trained SenseVoice KWS checkpoint, contextual
+CTC beam generation, and CB reranking. This is therefore a contextual
+test-dictionary result, not an ordinary open-vocabulary ASR result.
+
+| Samples | Entity recall | CER | Hotword-sentence CER | Hotword-only CER | WER |
+|---:|---:|---:|---:|---:|---:|
+| 10,260 | 87.9351% | 5.3331% | 5.7075% | 7.1991% | 34.2593% |
+
+The generated candidate pool contains an average of 13.97 candidates per
+utterance. Selecting the lowest-CER candidate with reference knowledge gives
+an oracle CER of 1.9355%, compared with the deployed top-1 CER of 5.3331%.
+This large gap indicates that candidate generation is already useful and that
+candidate selection/reranking is now the main remaining bottleneck.
+
+Artifacts:
+
+- `src/logs/test_metrics_cb_sensevoice_stcmds_full_20260721.csv`
+- `src/logs/oracle_nbest_summary_cb_sensevoice_stcmds.csv`
+- `src/logs/oracle_nbest_detail_cb_sensevoice_stcmds.csv`
+- `src/logs/experiment_cb_sensevoice_stcmds_full_20260721_stdout.log`
