@@ -1059,3 +1059,43 @@ checkpoint, ST-CMDS fine-tuning reduces CER by 25.86%, removes 1,012 corpus
 edits, and increases exact utterances from 2,863 to 3,353. On direct paired
 comparison, the fine-tuned model is better on 1,012 utterances, worse on 237,
 and tied on 3,881.
+
+## AISHELL-1 Named-Entity Hotword Benchmark Identity and References (2026-07-21)
+
+The local 808-utterance AISHELL evaluation set is the public named-entity
+hotword subset introduced by SeACo-Paraformer. Different papers refer to the
+same 808-utterance/400-hotword benchmark as `Test-Aishell1-NE`,
+`Test-Aishell1-Middle`, `Aishell-1 test NT`, or the AISHELL hotword test
+subset. The local files contain 808 utterances, 400 hotwords, and 226 R1
+difficult hotwords, exactly matching the published benchmark statistics.
+
+This benchmark must not be confused with either the complete 7,176-utterance
+AISHELL-1 test split or AISHELL-NER, which annotates the complete AISHELL-1
+corpus. Results on the 808-row subset can be compared directly only with
+papers using the same subset, text normalization, hotword list, and metric
+definition.
+
+| Method | Year | Name used for the 808-row set | Reported result |
+|---|---:|---|---|
+| SeACo-Paraformer | 2023 | Test-Aishell1-NE | CER 2.48%, hotword recall 90% |
+| SeACo-Paraformer + ASF | 2023 | Test-Aishell1-NE | CER 2.27%, hotword recall 94% |
+| CB-Whisper | 2024 | Aishell-test | MER 8.6%, entity recall 82.4%; an alternative setting reports 87.7% recall |
+| Efficient Text Augmentation | 2024 | Test-Aishell1-NE | best CER 4.50% |
+| Confidence-based Homophone Detector (SF+CBCB) | 2024 | Test-Aishell1-Middle | CER 6.46%, recall 85.5%, F1 90.3% |
+| GLCLAP | 2025 | Aishell-1 test NT | retrieval F1 96.96%; no final ASR CER on this subset |
+| PAC | ICASSP 2026 | test-middle | reports CER/B-WER under no-context, ground-truth, and varying-list settings |
+
+Our current reference points on this subset are CB-SenseVoice at CER 6.202%
+and entity recall 83.204%, CB-SenseVoice+COVO at CER 4.379% and recall
+83.978%, and the earlier CB-Whisper+COVO route at CER 4.284% and recall
+91.083%. These recall values are currently produced by the local
+mention-level evaluator; before using them in a paper comparison, recompute
+recall over the benchmark's designated 400-hotword list (and separately over
+the 226 R1 list) to match SeACo's protocol.
+
+References: [SeACo-Paraformer](https://arxiv.org/abs/2308.03266),
+[CB-Whisper](https://aclanthology.org/2024.lrec-main.262/),
+[Efficient Text Augmentation](https://www.isca-archive.org/interspeech_2024/zheng24_interspeech.pdf),
+[Confidence-based Homophone Detector](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf),
+[GLCLAP](https://www.isca-archive.org/interspeech_2025/kong25_interspeech.pdf),
+and [PAC](https://arxiv.org/abs/2509.12647).

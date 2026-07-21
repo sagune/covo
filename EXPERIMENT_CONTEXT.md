@@ -5106,3 +5106,20 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - End-to-end time on those rows decreased from `279 s` (full KWS) to an
   extrapolated `108 s` at the measured top-32 throughput. A separate 100-row
   top-32 run completed in `171 s` (`0.59 utterances/s`).
+
+## AISHELL named-entity benchmark identity (2026-07-21)
+
+- The local AISHELL hotword test set is the public 808-utterance,
+  400-hotword benchmark also called `Test-Aishell1-NE`,
+  `Test-Aishell1-Middle`, and `Aishell-1 test NT`; its 226-entry R1 list is
+  the difficult-hotword subset used by CB-Whisper.
+- It is not the complete 7,176-row AISHELL-1 test split and is not the full
+  AISHELL-NER annotation corpus.
+- Direct references on this exact subset include SeACo-Paraformer (2023),
+  CB-Whisper, Efficient Text Augmentation, and Confidence-based Homophone
+  Detector (2024), GLCLAP (2025), and PAC (ICASSP 2026).
+- Published reference points include SeACo+ASF CER `2.27%`/recall `94%`, Text
+  Augmentation CER `4.50%`, and SF+CBCB CER `6.46%`/recall `85.5%`.
+- Local Recall is currently mention-level. Recompute designated-list
+  Recall@400 and R1 Recall@226 before claiming a strict paper comparison.
+- The complete comparison table and source links are recorded in `README.md`.
