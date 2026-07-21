@@ -35,12 +35,13 @@ mkdir -p "$split_dir" "$keyword_audio_dir" "$log_dir"
   --split test \
   > "$log_dir/prepare_stcmds_cb_sensevoice_20260721.json"
 
-"$python_bin" "$src_dir/utils.py" --tts \
-  --target "$keyword_audio_dir" \
+"$python_bin" "$src_dir/analysis/synthesize_edge_tts_keywords.py" \
+  --output-dir "$keyword_audio_dir" \
   --keywords "$keyword_file" \
-  --locale zh-CN \
-  --tts_retries 1 \
-  --log_every 100 \
+  --concurrency 6 \
+  --retries 3 \
+  --log-every 100 \
+  --fail-on-error \
   > "$log_dir/stcmds_cb_sensevoice_tts_20260721.log" 2>&1
 
 "$python_bin" "$src_dir/analysis/extract_sensevoice_hidden_states.py" \
