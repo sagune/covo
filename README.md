@@ -1175,3 +1175,33 @@ with SeACo-style Recall@400 and R1 Recall@226. They should not be replaced by
 the local 944-mention recall in a paper comparison.
 
 Artifact: `src/logs/aishellne808_cb_sensevoice_only_seaco_eval_20260721.json`.
+
+## Position-Supervised SenseVoice Context Adapter (2026-07-21)
+
+The AISHELL-NE funnel shows that KWS retrieves most target words, but many are
+lost before contextual CTC decoding: designated Recall@400 changes from
+380/400 in the KWS list to 369/400 in the prompt, 316/400 in any n-best
+candidate, and 313/400 in the final top1. This makes candidate generation,
+rather than another hand-tuned reranking rule, the current target.
+
+The new lightweight adapter borrows two complementary ideas from recent work:
+
+- The ICASSP 2026 paper *Contextual Biasing for ASR in Speech LLM with Common
+  Word Cues and Bias Word Position Prediction* supplies the auxiliary bias-word
+  position objective. AISHELL's aligned hotword timestamps supervise the
+  relevant SenseVoice frames during training.
+- The ICASSP 2026 PAC paper supplies pronunciation-aware context training.
+  Each positive hotword is mixed with pinyin-identical and character-overlap
+  hard negatives, plus random distractors.
+
+SenseVoice and the KWS checkpoint remain frozen. The trainable component has
+about 131k parameters and projects encoder frames and frozen CTC classifier
+rows into a shared 128-dimensional space. Its acoustically conditioned
+residual is added only to prompt-hotword CTC logits. There is no inference
+gate and no language-model post-processing in this module.
+
+References:
+
+- <https://arxiv.org/abs/2604.12398>
+- <https://arxiv.org/abs/2509.12647>
+- Related CTC word-spotting baseline: <https://arxiv.org/abs/2605.18222>

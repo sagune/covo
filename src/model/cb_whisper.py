@@ -11,6 +11,7 @@ import pytorch_lightning as pl
 from transformers import WhisperProcessor, WhisperModel
 from .model import KWSModel
 from .pba_whisper import PBAWhisper
+from .sensevoice_context_adapter import load_context_adapter
 from .sensevoice_ctc import ContextualHotwordScorer, ctc_prefix_beam_search
 import sys
 sys.path.insert(1, '../data')
@@ -113,6 +114,7 @@ class CBWhisper(pl.LightningModule):
         sensevoice_token_topk: int = 32,
         sensevoice_hotword_token_weight: float = 1.2,
         sensevoice_hotword_completion_weight: float = 0.8,
+        sensevoice_context_adapter_path: str = "",
         use_precomputed_kws_features: bool = False,
         force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
@@ -204,6 +206,8 @@ class CBWhisper(pl.LightningModule):
         self.sensevoice_model = None
         self.sensevoice_tokenizer = None
         self._sensevoice_frontend = None
+        self.sensevoice_context_adapter = None
+        self._active_sensevoice_encoder_out = None
         if self.hparams.asr_backend == "whisper":
             self.processor_whisper = WhisperProcessor.from_pretrained(
                 self.hparams.whisper_ckpt,
@@ -223,6 +227,11 @@ class CBWhisper(pl.LightningModule):
             self.sensevoice_model.requires_grad_(False)
             self.sensevoice_tokenizer = sensevoice.kwargs["tokenizer"]
             self._sensevoice_frontend = sensevoice.kwargs["frontend"]
+            adapter_path = str(self.hparams.sensevoice_context_adapter_path or "").strip()
+            if adapter_path:
+                self.sensevoice_context_adapter = load_context_adapter(adapter_path)
+                self.sensevoice_context_adapter.eval()
+                self.sensevoice_context_adapter.requires_grad_(False)
 
         # create an instance of a KWSModel
         # some older checkpoints can miss hyperparameters such as
@@ -2501,7 +2510,36 @@ class CBWhisper(pl.LightningModule):
         speech_hidden = encoder_out[:, speech_start:valid_len, :].float()
         speech_hidden = speech_hidden / torch.linalg.norm(speech_hidden, dim=-1, keepdim=True).clamp_min(1e-8)
         self._active_sensevoice_hidden_states = speech_hidden.unsqueeze(1)
+        self._active_sensevoice_encoder_out = encoder_out[:, speech_start:valid_len, :].float()
         return log_probs[0, speech_start:valid_len, :], speech_hidden
+
+    def _apply_sensevoice_context_adapter(self, log_probs: torch.Tensor) -> torch.Tensor:
+        if self.sensevoice_context_adapter is None or self._active_sensevoice_encoder_out is None:
+            return log_probs
+        prompt_keywords = self._latest_prompt_keywords[0] if self._latest_prompt_keywords else []
+        keyword_scores = self._latest_prompt_keyword_scores[0] if self._latest_prompt_keyword_scores else {}
+        excluded = set(range(1, 16)) | set(range(25000, int(log_probs.size(-1))))
+        token_ids = []
+        confidences = []
+        for keyword in prompt_keywords:
+            confidence = float(keyword_scores.get(keyword, 0.0))
+            for token in self.sensevoice_tokenizer.encode(str(keyword)):
+                token = int(token)
+                if token not in excluded and token != int(self.sensevoice_model.blank_id):
+                    token_ids.append(token)
+                    confidences.append(confidence)
+        if not token_ids:
+            return log_probs
+        adapter = self.sensevoice_context_adapter.to(log_probs.device)
+        with torch.inference_mode():
+            adapted = adapter(
+                encoder_hidden=self._active_sensevoice_encoder_out,
+                base_log_probs=log_probs.unsqueeze(0),
+                ctc_token_weights=self.sensevoice_model.ctc.ctc_lo.weight,
+                context_token_ids=token_ids,
+                context_confidences=confidences,
+            )
+        return adapted[0]
 
     def _sensevoice_prepare_keyword_state(self, num_segments: int = 1):
         if not self.hparams.prompt:
@@ -2629,9 +2667,11 @@ class CBWhisper(pl.LightningModule):
         log_probs, _ = self._sensevoice_encode_audio(audio_path)
         try:
             self._sensevoice_prepare_keyword_state(num_segments=1)
+            log_probs = self._apply_sensevoice_context_adapter(log_probs)
             decoded = self._sensevoice_decode_candidates(log_probs)
         finally:
             self._active_sensevoice_hidden_states = None
+            self._active_sensevoice_encoder_out = None
         if not decoded:
             self._latest_forward_candidates = []
             return ""
