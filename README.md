@@ -1233,3 +1233,39 @@ Artifacts:
 - `src/logs/test_metrics_cb_sensevoice_context_adapter_aishell808_20260721.csv`
 - `src/logs/cb_sensevoice_context_adapter_aishell808_evidence_20260721.jsonl`
 - `src/logs/aishellne808_cb_sensevoice_context_adapter_eval_20260721.json`
+
+## Phrase-Conditioned SenseVoice Context Fusion (2026-07-22)
+
+The second-generation adapter preserves complete hotword boundaries instead of
+flattening all context into independent characters. Each phrase combines
+frozen CTC grapheme vectors, within-phrase positions, and hashed tone-aware
+pinyin embeddings. Two small Transformer context layers encode each phrase;
+SenseVoice frames then retrieve phrase evidence through cross-attention before
+the frozen CTC classifier. Training jointly optimizes transcript CTC, aligned
+phrase-position prediction, and positive-versus-distractor phrase detection.
+
+The adapter has 729,092 trainable parameters. One full AISHELL epoch used all
+17,301 aligned rows and completed 2,162 optimizer steps with no skipped data.
+No fallback gate, COVO model, test lexicon, or reference-aware selection is
+used in the following standalone result.
+
+| System | Local mean CER | Mention recall | Recall@400 | R1 Recall@226 | Unified corpus CER | Exact rows |
+|---|---:|---:|---:|---:|---:|---:|
+| CB-SenseVoice | 6.2025% | 83.2044% | 313/400 | 141/226 | 7.8231% | 432 |
+| Frame position adapter | 6.0861% | 83.7569% | 318/400 | 146/226 | 7.6911% | 436 |
+| **Phrase cross-attention** | **5.0933%** | **83.9779%** | **323/400** | **150/226** | **4.8273%** | **498** |
+
+The designated KWS/prompt/n-best/top1 funnel is now `380/369/326/323`, versus
+`380/369/316/313` without an adapter. The method therefore adds ten complete
+hotwords to both the candidate pool and final output while also removing 386
+unified CER edits. It already beats the standalone true-v3 CB-Whisper CER
+(`6.61%`) but not its local hotword recall (`92.38%`), so the next refinement
+targets localized complete-hotword CTC supervision rather than more generic
+ASR training.
+
+Artifacts:
+
+- `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`
+- `src/logs/test_metrics_cb_sensevoice_phrase_crossattn_aishell808_20260722.csv`
+- `src/logs/cb_sensevoice_phrase_crossattn_aishell808_evidence_20260722.jsonl`
+- `src/logs/aishellne808_cb_sensevoice_phrase_crossattn_eval_20260722.json`

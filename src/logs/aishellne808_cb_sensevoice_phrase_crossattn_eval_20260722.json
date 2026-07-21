@@ -1,0 +1,27 @@
+{
+  "dataset": "Test-Aishell1-NE/Test-Aishell1-Middle",
+  "system": "CB-SenseVoice + phrase-conditioned cross-attention adapter",
+  "samples": 808,
+  "trainable_parameters": 729092,
+  "training_rows": 17301,
+  "optimizer_steps": 2162,
+  "skipped_training_samples": 0,
+  "local_mean_cer": 0.050933116019936185,
+  "local_mention_recall": 0.8397790055248618,
+  "unified_corpus_cer": 0.04827318587504851,
+  "unified_edits": 622,
+  "unified_reference_chars": 12885,
+  "exact_utterances": 498,
+  "designated_hotword_funnel": {
+    "kws": 380,
+    "prompt": 369,
+    "any_nbest": 326,
+    "top1": 323,
+    "total": 400
+  },
+  "r1_hotwords": {
+    "hits": 150,
+    "total": 226,
+    "recall": 0.6637168141592921
+  }
+}

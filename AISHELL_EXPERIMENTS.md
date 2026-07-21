@@ -120,7 +120,8 @@ oracle is 3.097%, demonstrating genuine text rewriting rather than selection.
 | CB-SenseVoice candidate oracle | HW808 local | 3.686% | 85.128% | - | - | Upper bound |
 | + frame position/pronunciation adapter | HW808 local | 6.086% | 83.757% | - | - | 131k trainable parameters |
 | + frame position/pronunciation adapter | HW808 unified corpus | 7.691% | - | 318/400 | 146/226 | Candidate gain +5 |
-| + phrase cross-attention adapter | HW808 | pending | pending | pending | pending | 729k parameters, training/evaluation in progress |
+| + phrase cross-attention adapter | HW808 local | **5.093%** | **83.978%** | - | - | 729k parameters; CER main model |
+| + phrase cross-attention adapter | HW808 unified corpus | **4.827%** | - | **323/400** | **150/226** | Candidate/top1 gain +10 |
 
 ## Complete AISHELL-1 Test (7,176 Utterances)
 
