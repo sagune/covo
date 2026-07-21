@@ -11,7 +11,7 @@ import pytorch_lightning as pl
 from transformers import WhisperProcessor, WhisperModel
 from .model import KWSModel
 from .pba_whisper import PBAWhisper
-from .sensevoice_context_adapter import load_context_adapter
+from .sensevoice_context_adapter import load_context_adapter, pinyin_bucket_ids
 from .sensevoice_ctc import ContextualHotwordScorer, ctc_prefix_beam_search
 import sys
 sys.path.insert(1, '../data')
@@ -2521,24 +2521,51 @@ class CBWhisper(pl.LightningModule):
         excluded = set(range(1, 16)) | set(range(25000, int(log_probs.size(-1))))
         token_ids = []
         confidences = []
+        phrase_token_ids = []
+        phrase_pinyin_ids = []
+        phrase_confidences = []
         for keyword in prompt_keywords:
             confidence = float(keyword_scores.get(keyword, 0.0))
-            for token in self.sensevoice_tokenizer.encode(str(keyword)):
-                token = int(token)
-                if token not in excluded and token != int(self.sensevoice_model.blank_id):
-                    token_ids.append(token)
-                    confidences.append(confidence)
+            phrase = [
+                int(token)
+                for token in self.sensevoice_tokenizer.encode(str(keyword))
+                if int(token) not in excluded and int(token) != int(self.sensevoice_model.blank_id)
+            ]
+            if not phrase:
+                continue
+            phrase_token_ids.append(phrase)
+            phrase_pinyin_ids.append(
+                pinyin_bucket_ids(
+                    str(keyword),
+                    len(phrase),
+                    int(getattr(self.sensevoice_context_adapter, "pinyin_buckets", 512)),
+                )
+            )
+            phrase_confidences.append(confidence)
+            token_ids.extend(phrase)
+            confidences.extend([confidence] * len(phrase))
         if not token_ids:
             return log_probs
         adapter = self.sensevoice_context_adapter.to(log_probs.device)
         with torch.inference_mode():
-            adapted = adapter(
-                encoder_hidden=self._active_sensevoice_encoder_out,
-                base_log_probs=log_probs.unsqueeze(0),
-                ctc_token_weights=self.sensevoice_model.ctc.ctc_lo.weight,
-                context_token_ids=token_ids,
-                context_confidences=confidences,
-            )
+            if bool(getattr(adapter, "expects_phrases", False)):
+                adapted = adapter(
+                    encoder_hidden=self._active_sensevoice_encoder_out,
+                    base_log_probs=log_probs.unsqueeze(0),
+                    ctc_token_weights=self.sensevoice_model.ctc.ctc_lo.weight,
+                    ctc_token_bias=self.sensevoice_model.ctc.ctc_lo.bias,
+                    context_phrases=phrase_token_ids,
+                    context_pinyin_ids=phrase_pinyin_ids,
+                    context_confidences=phrase_confidences,
+                )
+            else:
+                adapted = adapter(
+                    encoder_hidden=self._active_sensevoice_encoder_out,
+                    base_log_probs=log_probs.unsqueeze(0),
+                    ctc_token_weights=self.sensevoice_model.ctc.ctc_lo.weight,
+                    context_token_ids=token_ids,
+                    context_confidences=confidences,
+                )
         return adapted[0]
 
     def _sensevoice_prepare_keyword_state(self, num_segments: int = 1):

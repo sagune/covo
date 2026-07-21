@@ -2,7 +2,11 @@ import unittest
 
 import torch
 
-from model.sensevoice_context_adapter import SenseVoiceContextAdapter
+from model.sensevoice_context_adapter import (
+    SenseVoiceContextAdapter,
+    SenseVoicePhraseContextAdapter,
+    pinyin_bucket_ids,
+)
 
 
 class SenseVoiceContextAdapterTest(unittest.TestCase):
@@ -50,6 +54,43 @@ class SenseVoiceContextAdapterTest(unittest.TestCase):
         weights = torch.tensor([[0.0, 1.0], [1.0, 0.0], [0.0, 1.0]])
         _, position_logits = adapter(hidden, logits, weights, [1], return_position_logits=True)
         self.assertGreater(float(position_logits[0, 0]), float(position_logits[0, 1]))
+
+
+class SenseVoicePhraseContextAdapterTest(unittest.TestCase):
+    def test_pinyin_hash_is_stable_and_aligned(self):
+        first = pinyin_bucket_ids("邓郁松", 3)
+        second = pinyin_bucket_ids("邓郁松", 3)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 3)
+        self.assertTrue(all(0 < item < 512 for item in first))
+
+    def test_phrase_adapter_shapes_and_gradients(self):
+        adapter = SenseVoicePhraseContextAdapter(
+            hidden_size=8,
+            projection_size=8,
+            num_heads=2,
+            num_context_layers=1,
+            max_phrase_tokens=4,
+            dropout=0.0,
+        )
+        hidden = torch.randn(1, 5, 8)
+        weights = torch.randn(12, 8)
+        bias = torch.randn(12)
+        base = torch.log_softmax(torch.randn(1, 5, 12), dim=-1)
+        output, positions, phrases = adapter(
+            hidden,
+            base,
+            weights,
+            context_phrases=[[2, 3], [4, 5, 6]],
+            context_pinyin_ids=[[11, 12], [13, 14, 15]],
+            ctc_token_bias=bias,
+            return_auxiliary=True,
+        )
+        self.assertEqual(tuple(output.shape), (1, 5, 12))
+        self.assertEqual(tuple(positions.shape), (1, 5, 2))
+        self.assertEqual(tuple(phrases.shape), (1, 2))
+        (-output[..., 2].mean() + positions.mean() + phrases.mean()).backward()
+        self.assertIsNotNone(adapter.cross_attention.in_proj_weight.grad)
 
 
 if __name__ == "__main__":
