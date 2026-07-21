@@ -893,14 +893,14 @@ separate by task and protocol rather than merged into the ordinary-ASR table.
 | Adaptive Context Biasing in Transformer-Based ASR Systems | AISHELL context-biased subset | 5.56% dev / 6.01% test CER | Our full AISHELL SenseVoice+COVO CER is 3.7732%, but the subsets and upstream ASR differ |
 | Generative Annotation for ASR Named Entity Correction | AISHELL entity correction | Best CER 9.85%, NE-CER 7.41%, NE recall 87.31% | Our full AISHELL entity-retrieval COVO is 3.5384% CER, 5.8572% NE-CER, 88.15% recall; not identical entity protocol |
 | PARCO: Phoneme-Augmented Robust Contextual ASR | AISHELL-1 contextual biasing | 4.22% CER with 1000 distractors | Our 3.5384% is lower, but PARCO's THCHS-30 cross-domain result has no public absolute CER |
-| ASR-EC Benchmark | Synthetic THCHS-30/AISHELL error correction | Baseline 12.42%/8.11%; LoRA 12.36%/7.88%; multimodal 5.96%/5.12% | Our complete THCHS-30 SenseVoice+COVO is 5.60%; same magnitude, not same protocol |
+| ASR-EC Benchmark | Mixed Chinese ASR-error benchmark built from THCHS-30, AISHELL-1/2, and long WeNetSpeech utterances | Kaldi-K1/K2 mixed-test baselines 12.42%/8.11%; LoRA 12.36%/7.88%; multimodal 5.96%/5.12% | The paper does not report corpus-specific AISHELL-1, THCHS-30, or ST-CMDS results, so our per-corpus COVO scores are not directly comparable |
 | Lightweight Prompt Biasing for Contextual ASR | In-house entity-biasing set | 30.7%/18.0% relative entity-WER reduction | No public absolute CER or common test set |
 
 The AISHELL rows are useful contextual comparisons, while the THCHS-30 row is
 the reason we performed the complete THCHS-30 evaluation above. The ASR-EC
 paper's numbers come from generated ASR errors and correction evaluation, not
 direct recognition on the original audio. References:
-[Adaptive Context Biasing](https://www.nature.com/articles/s41598-025-00299-2),
+[Adaptive Context Biasing](https://www.nature.com/articles/s41598-025-12121-4),
 [Generative Annotation](https://aclanthology.org/2025.emnlp-main.1052/),
 [PARCO](https://arxiv.org/abs/2509.04357),
 [ASR-EC Benchmark](https://aclanthology.org/2025.emnlp-industry.110.pdf).
@@ -979,21 +979,20 @@ comparison.
 
 ### Comparable 2025 paper
 
-The main reason for adding THCHS-30 was comparison with **ASR-EC Benchmark:
-Evaluating Large Language Models on Chinese ASR Error Correction** (EMNLP
-2025 Industry Track). On its synthetic THCHS-30/AISHELL error-correction
-benchmark, the paper reports CER values of 12.42% and 8.11% for its two ASR
-baselines, 12.36% and 7.88% after text-only LoRA correction, and 5.96% and
-5.12% for its multimodal correction setting. Our complete original THCHS-30
-evaluation reaches 5.60% with SenseVoiceSmall+COVO: it is 0.36 percentage
-points below the paper's 5.96% setting, but 0.48 points above its 5.12%
-setting.
+One motivation for adding THCHS-30 was the **ASR-EC Benchmark: Evaluating
+Large Language Models on Chinese ASR Error Correction** (EMNLP 2025 Industry
+Track). Its benchmark pools utterances originating from THCHS-30, AISHELL-1,
+AISHELL-2, and WeNetSpeech, then generates two mixed error sets with Kaldi-K1
+and Kaldi-K2. The reported whole-test CER values are 12.42%/8.11% for those
+two ASR inputs, 12.36%/7.88% after text-only LoRA correction, and 5.96%/5.12%
+for multimodal correction. The two columns identify the Kaldi-K1 and Kaldi-K2
+error sources, not THCHS-30 and AISHELL-1. The paper gives no independent
+AISHELL-1, THCHS-30, or ST-CMDS endpoint CER.
 
-This is recorded as **comparable in magnitude, not a strict same-protocol
-win**: the paper first generates synthetic ASR errors with Kaldi-K1/K2 and
-evaluates correction, while our 5.60% is direct recognition plus COVO on the
-complete original test audio. A fair claim requires reproducing the paper's
-ASR-EC error-generation protocol.
+Consequently, our complete THCHS-30 SenseVoiceSmall+COVO result of 5.60%
+must not be described as above or below the paper's 5.96%/5.12% rows. A fair
+comparison requires evaluating COVO on the released ASR-EC mixed test pairs or
+reproducing its Kaldi-K1/K2 error-generation protocol.
 
 Reference: [ASR-EC Benchmark, EMNLP 2025](https://aclanthology.org/2025.emnlp-industry.110.pdf).
 
