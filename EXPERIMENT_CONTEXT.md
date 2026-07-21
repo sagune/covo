@@ -5139,3 +5139,20 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   `src/logs/test_metrics_cb_sensevoice_stcmds_full_20260721.csv`,
   `src/logs/oracle_nbest_summary_cb_sensevoice_stcmds.csv`, and
   `src/logs/oracle_nbest_detail_cb_sensevoice_stcmds.csv`.
+
+## AISHELL-NE standalone COVO ablation (2026-07-21)
+
+- Scope: all `808` Test-Aishell1-NE/Test-Aishell1-Middle utterances.
+- Path: naked SenseVoice top-1 -> preserve2 COVO; one candidate, no KWS,
+  hotword prompt, CB candidate generation, reranking, gate, or
+  reference-aware selection.
+- The exact outputs were selected by utterance ID from the completed full
+  `7176`-row run using the same model and settings; all `808/808` IDs matched.
+- CER: `0.1036088 -> 0.0772992`; improved/worsened/unchanged rows
+  `159/9/640`, a `25.39%` relative CER reduction.
+- SeACo designated-list recall: all hotwords `159/400 -> 173/400`
+  (`0.3975 -> 0.4325`); R1 difficult hotwords `23/226 -> 29/226`
+  (`0.10177 -> 0.12832`).
+- Interpretation: standalone COVO has substantial generic correction ability,
+  but without contextual evidence it cannot solve the named-entity benchmark.
+  Use this as the COVO-only ablation, not as the full proposed system.

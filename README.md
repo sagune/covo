@@ -1125,3 +1125,32 @@ Artifacts:
 - `src/logs/oracle_nbest_summary_cb_sensevoice_stcmds.csv`
 - `src/logs/oracle_nbest_detail_cb_sensevoice_stcmds.csv`
 - `src/logs/experiment_cb_sensevoice_stcmds_full_20260721_stdout.log`
+
+## AISHELL-NE Standalone COVO Ablation (2026-07-21)
+
+To isolate COVO from contextual biasing, the 808-row AISHELL-NE subset was
+evaluated using naked `iic/SenseVoiceSmall` top-1 transcripts followed by the
+`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` COVO adapter.
+Each COVO prompt contained only the single SenseVoice hypothesis: no KWS,
+hotword prompt, CB-SenseVoice candidate generation, reranking, gate, or
+reference-aware selection was used. The predictions were extracted by
+utterance ID from the previously completed full 7,176-row run with exactly
+the same model and inference settings.
+
+| System | CER | Recall@400 | R1 Recall@226 | Improved / worsened / unchanged |
+|---|---:|---:|---:|---:|
+| Naked SenseVoice | 10.3609% | 39.75% (159/400) | 10.18% (23/226) | - |
+| Naked SenseVoice + standalone COVO | **7.7299%** | **43.25% (173/400)** | **12.83% (29/226)** | 159 / 9 / 640 |
+
+Standalone COVO reduces corpus CER by 2.6310 percentage points (25.39%
+relative), showing useful general language correction. Its designated-hotword
+recall remains low because no contextual hotword evidence is supplied. This
+is an appropriate ablation for separating COVO's generic correction ability
+from the KWS/CB module's contextual contribution, but it is not a competitive
+contextual-ASR configuration by itself.
+
+Artifacts:
+
+- `src/logs/aishellne808_sensevoice_covo_only_preserve2_predictions_20260721.jsonl`
+- `src/logs/aishellne808_sensevoice_covo_only_preserve2_cer_20260721.json`
+- `src/logs/aishellne808_sensevoice_covo_only_preserve2_hotword_recall_20260721.json`
