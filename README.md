@@ -24,6 +24,10 @@ Build a paper-clean CB-SenseVoice pipeline:
 The main constraint is that the method should remain lightweight and
 explainable.  Avoid heavy case-specific patches as main paper claims.
 
+The consolidated AISHELL result ledger, including failed ablations, full/smoke
+labels, metric scopes, and published-paper comparisons, is maintained in
+[`AISHELL_EXPERIMENTS.md`](AISHELL_EXPERIMENTS.md).
+
 ## Environment
 
 Use the prepared conda environment:
