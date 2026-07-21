@@ -256,7 +256,8 @@ class AishellHotwordDataset(Dataset):
         kw_type: str = 'natural',
         load_audio: bool = False,
         wav_folder: str = None,
-        feature_extractor: WhisperFeatureExtractor = None
+        feature_extractor: WhisperFeatureExtractor = None,
+        compute_kws_features: bool = True,
     ):
         
         # size of features
@@ -268,6 +269,7 @@ class AishellHotwordDataset(Dataset):
 
         # save instance of WhisperFeatureExtractor
         self.feature_extractor = feature_extractor
+        self.compute_kws_features = bool(compute_kws_features)
 
         # check if the provided directories exist
         assert os.path.isdir(root), f'the directory you indicated with the dataset could not be found'
@@ -297,29 +299,47 @@ class AishellHotwordDataset(Dataset):
         hw_zfill = len(str(len(self.hotwords) - 1))
         ghost_hotword_indices = []
         for idx, _ in enumerate(self.hotwords):
-            if os.path.exists(os.path.join(self.root, split, 'keywords-hs', self.kw_type, str(idx).zfill(hw_zfill) + '.bin')):
-                with open(os.path.join(self.root, split, 'keywords-hs', self.kw_type, str(idx).zfill(hw_zfill) + '.bin'), 'rb') as f:
+            hidden_state_path = os.path.join(
+                self.root, split, 'keywords-hs', self.kw_type, str(idx).zfill(hw_zfill) + '.bin'
+            )
+            if os.path.exists(hidden_state_path) and self.compute_kws_features:
+                with open(hidden_state_path, 'rb') as f:
                     self.database.append(load_hidden_states(f))
+            elif os.path.exists(hidden_state_path):
+                self.database.append(None)
             else:
                 self.database.append(None)
                 ghost_hotword_indices.append(idx)
-        # set ghost hotwords features to zeros
-        smaller_idx = min([(idx, hs.shape) for idx, hs in enumerate(self.database) if hs != None], key=lambda x: x[1][1])[0]
-        for idx in ghost_hotword_indices:
-            self.database[idx] = torch.zeros_like(self.database[smaller_idx])
+        if self.compute_kws_features:
+            # set ghost hotwords features to zeros
+            smaller_idx = min(
+                [(idx, hs.shape) for idx, hs in enumerate(self.database) if hs is not None],
+                key=lambda x: x[1][1],
+            )[0]
+            for idx in ghost_hotword_indices:
+                self.database[idx] = torch.zeros_like(self.database[smaller_idx])
         # separate into groups
         # also adding a mask for the ghost hotword positions
         if hotwords_per_group == -1:
             self.hotwords_per_group = len(self.hotwords)
         else:
             self.hotwords_per_group = hotwords_per_group
-        self.database = [{
-            'keywords': self.hotwords[i:i+self.hotwords_per_group],
-            'hidden_states': self.database[i:i+self.hotwords_per_group],
-            #'max_length': max([t_.size(dim=1) for t_ in self.database[i:i+self.hotwords_per_group]]),
-            'max_length': max(max([t_.size(dim=1) for t_ in self.database[i:i+self.hotwords_per_group]]), 32),
-            'mask': torch.tensor([0 if idx in ghost_hotword_indices else 1 for idx in range(i, min(i+self.hotwords_per_group, len(self.hotwords)))])
-        } for i in range(0, len(self.hotwords), self.hotwords_per_group)]
+        grouped_database = []
+        for i in range(0, len(self.hotwords), self.hotwords_per_group):
+            hidden_states = self.database[i:i+self.hotwords_per_group]
+            grouped_database.append({
+                'keywords': self.hotwords[i:i+self.hotwords_per_group],
+                'hidden_states': hidden_states,
+                'max_length': (
+                    max(max(t_.size(dim=1) for t_ in hidden_states), 32)
+                    if self.compute_kws_features else None
+                ),
+                'mask': torch.tensor([
+                    0 if idx in ghost_hotword_indices else 1
+                    for idx in range(i, min(i+self.hotwords_per_group, len(self.hotwords)))
+                ]),
+            })
+        self.database = grouped_database
         
         # get transcripts
         with open(os.path.join(self.split_folder, 'text'), 'r') as f:
@@ -348,22 +368,25 @@ class AishellHotwordDataset(Dataset):
         with open(item['utterance']['hidden_states'], 'rb') as f:
             hidden_states = load_hidden_states(f)
 
-        # compute similarity matrices
-        # simple inner product because vectors are normalized
-        for group_idx, group in enumerate(self.database):
-            for kw_idx, hs in enumerate(group['hidden_states']):
-                _assert_hidden_state_dim_match(
-                    hs,
-                    hidden_states,
-                    f'aishell hotword utterance={item["utterance"]["hidden_states"]} group={group_idx} keyword={kw_idx}'
-                )
-        item.update([('features', [[torch.matmul(hs, hidden_states.transpose(1, 2)) for hs in group['hidden_states']] for group in self.database])])
-        if not self.size is None:
-            # resize both edges
-            item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (self.size[0], self.size[1]), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
+        if self.compute_kws_features:
+            # compute similarity matrices
+            # simple inner product because vectors are normalized
+            for group_idx, group in enumerate(self.database):
+                for kw_idx, hs in enumerate(group['hidden_states']):
+                    _assert_hidden_state_dim_match(
+                        hs,
+                        hidden_states,
+                        f'aishell hotword utterance={item["utterance"]["hidden_states"]} group={group_idx} keyword={kw_idx}'
+                    )
+            item.update([('features', [[torch.matmul(hs, hidden_states.transpose(1, 2)) for hs in group['hidden_states']] for group in self.database])])
+            if not self.size is None:
+                # resize both edges
+                item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (self.size[0], self.size[1]), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
+            else:
+                # resize only the short edges
+                item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (group['max_length'], hidden_states.size(dim=1)), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
         else:
-            # resize only the short edges
-            item.update([('features', [torch.stack([torchvision.transforms.functional.resize(matrices, (group['max_length'], hidden_states.size(dim=1)), antialias=False) for matrices in features], dim=0) for group, features in zip(self.database, item['features'])])])
+            item['kws_hidden_states'] = hidden_states
 
         # load utterance audio
         if self.load_audio and self.feature_extractor is not None:

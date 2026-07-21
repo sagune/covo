@@ -126,6 +126,7 @@ class CBWhisper(pl.LightningModule):
         kws_topk_per_group: int = 3,
         kws_max_prompt_keywords: int = 24,
         kws_infer_chunk_size: int = 16,
+        kws_prefilter_per_group: int = 0,
         keyword_perturb_prob: float = 0.0,
         keyword_perturb_rules: Optional[List[str]] = None,
         prompt_max_injected_keywords: int = 4,
@@ -282,6 +283,7 @@ class CBWhisper(pl.LightningModule):
         self._keyword_spotting_cache = {}
         self._active_kws_attention_mask = None
         self._active_precomputed_kws_features = None
+        self._active_precomputed_kws_hidden_states = None
         self._active_sensevoice_hidden_states = None
         self._debug_log_path = os.getenv("CBW_DEBUG_LOG", "logs/runtime_probe.jsonl")
         if self._debug_log_path.lower() in {"", "none", "off", "0"}:
@@ -1717,7 +1719,11 @@ class CBWhisper(pl.LightningModule):
                     )
             return self._finalize_kws_keywords(keywords, keyword_scores)
 
-        if isinstance(self._active_sensevoice_hidden_states, torch.Tensor):
+        if isinstance(self._active_precomputed_kws_hidden_states, torch.Tensor):
+            utt_hs = self._active_precomputed_kws_hidden_states.to(self.device).float()
+            if utt_hs.dim() == 3:
+                utt_hs = utt_hs.unsqueeze(1)
+        elif isinstance(self._active_sensevoice_hidden_states, torch.Tensor):
             utt_hs = self._active_sensevoice_hidden_states.to(self.device).float()
 
         if utt_hs is None and num_groups > 0 and self.encoder is not None:
@@ -1740,10 +1746,21 @@ class CBWhisper(pl.LightningModule):
 
         for idx in range(num_groups):
             kw_group = self.kw_database.group(idx, device=self.device)
-            cossim_matrices = self._calculate_cosine_similarity_matrices_(
-                utt_hs=utt_hs,
-                kwd_hs=kw_group["hidden_states"],
-            )
+            prefilter = max(0, int(getattr(self.hparams, "kws_prefilter_per_group", 0)))
+            if 0 < prefilter < len(kw_group["hidden_states"]):
+                cossim_matrices, candidate_indices = self._calculate_prefiltered_cosine_similarity_matrices_(
+                    utt_hs=utt_hs,
+                    kwd_hs=kw_group["hidden_states"],
+                    max_keywords=prefilter,
+                )
+            else:
+                cossim_matrices = self._calculate_cosine_similarity_matrices_(
+                    utt_hs=utt_hs,
+                    kwd_hs=kw_group["hidden_states"],
+                )
+                candidate_indices = [
+                    list(range(len(kw_group["hidden_states"]))) for _ in range(len(cossim_matrices))
+                ]
             for seg_idx, matrices in enumerate(cossim_matrices):
                 if matrices is None:
                     continue
@@ -1763,7 +1780,8 @@ class CBWhisper(pl.LightningModule):
                     selected_idx = top_idx[:1]
 
                 for cand_idx in selected_idx.tolist():
-                    kw = kw_group["keywords"][cand_idx]
+                    original_idx = int(candidate_indices[seg_idx][cand_idx])
+                    kw = kw_group["keywords"][original_idx]
                     keywords[seg_idx].append(kw)
                     score_v = float(probs_pos[cand_idx].item())
                     prev = keyword_scores[seg_idx].get(kw, 0.0)
@@ -3034,6 +3052,43 @@ class CBWhisper(pl.LightningModule):
 
         return cossim_matrices
 
+    def _calculate_prefiltered_cosine_similarity_matrices_(
+        self,
+        utt_hs: torch.Tensor,
+        kwd_hs: List[torch.Tensor],
+        max_keywords: int,
+    ) -> Tuple[List[torch.Tensor], List[List[int]]]:
+        if utt_hs is None:
+            return [], []
+        num_segments = int(utt_hs.size(0))
+        max_keywords = max(1, min(int(max_keywords), len(kwd_hs)))
+        kwd_hs = [
+            hidden.to(device=utt_hs.device, dtype=utt_hs.dtype, non_blocking=True)
+            for hidden in kwd_hs
+        ]
+        utterance_t = utt_hs.transpose(2, 3)
+        raw = [torch.matmul(hidden, utterance_t) for hidden in kwd_hs]
+        short_edge, long_edge = (
+            (int(self.hparams.kws_features_size[0]), int(self.hparams.kws_features_size[1]))
+            if self.hparams.kws_features_size is not None
+            else (max(hidden.size(1) for hidden in kwd_hs), int(utt_hs.size(2)))
+        )
+        segment_matrices = []
+        segment_indices = []
+        for segment_idx in range(num_segments):
+            scores = torch.stack([
+                matrix[segment_idx].amax(dim=-1).mean() for matrix in raw
+            ])
+            selected = torch.topk(scores, k=max_keywords, largest=True, sorted=True).indices.tolist()
+            segment_indices.append([int(index) for index in selected])
+            segment_matrices.append(torch.stack([
+                torchvision.transforms.functional.resize(
+                    raw[index][segment_idx], (short_edge, long_edge), antialias=False
+                )
+                for index in selected
+            ], dim=0))
+        return segment_matrices, segment_indices
+
     def on_test_epoch_start(self):
         # list for storing the outputs of each test step
         # in the past this was done automatically using the test_epoch_end hook
@@ -3297,6 +3352,7 @@ class CBWhisper(pl.LightningModule):
         self._active_precomputed_kws_features = (
             batch.get('features') if self.hparams.use_precomputed_kws_features else None
         )
+        self._active_precomputed_kws_hidden_states = batch.get('kws_hidden_states')
         try:
             preds = self.forward(
                 input_features=batch['utterance'].get('features'),
@@ -3306,6 +3362,7 @@ class CBWhisper(pl.LightningModule):
             )
         finally:
             self._active_precomputed_kws_features = None
+            self._active_precomputed_kws_hidden_states = None
 
         # Build keyword mentions for evaluation.
         # ACL provides `batch['keywords']`; AISHELL does not, so recover mentions from hotword_labels.
@@ -3539,6 +3596,7 @@ class DatabaseLite:
 
         # set number of keywords
         self.num_keywords = sum([len(group['keywords']) for group in self.database])
+        self._device_hidden_state_cache = {}
 
     def hidden_dim(self) -> Optional[int]:
         for group in self.database:
@@ -3573,8 +3631,13 @@ class DatabaseLite:
         device: str = 'cpu',
         load_hs: bool = True
     ) -> dict:        
+        cache_key = (int(idx), str(device))
+        if load_hs and cache_key not in self._device_hidden_state_cache:
+            self._device_hidden_state_cache[cache_key] = [
+                hs.to(device, non_blocking=True) for hs in self.database[idx]['hidden_states']
+            ]
         kw_group = {
             'keywords' : self.database[idx]['keywords'],
-            'hidden_states' : [hs.to(device) for hs in self.database[idx]['hidden_states']] if load_hs else None
+            'hidden_states' : self._device_hidden_state_cache[cache_key] if load_hs else None
         }
         return kw_group

@@ -45,7 +45,7 @@ data:
     features_size: [150, 750]
     batch_size: 1
     sampling: random
-    num_workers: 4
+    num_workers: 0
     hotwords_per_group: 100
     asr_backend: sensevoice
     whisper_ckpt: ""
@@ -72,7 +72,7 @@ model:
     sensevoice_token_topk: 32
     sensevoice_hotword_token_weight: 1.2
     sensevoice_hotword_completion_weight: 0.8
-    use_precomputed_kws_features: true
+    use_precomputed_kws_features: false
     prompt: true
     oracle: kws
     kws_features_size: [150, 750]
@@ -80,7 +80,8 @@ model:
     kws_positive_threshold: 0.787
     kws_topk_per_group: 6
     kws_max_prompt_keywords: 28
-    kws_infer_chunk_size: 16
+    kws_infer_chunk_size: 64
+    kws_prefilter_per_group: 32
     prompt_max_injected_keywords: 4
     prompt_score_threshold: 0.55
     prompt_relative_threshold: 0.80

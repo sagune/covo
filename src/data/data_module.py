@@ -194,7 +194,8 @@ class KWSDataMod(LightningDataModule):
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
                     wav_folder = os.path.join(self.test_info.root, 'wav'),
-                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None,
+                    compute_kws_features = self.asr_backend != 'sensevoice',
                 )
             elif self.test_info.name == 'acl':
                 self.test_dataset = ACL6060KeywordDataset(
@@ -218,7 +219,8 @@ class KWSDataMod(LightningDataModule):
                     kw_type = self.test_info.kw_type,
                     load_audio = True,
                     wav_folder = wav_root,
-                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
+                    feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None,
+                    compute_kws_features = self.asr_backend != 'sensevoice',
                 )
 
     def train_dataloader(self): 

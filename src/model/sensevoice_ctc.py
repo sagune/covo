@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import math
+import os
+import sys
+import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
 import torch
 
 
 NEG_INF = -float("inf")
+_FAST_DECODER = None
+_FAST_DECODER_ERROR: Exception | None = None
+_FAST_DECODER_LOCK = threading.Lock()
 
 
 def _logadd(*values: float) -> float:
@@ -69,6 +76,91 @@ class ContextualHotwordScorer:
         return float(best)
 
 
+def _load_fast_decoder():
+    global _FAST_DECODER, _FAST_DECODER_ERROR
+    if _FAST_DECODER is not None:
+        return _FAST_DECODER
+    if _FAST_DECODER_ERROR is not None:
+        return None
+    with _FAST_DECODER_LOCK:
+        if _FAST_DECODER is not None:
+            return _FAST_DECODER
+        if _FAST_DECODER_ERROR is not None:
+            return None
+        try:
+            from torch.utils.cpp_extension import load
+
+            source = Path(__file__).with_name("sensevoice_ctc_fast.cpp")
+            python_bin_dir = str(Path(sys.executable).resolve().parent)
+            path_entries = os.environ.get("PATH", "").split(os.pathsep)
+            if python_bin_dir not in path_entries:
+                os.environ["PATH"] = python_bin_dir + os.pathsep + os.environ.get("PATH", "")
+            _FAST_DECODER = load(
+                name="cb_sensevoice_ctc_fast_v1",
+                sources=[str(source)],
+                extra_cflags=["-O3", "-std=c++17"],
+                verbose=os.getenv("CBW_CTC_BUILD_VERBOSE", "0").lower() in {"1", "true", "yes"},
+            )
+        except Exception as exc:
+            _FAST_DECODER_ERROR = exc
+            print(f"[cb-sensevoice][warn] fast CTC decoder unavailable, using Python fallback: {exc}")
+            return None
+    return _FAST_DECODER
+
+
+def _ctc_prefix_beam_search_fast(
+    log_probs: torch.Tensor,
+    beam_size: int,
+    token_topk: int,
+    blank_id: int,
+    hotword_scorer: ContextualHotwordScorer | None,
+    excluded_token_ids: Iterable[int],
+) -> List[CTCCandidate] | None:
+    extension = _load_fast_decoder()
+    if extension is None:
+        return None
+    excluded = sorted({int(token) for token in excluded_token_ids})
+    values, indices = torch.topk(log_probs.detach().float(), k=token_topk, dim=-1)
+    extra_tokens = {int(blank_id)}
+    hotwords: List[List[int]] = []
+    confidences: List[float] = []
+    token_weight = 0.0
+    completion_weight = 0.0
+    if hotword_scorer is not None:
+        hotwords = [list(tokens) for tokens, _ in hotword_scorer.entries]
+        confidences = [float(confidence) for _, confidence in hotword_scorer.entries]
+        extra_tokens.update(hotword_scorer.token_ids)
+        token_weight = float(hotword_scorer.token_weight)
+        completion_weight = float(hotword_scorer.completion_weight)
+    extra = sorted(extra_tokens)
+    if extra:
+        extra_index = torch.tensor(extra, dtype=torch.long, device=log_probs.device)
+        extra_values = log_probs.detach().float().index_select(-1, extra_index)
+        extra_indices = extra_index.unsqueeze(0).expand(log_probs.size(0), -1)
+        values = torch.cat((values, extra_values), dim=-1)
+        indices = torch.cat((indices, extra_indices), dim=-1)
+    rows = extension.decode(
+        values.cpu().tolist(),
+        indices.cpu().tolist(),
+        int(beam_size),
+        int(blank_id),
+        hotwords,
+        confidences,
+        token_weight,
+        completion_weight,
+        excluded,
+    )
+    return [
+        CTCCandidate(
+            token_ids=tuple(int(token) for token in tokens),
+            acoustic_score=float(acoustic),
+            search_score=float(search),
+            hotword_score=float(hotword),
+        )
+        for tokens, acoustic, search, hotword in rows
+    ]
+
+
 def ctc_prefix_beam_search(
     log_probs: torch.Tensor,
     beam_size: int,
@@ -88,6 +180,18 @@ def ctc_prefix_beam_search(
     beam_size = max(1, int(beam_size))
     token_topk = max(1, min(int(token_topk), int(log_probs.size(-1))))
     excluded = {int(token) for token in excluded_token_ids}
+    backend = os.getenv("CBW_CTC_DECODER", "cpp").strip().lower()
+    if backend not in {"python", "py", "reference"}:
+        fast = _ctc_prefix_beam_search_fast(
+            log_probs=log_probs,
+            beam_size=beam_size,
+            token_topk=token_topk,
+            blank_id=blank_id,
+            hotword_scorer=hotword_scorer,
+            excluded_token_ids=excluded,
+        )
+        if fast is not None:
+            return fast
     beams: Dict[Tuple[int, ...], Tuple[float, float, float, float]] = {
         (): (0.0, NEG_INF, 0.0, NEG_INF)
     }

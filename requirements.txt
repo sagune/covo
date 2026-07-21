@@ -19,6 +19,7 @@ pydub>=0.25.1
 paddlespeech>=1.4.0  # 注意 paddlepaddle 要单独装（见下面）
 
 # Utils
+ninja>=1.11.0
 matplotlib>=3.8.0
 mlflow>=2.9.0
 PyYAML>=6.0.1

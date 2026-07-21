@@ -5070,3 +5070,39 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   links and `3139` hotwords. The remaining full run synthesizes one TTS example
   per entity, extracts matching SenseVoice hidden states, extracts all test
   utterance hidden states, and evaluates naked/CB candidate and oracle metrics.
+
+### Equivalent CTC decoding acceleration
+
+- Replaced the frame-by-frame Python CTC prefix-beam hot loop with the C++
+  extension in `src/model/sensevoice_ctc_fast.cpp`; the Python implementation
+  remains available as an automatic fallback or via `CBW_CTC_DECODER=python`.
+- The KWS stage, neutral and hotword-biased decode branches, dynamic prefix
+  reward, beam size, token top-k, acoustic/search scores, and downstream rerank
+  are unchanged.
+- Synthetic and real ST-CMDS checks produced identical 24-best token sequences
+  and zero score delta. On a real 55-frame SenseVoice output, warm contextual
+  decode latency decreased from `0.7223 s` to `0.0246 s` (`29.4x`).
+- The extension requires `ninja`, now declared in `requirements.txt`. It builds
+  once through PyTorch's extension cache and then loads in later runs.
+- The interrupted Python-decoder full run was discarded before metrics were
+  produced. The full `10260`-utterance evaluation was restarted from clean
+  result logs while reusing all validated TTS and hidden-state artifacts.
+
+### Large-lexicon KWS acceleration
+
+- With `3139` hotwords, the legacy test loader materialized roughly `1.4 GB`
+  of resized KWS similarity matrices per utterance. SenseVoice evaluation now
+  passes the small pre-extracted utterance hidden state and computes similarity
+  matrices in GPU-resident groups, avoiding the full per-sample tensor.
+- Keyword hidden states are cached on their target device instead of being
+  copied for every utterance. The original KWS checkpoint and matrix size
+  (`150x750`) remain unchanged.
+- A lightweight mean-max frame-similarity retrieval keeps the top `32/100`
+  terms in each group before the trained KWS network. This is a two-stage
+  retrieval/verification implementation rather than a threshold adjustment.
+- On the first `63` ST-CMDS rows, which contain `42` reference entities, full
+  KWS and top-32 KWS both recalled `38/42` and missed the same four entities.
+  Prompt coverage was `32/42` for full KWS and `37/42` for top-32 KWS.
+- End-to-end time on those rows decreased from `279 s` (full KWS) to an
+  extrapolated `108 s` at the measured top-32 throughput. A separate 100-row
+  top-32 run completed in `171 s` (`0.59 utterances/s`).
