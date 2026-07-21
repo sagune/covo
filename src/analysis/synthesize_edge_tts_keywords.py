@@ -27,6 +27,7 @@ async def synthesize_one(
     voice: str,
     output: Path,
     retries: int,
+    timeout_seconds: float,
 ) -> tuple[bool, str]:
     if output.exists() and output.stat().st_size > 0:
         return True, "existing"
@@ -35,7 +36,10 @@ async def synthesize_one(
         for attempt in range(1, retries + 1):
             temporary = output.with_suffix(f".attempt{attempt}.mp3")
             try:
-                await edge_tts.Communicate(text, voice).save(str(temporary))
+                await asyncio.wait_for(
+                    edge_tts.Communicate(text, voice).save(str(temporary)),
+                    timeout=timeout_seconds,
+                )
                 if temporary.exists() and temporary.stat().st_size > 0:
                     temporary.replace(output)
                     return True, "written"
@@ -66,6 +70,7 @@ async def run(args: argparse.Namespace) -> int:
             voice=voice,
             output=args.output_dir / f"{index:0{width}d}.mp3",
             retries=max(1, args.retries),
+            timeout_seconds=max(1.0, args.timeout_seconds),
         ))
 
     written = existing = failed = 0
@@ -97,6 +102,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--concurrency", type=int, default=6)
     parser.add_argument("--retries", type=int, default=3)
+    parser.add_argument("--timeout-seconds", type=float, default=45.0)
     parser.add_argument("--log-every", type=int, default=100)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--fail-on-error", action="store_true")

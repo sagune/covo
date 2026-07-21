@@ -40,6 +40,7 @@ mkdir -p "$split_dir" "$keyword_audio_dir" "$log_dir"
   --keywords "$keyword_file" \
   --concurrency 6 \
   --retries 3 \
+  --timeout-seconds 45 \
   --log-every 100 \
   --fail-on-error \
   > "$log_dir/stcmds_cb_sensevoice_tts_20260721.log" 2>&1
