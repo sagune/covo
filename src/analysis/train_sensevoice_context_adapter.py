@@ -24,6 +24,7 @@ from analysis.extract_sensevoice_hidden_states import encode_sensevoice, load_fb
 from model.sensevoice_context_adapter import (  # noqa: E402
     SenseVoiceContextAdapter,
     SenseVoicePhraseContextAdapter,
+    load_context_adapter,
     pinyin_bucket_ids,
 )
 
@@ -33,6 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--audio-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--initial-adapter", type=Path)
     parser.add_argument("--model", default="iic/SenseVoiceSmall")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--language", default="zh")
@@ -48,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--phonetic-distractors", type=int, default=3)
     parser.add_argument("--position-loss-weight", type=float, default=0.25)
     parser.add_argument("--phrase-loss-weight", type=float, default=0.15)
+    parser.add_argument("--hotword-ctc-loss-weight", type=float, default=0.30)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-3)
     parser.add_argument("--max-grad-norm", type=float, default=5.0)
@@ -174,6 +177,52 @@ def phrase_position_targets(
     return target
 
 
+def localized_hotword_ctc_loss(
+    row: dict,
+    adapted_log_probs: torch.Tensor,
+    tokenizer,
+    blank_id: int,
+    device: str,
+) -> torch.Tensor:
+    """Apply CTC directly to each aligned positive phrase and its local frames."""
+    with wave.open(str(row["audio"]), "rb") as audio_file:
+        duration = float(audio_file.getnframes()) / max(float(audio_file.getframerate()), 1.0)
+    if duration <= 0.0:
+        return adapted_log_probs.new_zeros(())
+    frame_count = int(adapted_log_probs.size(1))
+    vocab_size = int(adapted_log_probs.size(-1))
+    losses = []
+    for span in row["positive_spans"]:
+        target = [
+            int(token)
+            for token in tokenizer.encode(span["word"])
+            if int(token) != blank_id and 0 <= int(token) < vocab_size
+        ]
+        if not target:
+            continue
+        start = max(0, min(frame_count - 1, int(float(span["start"]) / duration * frame_count)))
+        end = max(start + 1, min(frame_count, int(float(span["end"]) / duration * frame_count + 0.999)))
+        margin = max(2, len(target) // 2)
+        start = max(0, start - margin)
+        end = min(frame_count, end + margin)
+        if end - start < len(target):
+            continue
+        segment = adapted_log_probs[:, start:end, :]
+        local_loss = F.ctc_loss(
+                segment.transpose(0, 1),
+                torch.tensor(target, dtype=torch.long, device=device),
+                input_lengths=torch.tensor([segment.size(1)], dtype=torch.long),
+                target_lengths=torch.tensor([len(target)], dtype=torch.long),
+                blank=blank_id,
+                reduction="mean",
+                zero_infinity=True,
+            )
+        # Timestamp boundaries can be tighter than the CTC emission support.
+        # Log compression keeps those hard spans useful without dominating a batch.
+        losses.append(torch.log1p(local_loss))
+    return torch.stack(losses).mean() if losses else adapted_log_probs.new_zeros(())
+
+
 def save_checkpoint(path: Path, adapter: torch.nn.Module, metadata: dict, adapter_type: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
@@ -205,7 +254,15 @@ def main() -> int:
     model.eval()
     model.requires_grad_(False)
     hidden_size = int(model.encoder_output_size)
-    if args.adapter_type == "phrase":
+    if args.initial_adapter is not None:
+        adapter = load_context_adapter(str(args.initial_adapter))
+        loaded_type = "phrase" if bool(getattr(adapter, "expects_phrases", False)) else "frame"
+        if loaded_type != args.adapter_type:
+            raise ValueError(
+                f"initial adapter type {loaded_type!r} does not match --adapter-type {args.adapter_type!r}"
+            )
+        adapter = adapter.to(args.device)
+    elif args.adapter_type == "phrase":
         adapter = SenseVoicePhraseContextAdapter(
             hidden_size=hidden_size,
             projection_size=args.projection_size,
@@ -315,17 +372,33 @@ def main() -> int:
                     pos_weight=positive_weight,
                 )
                 phrase_loss = adapted.new_zeros(())
+                hotword_ctc_loss = adapted.new_zeros(())
                 if args.adapter_type == "phrase":
                     phrase_target = torch.tensor(
                         phrase_labels,
                         dtype=phrase_logits.dtype,
                         device=args.device,
                     ).unsqueeze(0)
-                    phrase_loss = F.binary_cross_entropy_with_logits(phrase_logits, phrase_target)
+                    phrase_positive_weight = (
+                        (phrase_target.numel() - phrase_target.sum()) / phrase_target.sum().clamp_min(1.0)
+                    ).clamp(min=1.0, max=20.0)
+                    phrase_loss = F.binary_cross_entropy_with_logits(
+                        phrase_logits,
+                        phrase_target,
+                        pos_weight=phrase_positive_weight,
+                    )
+                    hotword_ctc_loss = localized_hotword_ctc_loss(
+                        row,
+                        adapted,
+                        tokenizer,
+                        int(model.blank_id),
+                        args.device,
+                    )
                 loss = (
                     asr_loss
                     + float(args.position_loss_weight) * position_loss
                     + float(args.phrase_loss_weight) * phrase_loss
+                    + float(args.hotword_ctc_loss_weight) * hotword_ctc_loss
                 )
                 if not torch.isfinite(loss):
                     skipped += 1
@@ -346,7 +419,7 @@ def main() -> int:
             optimizer_step += 1
             if optimizer_step % args.log_every == 0:
                 elapsed = time.time() - started
-                print(json.dumps({"event": "train_progress", "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "asr_loss": float(asr_loss.detach()), "position_loss": float(position_loss.detach()), "phrase_loss": float(phrase_loss.detach()), "steps_per_second": optimizer_step / elapsed, "skipped": skipped}, ensure_ascii=False), flush=True)
+                print(json.dumps({"event": "train_progress", "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "asr_loss": float(asr_loss.detach()), "position_loss": float(position_loss.detach()), "phrase_loss": float(phrase_loss.detach()), "hotword_ctc_loss": float(hotword_ctc_loss.detach()), "steps_per_second": optimizer_step / elapsed, "skipped": skipped}, ensure_ascii=False), flush=True)
             metadata = {"model": args.model, "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "seed": args.seed}
             if args.save_every > 0 and optimizer_step % args.save_every == 0:
                 save_checkpoint(args.output.with_name(f"{args.output.stem}-step{optimizer_step}{args.output.suffix}"), adapter, metadata, args.adapter_type)
