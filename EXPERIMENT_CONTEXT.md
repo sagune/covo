@@ -5156,3 +5156,20 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
 - Interpretation: standalone COVO has substantial generic correction ability,
   but without contextual evidence it cannot solve the named-entity benchmark.
   Use this as the COVO-only ablation, not as the full proposed system.
+
+## AISHELL-NE standalone CB-SenseVoice evaluation (2026-07-21)
+
+- Scope: all `808` rows; SenseVoice KWS + contextual SenseVoice CTC + CB
+  reranking, with no COVO.
+- Existing full predictions were mapped back to official utterance IDs and
+  checked against the ordered references before rescoring.
+- Historical local scorer: mean CER `0.062025`, mention-level entity recall
+  `0.832044`.
+- Unified COVO normalization: corpus CER `0.078231` (`1008/12885` edits),
+  mean sample CER `0.079558`, exact `432/808`.
+- SeACo designated-list recall: `313/400 = 0.7825`; R1 difficult-hotword
+  recall: `141/226 = 0.623894`.
+- Keep both CER values labeled by normalization. For paper comparison, use
+  designated Recall@400/R1@226 rather than the local mention-level recall.
+- Detailed misses and metrics:
+  `src/logs/aishellne808_cb_sensevoice_only_seaco_eval_20260721.json`.

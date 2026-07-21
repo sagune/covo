@@ -1154,3 +1154,24 @@ Artifacts:
 - `src/logs/aishellne808_sensevoice_covo_only_preserve2_predictions_20260721.jsonl`
 - `src/logs/aishellne808_sensevoice_covo_only_preserve2_cer_20260721.json`
 - `src/logs/aishellne808_sensevoice_covo_only_preserve2_hotword_recall_20260721.json`
+
+## AISHELL-NE Standalone CB-SenseVoice Evaluation (2026-07-21)
+
+The standalone contextual module was evaluated on all 808 AISHELL-NE rows as
+SenseVoice encoder/KWS -> contextual SenseVoice CTC beam -> CB reranking, with
+no COVO correction. The previously completed full output was rescored against
+the benchmark's designated 400-hotword list and 226-word R1 difficult subset.
+
+| Metric family | CER | Hotword recall | R1 recall | Exact utterances |
+|---|---:|---:|---:|---:|
+| Original local scorer | 6.2025% mean CER | 83.2044% mention-level | not previously reported | 484/808 under local normalization |
+| Unified COVO text normalization | 7.8231% corpus CER | **78.25% (313/400)** | **62.39% (141/226)** | 432/808 |
+
+The two rows are not contradictory: the historical local scorer applies the
+CB evaluation normalization and averages utterance CER, while the unified
+score removes punctuation/spaces with COVO normalization and computes corpus
+CER. The designated-list recalls are the appropriate values for comparison
+with SeACo-style Recall@400 and R1 Recall@226. They should not be replaced by
+the local 944-mention recall in a paper comparison.
+
+Artifact: `src/logs/aishellne808_cb_sensevoice_only_seaco_eval_20260721.json`.
