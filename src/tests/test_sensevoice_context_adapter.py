@@ -92,6 +92,30 @@ class SenseVoicePhraseContextAdapterTest(unittest.TestCase):
         (-output[..., 2].mean() + positions.mean() + phrases.mean()).backward()
         self.assertIsNotNone(adapter.cross_attention.in_proj_weight.grad)
 
+    def test_monotonic_phrase_activation_shapes_and_gradients(self):
+        adapter = SenseVoicePhraseContextAdapter(
+            hidden_size=8,
+            projection_size=8,
+            num_heads=2,
+            num_context_layers=1,
+            dropout=0.0,
+            monotonic_phrase_activation=True,
+        )
+        hidden = torch.randn(1, 12, 8, requires_grad=True)
+        output, positions, phrases = adapter(
+            hidden,
+            torch.randn(1, 12, 16).log_softmax(-1),
+            torch.randn(16, 8),
+            context_phrases=[[2, 3, 4], [7, 8]],
+            context_pinyin_ids=[[11, 12, 13], [21, 22]],
+            return_auxiliary=True,
+        )
+        self.assertEqual(tuple(output.shape), (1, 12, 16))
+        self.assertEqual(tuple(positions.shape), (1, 12, 2))
+        self.assertEqual(tuple(phrases.shape), (1, 2))
+        output.sum().backward()
+        self.assertIsNotNone(hidden.grad)
+
 
 if __name__ == "__main__":
     unittest.main()

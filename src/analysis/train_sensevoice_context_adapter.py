@@ -43,6 +43,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--adapter-type", choices=("frame", "phrase"), default="phrase")
     parser.add_argument("--context-layers", type=int, default=2)
     parser.add_argument("--context-heads", type=int, default=4)
+    parser.add_argument("--monotonic-phrase-activation", action="store_true")
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--max-steps", type=int)
     parser.add_argument("--gradient-accumulation", type=int, default=8)
@@ -261,6 +262,16 @@ def main() -> int:
             raise ValueError(
                 f"initial adapter type {loaded_type!r} does not match --adapter-type {args.adapter_type!r}"
             )
+        if (
+            args.adapter_type == "phrase"
+            and args.monotonic_phrase_activation
+            and not bool(getattr(adapter, "monotonic_phrase_activation", False))
+        ):
+            upgraded = SenseVoicePhraseContextAdapter(
+                **{**adapter.config(), "monotonic_phrase_activation": True}
+            )
+            upgraded.load_state_dict(adapter.state_dict(), strict=True)
+            adapter = upgraded
         adapter = adapter.to(args.device)
     elif args.adapter_type == "phrase":
         adapter = SenseVoicePhraseContextAdapter(
@@ -268,6 +279,7 @@ def main() -> int:
             projection_size=args.projection_size,
             num_heads=args.context_heads,
             num_context_layers=args.context_layers,
+            monotonic_phrase_activation=args.monotonic_phrase_activation,
         ).to(args.device)
     else:
         adapter = SenseVoiceContextAdapter(

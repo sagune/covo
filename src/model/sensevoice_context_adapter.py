@@ -137,6 +137,7 @@ class SenseVoicePhraseContextAdapter(nn.Module):
         max_phrase_tokens: int = 32,
         pinyin_buckets: int = 512,
         dropout: float = 0.1,
+        monotonic_phrase_activation: bool = False,
     ) -> None:
         super().__init__()
         self.hidden_size = int(hidden_size)
@@ -146,6 +147,7 @@ class SenseVoicePhraseContextAdapter(nn.Module):
         self.max_phrase_tokens = int(max_phrase_tokens)
         self.pinyin_buckets = int(pinyin_buckets)
         self.dropout = float(dropout)
+        self.monotonic_phrase_activation = bool(monotonic_phrase_activation)
 
         self.audio_projection = nn.Linear(self.hidden_size, self.projection_size, bias=False)
         self.token_projection = nn.Linear(self.hidden_size, self.projection_size, bias=False)
@@ -185,7 +187,43 @@ class SenseVoicePhraseContextAdapter(nn.Module):
             "max_phrase_tokens": self.max_phrase_tokens,
             "pinyin_buckets": self.pinyin_buckets,
             "dropout": self.dropout,
+            "monotonic_phrase_activation": self.monotonic_phrase_activation,
         }
+
+    @staticmethod
+    def _monotonic_phrase_logits(
+        token_alignment_logits: torch.Tensor,
+        phrase_spans: list[tuple[int, int]],
+    ) -> torch.Tensor:
+        """Score complete phrases as ordered diagonals in frame-token affinity."""
+        batch_size, frame_count, _ = token_alignment_logits.shape
+        phrase_rows = []
+        for start, end in phrase_spans:
+            phrase = token_alignment_logits[:, :, start:end]
+            token_count = end - start
+            rate_rows = []
+            for rate in (1, 2, 3):
+                shifted_tokens = []
+                center = (token_count - 1) / 2.0
+                for token_index in range(token_count):
+                    offset = int(round((token_index - center) * rate))
+                    shifted = phrase.new_full((batch_size, frame_count), -20.0)
+                    if 0 <= offset < frame_count:
+                        shifted[:, :frame_count - offset] = phrase[:, offset:, token_index]
+                    elif -frame_count < offset < 0:
+                        shifted[:, -offset:] = phrase[:, :frame_count + offset, token_index]
+                    shifted_tokens.append(shifted)
+                rate_rows.append(torch.stack(shifted_tokens, dim=-1).mean(dim=-1))
+            completion = torch.stack(rate_rows, dim=-1).amax(dim=-1)
+            radius = max(1, token_count * 2)
+            completion = F.max_pool1d(
+                completion.unsqueeze(1),
+                kernel_size=radius * 2 + 1,
+                stride=1,
+                padding=radius,
+            ).squeeze(1)
+            phrase_rows.append(completion)
+        return torch.stack(phrase_rows, dim=-1)
 
     def _encode_phrases(
         self,
@@ -314,19 +352,35 @@ class SenseVoicePhraseContextAdapter(nn.Module):
             torch.matmul(normalized_queries, normalized_memory.transpose(0, 1))
             - self.similarity_offset
         ) * temperature
+        if self.monotonic_phrase_activation:
+            frame_phrase_logits = self._monotonic_phrase_logits(token_alignment_logits, phrase_spans)
+            phrase_activation = torch.sigmoid(frame_phrase_logits)
+            attended = attended * phrase_activation.amax(dim=-1, keepdim=True)
+            adapted_hidden = encoder_hidden + hidden_scale * self.context_output(attended)
+            adapted_logits = F.linear(adapted_hidden, ctc_token_weights, ctc_token_bias)
+            token_phrase_activation = torch.cat(
+                [
+                    phrase_activation[:, :, phrase_index:phrase_index + 1].expand(-1, -1, end - start)
+                    for phrase_index, (start, end) in enumerate(phrase_spans)
+                ],
+                dim=-1,
+            )
+        else:
+            frame_phrase_logits = torch.stack(
+                [token_alignment_logits[:, :, start:end].amax(dim=-1) for start, end in phrase_spans],
+                dim=-1,
+            )
+            token_phrase_activation = 1.0
         token_residual = (
             F.softplus(self.log_token_scale)
             * torch.sigmoid(token_alignment_logits)
             * token_confidences.view(1, 1, -1)
+            * token_phrase_activation
         )
         adapted_logits.index_add_(2, token_ids, token_residual)
         adapted_log_probs = F.log_softmax(adapted_logits, dim=-1)
 
         if return_auxiliary:
-            frame_phrase_logits = torch.stack(
-                [token_alignment_logits[:, :, start:end].amax(dim=-1) for start, end in phrase_spans],
-                dim=-1,
-            )
             phrase_logits = torch.logsumexp(frame_phrase_logits, dim=1) - math.log(
                 max(1, frame_phrase_logits.size(1))
             )
