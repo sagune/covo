@@ -51,6 +51,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--position-loss-weight", type=float, default=0.25)
     parser.add_argument("--phrase-loss-weight", type=float, default=0.15)
     parser.add_argument("--hotword-ctc-loss-weight", type=float, default=0.30)
+    parser.add_argument("--contrastive-hotword-ctc-loss-weight", type=float, default=0.0)
+    parser.add_argument("--contrastive-margin", type=float, default=0.30)
+    parser.add_argument("--contrastive-window-seconds", type=float, default=0.45)
+    parser.add_argument("--contrastive-negatives", type=int, default=3)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-3)
     parser.add_argument("--max-grad-norm", type=float, default=5.0)
@@ -223,6 +227,133 @@ def localized_hotword_ctc_loss(
     return torch.stack(losses).mean() if losses else adapted_log_probs.new_zeros(())
 
 
+def _sequence_distance(left: tuple[str, ...], right: tuple[str, ...]) -> int:
+    previous = list(range(len(right) + 1))
+    for left_index, left_item in enumerate(left, start=1):
+        current = [left_index]
+        for right_index, right_item in enumerate(right, start=1):
+            current.append(
+                min(
+                    current[-1] + 1,
+                    previous[right_index] + 1,
+                    previous[right_index - 1] + (left_item != right_item),
+                )
+            )
+        previous = current
+    return previous[-1]
+
+
+def _ctc_sequence_loss(
+    segment_log_probs: torch.Tensor,
+    target: list[int],
+    blank_id: int,
+) -> torch.Tensor | None:
+    if not target or segment_log_probs.size(1) < len(target):
+        return None
+    loss = F.ctc_loss(
+        segment_log_probs.transpose(0, 1),
+        torch.tensor(target, dtype=torch.long, device=segment_log_probs.device),
+        input_lengths=torch.tensor([segment_log_probs.size(1)], dtype=torch.long),
+        target_lengths=torch.tensor([len(target)], dtype=torch.long),
+        blank=blank_id,
+        reduction="sum",
+        zero_infinity=False,
+    )
+    if not torch.isfinite(loss):
+        return None
+    return loss / max(1, len(target))
+
+
+def phrase_ctc_ranking_loss(
+    segment_log_probs: torch.Tensor,
+    positive_target: list[int],
+    negative_targets: list[list[int]],
+    blank_id: int,
+    margin: float,
+) -> torch.Tensor:
+    """Rank the complete correct phrase above its strongest confusable phrase."""
+    positive_loss = _ctc_sequence_loss(segment_log_probs, positive_target, blank_id)
+    if positive_loss is None:
+        return segment_log_probs.new_zeros(())
+    negative_losses = [
+        loss
+        for target in negative_targets
+        if (loss := _ctc_sequence_loss(segment_log_probs, target, blank_id)) is not None
+    ]
+    if not negative_losses:
+        return segment_log_probs.new_zeros(())
+    hardest_negative = torch.stack(negative_losses).amin()
+    return F.softplus(positive_loss - hardest_negative + float(margin))
+
+
+def contrastive_hotword_ctc_loss(
+    row: dict,
+    context: list[str],
+    adapted_log_probs: torch.Tensor,
+    tokenizer,
+    blank_id: int,
+    window_seconds: float,
+    negative_count: int,
+    margin: float,
+) -> torch.Tensor:
+    """Contrast aligned hotwords with the closest pinyin-confusable prompt entries."""
+    with wave.open(str(row["audio"]), "rb") as audio_file:
+        duration = float(audio_file.getnframes()) / max(float(audio_file.getframerate()), 1.0)
+    if duration <= 0.0:
+        return adapted_log_probs.new_zeros(())
+
+    frame_count = int(adapted_log_probs.size(1))
+    vocab_size = int(adapted_log_probs.size(-1))
+    positives = set(row["positive_hotwords"])
+    losses = []
+    for span in row["positive_spans"]:
+        positive = str(span["word"])
+        positive_key = phonetic_key(positive)
+        ranked_negatives = sorted(
+            (
+                (_sequence_distance(positive_key, phonetic_key(candidate)), abs(len(candidate) - len(positive)), candidate)
+                for candidate in context
+                if candidate not in positives
+            ),
+            key=lambda item: (item[0], item[1]),
+        )[: max(1, int(negative_count))]
+        if not ranked_negatives:
+            continue
+        positive_target = [
+            int(token)
+            for token in tokenizer.encode(positive)
+            if int(token) != blank_id and 0 <= int(token) < vocab_size
+        ]
+        negative_targets = [
+            [
+                int(token)
+                for token in tokenizer.encode(candidate)
+                if int(token) != blank_id and 0 <= int(token) < vocab_size
+            ]
+            for _, _, candidate in ranked_negatives
+        ]
+        frame_margin = max(2, int(max(0.0, float(window_seconds)) / duration * frame_count + 0.5))
+        start = max(
+            0,
+            min(frame_count - 1, int(float(span["start"]) / duration * frame_count)) - frame_margin,
+        )
+        end = min(
+            frame_count,
+            max(start + 1, int(float(span["end"]) / duration * frame_count + 0.999)) + frame_margin,
+        )
+        segment = adapted_log_probs[:, start:end, :]
+        ranking_loss = phrase_ctc_ranking_loss(
+            segment,
+            positive_target,
+            negative_targets,
+            blank_id,
+            margin,
+        )
+        if ranking_loss.requires_grad:
+            losses.append(ranking_loss)
+    return torch.stack(losses).mean() if losses else adapted_log_probs.new_zeros(())
+
+
 def save_checkpoint(path: Path, adapter: torch.nn.Module, metadata: dict, adapter_type: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
@@ -235,6 +366,13 @@ def save_checkpoint(path: Path, adapter: torch.nn.Module, metadata: dict, adapte
         },
         path,
     )
+
+
+def serializable_training_args(args: argparse.Namespace) -> dict:
+    return {
+        key: str(value) if isinstance(value, Path) else value
+        for key, value in vars(args).items()
+    }
 
 
 def main() -> int:
@@ -373,6 +511,7 @@ def main() -> int:
                 )
                 phrase_loss = adapted.new_zeros(())
                 hotword_ctc_loss = adapted.new_zeros(())
+                contrastive_ctc_loss = adapted.new_zeros(())
                 if args.adapter_type == "phrase":
                     phrase_target = torch.tensor(
                         phrase_labels,
@@ -387,18 +526,31 @@ def main() -> int:
                         phrase_target,
                         pos_weight=phrase_positive_weight,
                     )
-                    hotword_ctc_loss = localized_hotword_ctc_loss(
-                        row,
-                        adapted,
-                        tokenizer,
-                        int(model.blank_id),
-                        args.device,
-                    )
+                    if args.hotword_ctc_loss_weight > 0.0:
+                        hotword_ctc_loss = localized_hotword_ctc_loss(
+                            row,
+                            adapted,
+                            tokenizer,
+                            int(model.blank_id),
+                            args.device,
+                        )
+                    if args.contrastive_hotword_ctc_loss_weight > 0.0:
+                        contrastive_ctc_loss = contrastive_hotword_ctc_loss(
+                            row=row,
+                            context=context,
+                            adapted_log_probs=adapted,
+                            tokenizer=tokenizer,
+                            blank_id=int(model.blank_id),
+                            window_seconds=args.contrastive_window_seconds,
+                            negative_count=args.contrastive_negatives,
+                            margin=args.contrastive_margin,
+                        )
                 loss = (
                     asr_loss
                     + float(args.position_loss_weight) * position_loss
                     + float(args.phrase_loss_weight) * phrase_loss
                     + float(args.hotword_ctc_loss_weight) * hotword_ctc_loss
+                    + float(args.contrastive_hotword_ctc_loss_weight) * contrastive_ctc_loss
                 )
                 if not torch.isfinite(loss):
                     skipped += 1
@@ -419,8 +571,8 @@ def main() -> int:
             optimizer_step += 1
             if optimizer_step % args.log_every == 0:
                 elapsed = time.time() - started
-                print(json.dumps({"event": "train_progress", "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "asr_loss": float(asr_loss.detach()), "position_loss": float(position_loss.detach()), "phrase_loss": float(phrase_loss.detach()), "hotword_ctc_loss": float(hotword_ctc_loss.detach()), "steps_per_second": optimizer_step / elapsed, "skipped": skipped}, ensure_ascii=False), flush=True)
-            metadata = {"model": args.model, "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "seed": args.seed}
+                print(json.dumps({"event": "train_progress", "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "asr_loss": float(asr_loss.detach()), "position_loss": float(position_loss.detach()), "phrase_loss": float(phrase_loss.detach()), "hotword_ctc_loss": float(hotword_ctc_loss.detach()), "contrastive_ctc_loss": float(contrastive_ctc_loss.detach()), "steps_per_second": optimizer_step / elapsed, "skipped": skipped}, ensure_ascii=False), flush=True)
+            metadata = {"model": args.model, "epoch": epoch, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / micro_step, "seed": args.seed, "training_args": serializable_training_args(args)}
             if args.save_every > 0 and optimizer_step % args.save_every == 0:
                 save_checkpoint(args.output.with_name(f"{args.output.stem}-step{optimizer_step}{args.output.suffix}"), adapter, metadata, args.adapter_type)
             if args.max_steps is not None and optimizer_step >= args.max_steps:
@@ -429,7 +581,7 @@ def main() -> int:
         if stop:
             break
 
-    metadata = {"model": args.model, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / max(micro_step, 1), "skipped": skipped, "seconds": time.time() - started, "seed": args.seed}
+    metadata = {"model": args.model, "step": optimizer_step, "micro_step": micro_step, "mean_loss": loss_sum / max(micro_step, 1), "skipped": skipped, "seconds": time.time() - started, "seed": args.seed, "training_args": serializable_training_args(args)}
     save_checkpoint(args.output, adapter, metadata, args.adapter_type)
     print(json.dumps({"event": "train_done", "output": str(args.output), **metadata}, ensure_ascii=False), flush=True)
     return 0
