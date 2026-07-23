@@ -5206,6 +5206,10 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   strict top1 `323 -> 324`, and R1 `150 -> 151`. However, n-best recall stayed
   `326/400` and unified CER regressed `0.048273 -> 0.050136` (24 additional
   edits). Treat it as a mixed structural ablation, not the new main model.
+- A 0.75-floor residual version improved the strict funnel to
+  `380/369/327/325` and R1 to `152/226`. Local CER was `0.051155` and unified
+  CER `0.050369` (`649/12885`), so keep it as the current recall-oriented
+  checkpoint but retain the 20260722 adapter as the joint CER/recall model.
 - Decision: roll back all runtime changes and retain
   `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
   The next candidate-generation improvement should couple the richer mixed

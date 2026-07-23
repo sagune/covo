@@ -1285,6 +1285,7 @@ CER/recall criterion, so all runtime changes were rolled back.
 | True neutral/contextual dual candidate branches | 5.0752% | 84.4199% | 5.8750% | 323/400 | 150/226 | Reject |
 | Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
 | Monotonic complete-phrase activation | **5.0820%** | **84.5304%** | 5.0136% | **324/400** | **151/226** | Mixed; retain baseline |
+| Monotonic residual fusion (floor 0.75) | 5.1155% | 84.4199% | 5.0369% | **325/400** | **152/226** | Recall variant |
 
 The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
 with insufficient alignment tolerance. A 0.5-second margin and lower learning
@@ -1314,6 +1315,14 @@ mention and strict top1 recall, but left n-best coverage unchanged at
 activation suppresses useful generic acoustic evidence. It is retained as an
 ablation, while the 20260722 phrase cross-attention checkpoint remains the
 accepted model.
+
+Replacing hard activation with a 0.75 residual floor recovered more contextual
+coverage: the strict funnel became `380/369/327/325`, versus
+`380/369/326/323` for the accepted model, and R1 improved `150 -> 152`.
+Unified CER remained worse (`622 -> 649` edits), so this checkpoint is kept as
+a recall-oriented variant rather than the joint main result. The remaining
+structural mismatch is that CTC beam search still consumes static KWS scores
+instead of the adapter's complete-phrase acoustic confidence.
 
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
