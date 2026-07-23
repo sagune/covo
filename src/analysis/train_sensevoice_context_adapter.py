@@ -44,6 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--context-layers", type=int, default=2)
     parser.add_argument("--context-heads", type=int, default=4)
     parser.add_argument("--monotonic-phrase-activation", action="store_true")
+    parser.add_argument("--monotonic-residual-floor", type=float, default=0.0)
     parser.add_argument("--epochs", type=int, default=1)
     parser.add_argument("--max-steps", type=int)
     parser.add_argument("--gradient-accumulation", type=int, default=8)
@@ -264,11 +265,17 @@ def main() -> int:
             )
         if (
             args.adapter_type == "phrase"
-            and args.monotonic_phrase_activation
-            and not bool(getattr(adapter, "monotonic_phrase_activation", False))
+            and (
+                args.monotonic_phrase_activation
+                or args.monotonic_residual_floor > 0.0
+            )
         ):
             upgraded = SenseVoicePhraseContextAdapter(
-                **{**adapter.config(), "monotonic_phrase_activation": True}
+                **{
+                    **adapter.config(),
+                    "monotonic_phrase_activation": args.monotonic_phrase_activation,
+                    "monotonic_residual_floor": args.monotonic_residual_floor,
+                }
             )
             upgraded.load_state_dict(adapter.state_dict(), strict=True)
             adapter = upgraded
@@ -280,6 +287,7 @@ def main() -> int:
             num_heads=args.context_heads,
             num_context_layers=args.context_layers,
             monotonic_phrase_activation=args.monotonic_phrase_activation,
+            monotonic_residual_floor=args.monotonic_residual_floor,
         ).to(args.device)
     else:
         adapter = SenseVoiceContextAdapter(

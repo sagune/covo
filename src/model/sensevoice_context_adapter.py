@@ -138,6 +138,7 @@ class SenseVoicePhraseContextAdapter(nn.Module):
         pinyin_buckets: int = 512,
         dropout: float = 0.1,
         monotonic_phrase_activation: bool = False,
+        monotonic_residual_floor: float = 0.0,
     ) -> None:
         super().__init__()
         self.hidden_size = int(hidden_size)
@@ -148,6 +149,7 @@ class SenseVoicePhraseContextAdapter(nn.Module):
         self.pinyin_buckets = int(pinyin_buckets)
         self.dropout = float(dropout)
         self.monotonic_phrase_activation = bool(monotonic_phrase_activation)
+        self.monotonic_residual_floor = float(max(0.0, min(1.0, monotonic_residual_floor)))
 
         self.audio_projection = nn.Linear(self.hidden_size, self.projection_size, bias=False)
         self.token_projection = nn.Linear(self.hidden_size, self.projection_size, bias=False)
@@ -188,6 +190,7 @@ class SenseVoicePhraseContextAdapter(nn.Module):
             "pinyin_buckets": self.pinyin_buckets,
             "dropout": self.dropout,
             "monotonic_phrase_activation": self.monotonic_phrase_activation,
+            "monotonic_residual_floor": self.monotonic_residual_floor,
         }
 
     @staticmethod
@@ -354,7 +357,9 @@ class SenseVoicePhraseContextAdapter(nn.Module):
         ) * temperature
         if self.monotonic_phrase_activation:
             frame_phrase_logits = self._monotonic_phrase_logits(token_alignment_logits, phrase_spans)
-            phrase_activation = torch.sigmoid(frame_phrase_logits)
+            phrase_activation = self.monotonic_residual_floor + (
+                1.0 - self.monotonic_residual_floor
+            ) * torch.sigmoid(frame_phrase_logits)
             attended = attended * phrase_activation.amax(dim=-1, keepdim=True)
             adapted_hidden = encoder_hidden + hidden_scale * self.context_output(attended)
             adapted_logits = F.linear(adapted_hidden, ctc_token_weights, ctc_token_bias)

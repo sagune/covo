@@ -116,6 +116,17 @@ class SenseVoicePhraseContextAdapterTest(unittest.TestCase):
         output.sum().backward()
         self.assertIsNotNone(hidden.grad)
 
+    def test_monotonic_residual_floor_is_serialized(self):
+        adapter = SenseVoicePhraseContextAdapter(
+            hidden_size=8,
+            projection_size=8,
+            num_heads=2,
+            num_context_layers=1,
+            monotonic_phrase_activation=True,
+            monotonic_residual_floor=0.75,
+        )
+        self.assertEqual(adapter.config()["monotonic_residual_floor"], 0.75)
+
 
 if __name__ == "__main__":
     unittest.main()
