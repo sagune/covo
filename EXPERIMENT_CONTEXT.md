@@ -5173,3 +5173,28 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   designated Recall@400/R1@226 rather than the local mention-level recall.
 - Detailed misses and metrics:
   `src/logs/aishellne808_cb_sensevoice_only_seaco_eval_20260721.json`.
+
+## CB-SenseVoice phrase-adapter follow-up ablations (2026-07-23)
+
+- Retained baseline: phrase cross-attention adapter, local CER `0.050933`,
+  mention recall `0.839779`, unified corpus CER `0.048273`, designated
+  Recall@400 `323`, and R1 Recall@226 `150`.
+- A full 2162-step continuation with localized hotword CTC loss regressed to
+  local CER `0.056447`, unified CER `0.054792`, Recall@400 `308`, and R1
+  recall `136`. Fixed timestamp windows are too tight for SenseVoice CTC
+  emission drift.
+- A completion-conserving CTC search score that refunded abandoned partial
+  prefixes slightly improved local CER/mention recall to `0.050648/0.844199`
+  and increased exact rows to `499`, but unified CER was `0.048351` and strict
+  recall was `322/400` and `149/226`. This mixed change was rolled back.
+- A second full continuation used a 0.5-second timestamp margin, CTC auxiliary
+  weight `0.10`, and learning rate `2e-5`. It still regressed to local CER
+  `0.053775`, unified CER `0.053628`, Recall@400 `319`, and R1 recall `147`.
+- Decoding naked SenseVoice logits for the neutral branch and adapted logits
+  only for the contextual branch restored strict recall to `323/400` and
+  `150/226`, with local CER `0.050752`, but unified CER regressed to
+  `0.058750` because current reranking selected weaker naked hypotheses.
+- Decision: roll back all runtime changes and retain
+  `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
+  The next candidate-generation improvement should couple the richer mixed
+  candidate pool with learned selection rather than stronger frame forcing.

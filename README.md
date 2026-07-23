@@ -1268,3 +1268,33 @@ Artifacts:
 - `src/logs/test_metrics_cb_sensevoice_phrase_crossattn_aishell808_20260722.csv`
 - `src/logs/cb_sensevoice_phrase_crossattn_aishell808_evidence_20260722.jsonl`
 - `src/logs/aishellne808_cb_sensevoice_phrase_crossattn_eval_20260722.json`
+
+### Follow-up ablations (2026-07-23)
+
+Four full 808-utterance evaluations tested whether stronger localized hotword
+supervision or cleaner branch separation could improve the phrase
+cross-attention result. None surpassed the accepted checkpoint on the joint
+CER/recall criterion, so all runtime changes were rolled back.
+
+| Variant | Local mean CER | Mention recall | Unified corpus CER | Recall@400 | R1 Recall@226 | Decision |
+|---|---:|---:|---:|---:|---:|---|
+| Accepted phrase cross-attention | 5.0933% | 83.9779% | **4.8273%** | **323/400** | **150/226** | Retain |
+| Narrow localized hotword CTC continuation | 5.6447% | 81.3260% | 5.4792% | 308/400 | 136/226 | Reject |
+| Refund abandoned CTC-prefix rewards | **5.0648%** | **84.4199%** | 4.8351% | 322/400 | 149/226 | Mixed; rollback |
+| Wide-window, low-weight hotword CTC continuation | 5.3775% | 83.8674% | 5.3628% | 319/400 | 147/226 | Reject |
+| True neutral/contextual dual candidate branches | 5.0752% | 84.4199% | 5.8750% | 323/400 | 150/226 | Reject |
+
+The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
+with insufficient alignment tolerance. A 0.5-second margin and lower learning
+rate reduced that mismatch but still moved the already-good adapter away from
+its general ASR optimum. Refunding incomplete prefix rewards produced a cleaner
+candidate pool and slightly improved the historical local metrics, but lost
+one strict hotword and added one unified edit. Separating naked and contextual
+logits restored strict recall, yet the existing reranker selected too many
+weaker naked hypotheses and added 135 unified edits. These results indicate
+that the next useful step is learned candidate selection over the existing
+mixed evidence, not stronger frame-level hotword forcing.
+
+Rejected checkpoints and evidence remain local under
+`src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
+`src/logs/*20260723*`; they are not tracked by git.
