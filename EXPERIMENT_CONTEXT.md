@@ -5201,6 +5201,11 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   Synthetic pinyin/character distractors do not reliably match SenseVoice's
   actual acoustic errors; use online decoded confusions for any later
   sequence-ranking experiment.
+- A structural monotonic complete-phrase activation continuation improved
+  local CER `0.050933 -> 0.050820`, mention recall `0.839779 -> 0.845304`,
+  strict top1 `323 -> 324`, and R1 `150 -> 151`. However, n-best recall stayed
+  `326/400` and unified CER regressed `0.048273 -> 0.050136` (24 additional
+  edits). Treat it as a mixed structural ablation, not the new main model.
 - Decision: roll back all runtime changes and retain
   `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
   The next candidate-generation improvement should couple the richer mixed

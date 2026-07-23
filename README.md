@@ -1284,6 +1284,7 @@ CER/recall criterion, so all runtime changes were rolled back.
 | Wide-window, low-weight hotword CTC continuation | 5.3775% | 83.8674% | 5.3628% | 319/400 | 147/226 | Reject |
 | True neutral/contextual dual candidate branches | 5.0752% | 84.4199% | 5.8750% | 323/400 | 150/226 | Reject |
 | Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
+| Monotonic complete-phrase activation | **5.0820%** | **84.5304%** | 5.0136% | **324/400** | **151/226** | Mixed; retain baseline |
 
 The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
 with insufficient alignment tolerance. A 0.5-second margin and lower learning
@@ -1304,6 +1305,15 @@ distractors were not necessarily errors SenseVoice would generate from the
 audio, so their gradients taught spurious exclusions. Future contrastive
 training must use actual acoustic decode confusions, not synthesized
 vocabulary negatives.
+
+The structural monotonic-activation variant searches ordered token paths at
+one, two, and three encoder frames per token before allowing a phrase to
+modify SenseVoice representations. It improved historical local CER and both
+mention and strict top1 recall, but left n-best coverage unchanged at
+`326/400` and added 24 unified edits (`622 -> 646`). The hard multiplicative
+activation suppresses useful generic acoustic evidence. It is retained as an
+ablation, while the 20260722 phrase cross-attention checkpoint remains the
+accepted model.
 
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
