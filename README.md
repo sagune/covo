@@ -1283,6 +1283,7 @@ CER/recall criterion, so all runtime changes were rolled back.
 | Refund abandoned CTC-prefix rewards | **5.0648%** | **84.4199%** | 4.8351% | 322/400 | 149/226 | Mixed; rollback |
 | Wide-window, low-weight hotword CTC continuation | 5.3775% | 83.8674% | 5.3628% | 319/400 | 147/226 | Reject |
 | True neutral/contextual dual candidate branches | 5.0752% | 84.4199% | 5.8750% | 323/400 | 150/226 | Reject |
+| Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
 
 The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
 with insufficient alignment tolerance. A 0.5-second margin and lower learning
@@ -1294,6 +1295,15 @@ logits restored strict recall, yet the existing reranker selected too many
 weaker naked hypotheses and added 135 unified edits. These results indicate
 that the next useful step is learned candidate selection over the existing
 mixed evidence, not stronger frame-level hotword forcing.
+
+The vocabulary-confusable ranking run continued the accepted adapter for one
+full 17,301-row epoch at `2e-5`. It ranked each aligned positive phrase above
+the nearest pinyin/character distractors in the prompt. The strict funnel
+regressed from `380/369/326/323` to `380/369/317/316`: lexicon-derived
+distractors were not necessarily errors SenseVoice would generate from the
+audio, so their gradients taught spurious exclusions. Future contrastive
+training must use actual acoustic decode confusions, not synthesized
+vocabulary negatives.
 
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and

@@ -5194,6 +5194,13 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   only for the contextual branch restored strict recall to `323/400` and
   `150/226`, with local CER `0.050752`, but unified CER regressed to
   `0.058750` because current reranking selected weaker naked hypotheses.
+- A full low-learning-rate continuation using positive-vs-lexicon-confusable
+  CTC ranking also failed: local CER `0.056734`, mention recall `0.826519`,
+  and the strict KWS/prompt/n-best/top1 funnel `380/369/317/316` (R1
+  `144/226`). The accepted model was `380/369/326/323` (R1 `150/226`).
+  Synthetic pinyin/character distractors do not reliably match SenseVoice's
+  actual acoustic errors; use online decoded confusions for any later
+  sequence-ranking experiment.
 - Decision: roll back all runtime changes and retain
   `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
   The next candidate-generation improvement should couple the richer mixed
