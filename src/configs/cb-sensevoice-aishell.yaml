@@ -75,7 +75,7 @@ model:
     sensevoice_hotword_completion_weight: 0.8
     sensevoice_context_adapter_path: ./outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt
     sensevoice_use_adapter_phrase_confidence: true
-    sensevoice_adapter_phrase_confidence_weight: 11.0
+    sensevoice_adapter_phrase_confidence_weight: 14.0
     use_precomputed_kws_features: true
 
     prompt: true

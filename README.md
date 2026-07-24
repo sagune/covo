@@ -1286,7 +1286,7 @@ CER/recall criterion, so all runtime changes were rolled back.
 | Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
 | Monotonic complete-phrase activation | **5.0820%** | **84.5304%** | 5.0136% | **324/400** | **151/226** | Mixed; retain baseline |
 | Monotonic residual fusion (floor 0.75) | 5.1155% | 84.4199% | 5.0369% | **325/400** | **152/226** | Recall variant |
-| **Acoustic phrase evidence in CTC beam (w=11)** | **4.0341%** | **91.6022%** | **3.9115%** | **361/400** | **187/226** | **New main** |
+| **Acoustic phrase evidence in CTC beam (w=14)** | **3.9188%** | **92.4862%** | **3.7951%** | **366/400** | **192/226** | **New main** |
 
 The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
 with insufficient alignment tolerance. A 0.5-second margin and lower learning
@@ -1329,12 +1329,12 @@ That mismatch is now resolved by passing the adapter's trained phrase-presence
 probability into CTC prefix beam search. KWS remains the prior and acoustic
 evidence supplies a multiplicative completion gain:
 `KWS * (1 + weight * phrase_probability)`. A full weight sweep showed
-monotonic joint gains through weight `11.0`. On all 808 rows, the strict
+monotonic joint gains through weight `14.0`. On all 808 rows, the strict
 KWS/prompt/n-best/top1 funnel improves from `380/369/326/323` to
-`380/369/364/361`; R1 improves `150/226 -> 187/226`. Unified edits decrease
-`622 -> 504` (CER `4.8273% -> 3.9115%`) and exact rows increase `498 -> 533`.
-Mention recall is `91.6022%`, while strict n-best and top1 recall are
-`91.00%` and `90.25%`. Weight `11.0` is the new standalone CB-SenseVoice main
+`380/369/369/366`; R1 improves `150/226 -> 192/226`. Unified edits decrease
+`622 -> 489` (CER `4.8273% -> 3.7951%`) and exact rows increase `498 -> 536`.
+Mention recall is `92.4862%`, while strict n-best and top1 recall are
+`92.25%` and `91.50%`. Weight `14.0` is the new standalone CB-SenseVoice main
 configuration.
 
 | Phrase evidence weight | Mention recall | n-best Recall@400 | Top1 Recall@400 | Unified CER |
@@ -1345,7 +1345,10 @@ configuration.
 | 7 | 89.94% | 354 | 350 | 4.1055% |
 | 8 | 90.39% | 356 | 353 | 4.0667% |
 | 10 | 91.27% | 361 | 358 | 3.9426% |
-| **11** | **91.60%** | **364** | **361** | **3.9115%** |
+| 11 | 91.60% | 364 | 361 | 3.9115% |
+| 12 | 92.04% | 367 | 364 | 3.8339% |
+| **14** | **92.49%** | **369** | **366** | **3.7951%** |
+| 16 | 92.49% | 369 | 365 | 3.8184% |
 
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
