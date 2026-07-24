@@ -1,0 +1,14 @@
+{
+  "utterances": 7176,
+  "missing_predictions": 0,
+  "cer": 0.03199541831718608,
+  "nne_cer": 0.03117412326077318,
+  "ne_cer": 0.03974499452136667,
+  "ne_recall": 0.9145299145299145,
+  "entity_hits": 3103,
+  "entity_total": 3393,
+  "ne_edits": 399,
+  "nne_edits": 2953,
+  "ne_chars": 10039,
+  "nne_chars": 94726
+}

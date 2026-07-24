@@ -1,0 +1,15 @@
+{
+  "base": "logs/aishell_full_sensevoice_test_full_20260719.jsonl",
+  "context": "logs/cb_sensevoice_acoustic_phrase_w14_aishell808_evidence_20260724.jsonl",
+  "output": "logs/aishell_full_routed_sensevoice_cb_sensevoice_w14_20260724.jsonl",
+  "base_prediction_field": "prediction",
+  "context_prediction_field": "input.asr_top1",
+  "rows": 7176,
+  "context_rows": 808,
+  "base_rows": 6368,
+  "normalization": "OpenCC t2s + NFKC + punctuation removal",
+  "cer": 0.054894287214241395,
+  "edits": 5751,
+  "reference_chars": 104765,
+  "exact": 4722
+}

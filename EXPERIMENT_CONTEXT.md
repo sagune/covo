@@ -5252,3 +5252,30 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   recall target while reducing unified CER by `0.6597` absolute points.
   Preserve2 is the lower-CER ablation but is not selected because its strict
   recall falls to `89.25%`.
+
+## Routed full AISHELL-1 experiment (2026-07-24)
+
+- Goal: evaluate all `7176` official AISHELL-1 test utterances while applying
+  contextual processing only where contextual evidence exists.
+- Deterministic route:
+  - the `808` Test-Aishell1-NE utterances use CB-SenseVoice w14;
+  - the remaining `6368` utterances use naked SenseVoice;
+  - routing is based on contextual-lexicon availability, not ASR confidence,
+    model correctness, or reference-aware selection.
+- Full ASR-only result:
+  - naked SenseVoice under the same normalization: CER `6.2922%`;
+  - routed SenseVoice/CB-SenseVoice: CER `5.4894%`, `5751` edits, `4722` exact.
+- Full COVO result:
+  - ordinary rows use preserve2/no-op COVO;
+  - contextual rows use hotword-preserve DPO-30 COVO;
+  - CER `3359/104765 = 3.2062%`, exact `5235/7176`;
+  - AISHELL-NER recount: NNE-CER `3.1343%`, NE-CER `3.9546%`, entity recall
+    `3103/3393 = 91.453%`.
+- CER-oriented ablation:
+  - using preserve2 COVO on the contextual rows reaches CER `3.1929%`,
+    but the 808-row strict Recall@400 is only `89.25%`;
+  - retain DPO-30 as the joint main because its 808-row Recall@400 is `90.50%`.
+- Paper boundary: the routed result is a mixed contextual/open-vocabulary
+  protocol. It may be compared with contextual ASR/NEC systems when this
+  supplied-context advantage is explicit, but not labeled as naked AISHELL-1
+  ASR.

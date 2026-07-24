@@ -780,6 +780,9 @@ oracle, or output post-filter is used.
 | SenseVoiceSmall | 6.2914% | 6.3890% | 6591 | 4454/7176 | Full, independent |
 | SenseVoiceSmall + original COVO | 5.7053% | 5.8197% | 5977 | 4769/7176 | Full, independent |
 | **SenseVoiceSmall + COVO** | **3.7647%** | **3.9554%** | **3944** | **4982/7176** | **Full, independent** |
+| Routed SenseVoice / CB-SenseVoice w14 | 5.4894% | - | 5751 | 4722/7176 | 808 contextual + 6368 open-vocabulary |
+| **Routed + hotword-preserve COVO** | **3.2062%** | - | **3359** | **5235/7176** | **Joint main; 808-row Recall@400 90.50%** |
+| Routed + preserve2 COVO | **3.1929%** | - | **3345** | **5247/7176** | CER ablation; 808-row Recall@400 89.25% |
 
 COVO improves `1085` utterances, worsens `34`, and leaves the edit count equal
 on `6057`.  The corpus CER reduction is `2.5267` absolute percentage points and
@@ -791,6 +794,15 @@ The original-COVO comparison uses
 `qwen35_text_rewrite_hardneg_dropout_lora_2epoch`; it improves `629` samples,
 worsens `180`, and is recorded in
 `src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.
+
+The routed experiment uses context availability rather than model confidence:
+the 808 utterances in Test-Aishell1-NE have an externally supplied contextual
+lexicon and use CB-SenseVoice w14; the other 6368 utterances use naked
+SenseVoice. For the COVO result, contextual rows use hotword-preserve DPO-30
+and ordinary rows use the established preserve2/no-op corrector. This is a
+deterministic mixed contextual/open-vocabulary protocol, not a recognition
+score gate. It must be reported separately from a fully open-vocabulary
+AISHELL-1 result.
 
 ### 2026 paper comparison
 
@@ -810,10 +822,13 @@ the different upstream ASR hypotheses prevent a strict component-only claim.
 | RASTAR-8B (An et al., 2026) | 4.21% | 4.05% | 6.21% | 89.33% | AISHELL-1 NEC |
 | SenseVoiceSmall | 6.2950% | 6.0216% | 8.8754% | 81.26% | Local full evaluation |
 | **SenseVoiceSmall + COVO** | **3.7732%** | **3.2958%** | 8.2777% | 82.85% | Local full evaluation |
+| **Routed CB-SenseVoice/SenseVoice + COVO** | **3.2129%** | **3.1343%** | **3.9546%** | **91.45%** | 808 rows receive contextual evidence |
 
-The result supports a bounded claim: our system is better on overall and
-non-entity CER, while RASTAR remains stronger on named entities.  The latter is
-the next useful target; presenting only overall CER would hide this weakness.
+The non-contextual SenseVoice+COVO result supports only a bounded claim: it is
+better on overall and non-entity CER, while RASTAR remains stronger on named
+entities. The routed result also exceeds RASTAR's reported NE-CER and recall,
+but it is a contextual-ASR comparison because 808 rows receive a supplied
+hotword lexicon. The two protocols must not be presented as interchangeable.
 The local entity-aware scorer uses character-level minimum-edit alignment and
 exact entity-span recall, so small differences from another implementation are
 possible.  Reproduce both local rows with:

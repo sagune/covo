@@ -136,6 +136,9 @@ oracle is 3.097%, demonstrating genuine text rewriting rather than selection.
 | SenseVoiceSmall | 6.291% | 6.389% | 6591 | 4454 | Full, independent |
 | SenseVoiceSmall + original COVO | 5.705% | 5.820% | 5977 | 4769 | Full, independent |
 | **SenseVoiceSmall + AISHELL COVO** | **3.765%** | **3.955%** | **3944** | **4982** | **Full, independent** |
+| Routed SenseVoice / CB-SenseVoice w14 | 5.489% | - | 5751 | 4722 | 808 contextual rows |
+| **Routed + hotword-preserve COVO** | **3.206%** | - | **3359** | **5235** | **Joint main; no confidence gate** |
+| Routed + preserve2 COVO | **3.193%** | - | **3345** | **5247** | CER ablation; contextual recall <90% |
 
 ## Comparison With Published Work
 

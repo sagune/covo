@@ -1,0 +1,15 @@
+{
+  "base": "logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl",
+  "context": "logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl",
+  "output": "logs/aishell_full_routed_sensevoice_cb_sensevoice_w14_covo_20260724.jsonl",
+  "base_prediction_field": "prediction",
+  "context_prediction_field": "prediction",
+  "rows": 7176,
+  "context_rows": 808,
+  "base_rows": 6368,
+  "normalization": "OpenCC t2s + NFKC + punctuation removal",
+  "cer": 0.03206223452488904,
+  "edits": 3359,
+  "reference_chars": 104765,
+  "exact": 5235
+}
