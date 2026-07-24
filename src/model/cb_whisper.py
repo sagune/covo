@@ -2354,15 +2354,16 @@ class CBWhisper(pl.LightningModule):
         labels = Flexlist(zip(refs, keywords))
         refs_samples = Flexlist(refs)
         metrics = {}
-        metrics["recall"] = evaluate_with_conf_int(samples, f_entity_recall, labels, conditions, num_bootstraps=1000, alpha=5)
+        num_bootstraps = max(1, int(os.getenv("CBW_EVAL_BOOTSTRAPS", "1000")))
+        metrics["recall"] = evaluate_with_conf_int(samples, f_entity_recall, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
         _update_progress("Post-test eval recall")
-        metrics["cer"] = evaluate_with_conf_int(samples, f_cer, refs_samples, conditions, num_bootstraps=1000, alpha=5)
+        metrics["cer"] = evaluate_with_conf_int(samples, f_cer, refs_samples, conditions, num_bootstraps=num_bootstraps, alpha=5)
         _update_progress("Post-test eval cer")
-        metrics["hotword_sentence_cer"] = evaluate_with_conf_int(samples, f_hotword_sentence_cer, labels, conditions, num_bootstraps=1000, alpha=5)
+        metrics["hotword_sentence_cer"] = evaluate_with_conf_int(samples, f_hotword_sentence_cer, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
         _update_progress("Post-test eval hotword-sent")
-        metrics["hotword_only_cer"] = evaluate_with_conf_int(samples, f_hotword_only_cer, labels, conditions, num_bootstraps=1000, alpha=5)
+        metrics["hotword_only_cer"] = evaluate_with_conf_int(samples, f_hotword_only_cer, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
         _update_progress("Post-test eval hotword-only")
-        metrics["wer"] = evaluate_with_conf_int(samples, f_wer, refs_samples, conditions, num_bootstraps=1000, alpha=5)
+        metrics["wer"] = evaluate_with_conf_int(samples, f_wer, refs_samples, conditions, num_bootstraps=num_bootstraps, alpha=5)
         _update_progress("Post-test eval wer")
         return metrics
 
