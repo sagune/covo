@@ -1,1358 +1,144 @@
-# CB-SenseVoice / COVO Research Workspace
+# CB-SenseVoice + COVO
 
-This workspace contains the ongoing contextual-biasing ASR experiments derived
-from CB-Whisper and COVO.  The current research direction is to migrate the
-CB-Whisper hotword/KWS idea from Whisper encoder states to SenseVoice encoder
-states, and then feed the resulting hotword-aware ASR evidence into a COVO-style
-post-correction model.
+本仓库研究轻量、可解释的中文上下文偏置语音识别。项目从
+[CB-Whisper](https://aclanthology.org/2024.lrec-main.262/) 出发，将其
+KWS、上下文候选生成和重排思想迁移到 SenseVoice，并使用 COVO 对
+N-best、拼音和热词证据进行最终纠错。
 
-The original CB-Whisper README is kept below for reproducibility.  This top
-section documents the current working workflow.
-
-## Current Goal
-
-Build a paper-clean CB-SenseVoice pipeline:
-
-1. Extract SenseVoice encoder hidden states for utterances and hotword audio.
-2. Train the existing lightweight TCResNet KWS model on SenseVoice similarity
-   matrices.
-3. Use KWS hotword evidence to bias ASR candidate generation and COVO
-   correction.
-4. Compare against original CB-Whisper, Whisper large-v3, SenseVoice-only, and
-   COVO-only baselines.
-
-The main constraint is that the method should remain lightweight and
-explainable.  Avoid heavy case-specific patches as main paper claims.
-
-The consolidated AISHELL result ledger, including failed ablations, full/smoke
-labels, metric scopes, and published-paper comparisons, is maintained in
-[`AISHELL_EXPERIMENTS.md`](AISHELL_EXPERIMENTS.md).
-
-## Environment
-
-Use the prepared conda environment:
-
-```bash
-conda activate /root/autodl-tmp/great
-```
-
-Most commands below are run from the repository root `/root/autodl-tmp` unless
-noted otherwise.
-
-## SenseVoice KWS Pipeline
-
-The SenseVoice KWS data root is:
+当前主流程：
 
 ```text
-datasets/aishell/data_aishell_sensevoice
+音频
+  -> SenseVoice 编码器隐藏层
+  -> TCResNet KWS 检索候选热词
+  -> 轻量 phrase cross-attention 上下文适配器
+  -> 带声学短语证据的 SenseVoice CTC beam
+  -> CB-SenseVoice 候选重排
+  -> COVO 保守纠错
+  -> 最终文本
 ```
 
-It reuses the original AISHELL/CB-Whisper metadata and keyword audio assets, but
-stores new SenseVoice hidden states under fresh `hs` and `keywords-hs`
-directories.
+当前方法不使用按样本置信度 gate、参考答案感知选择或测试后规则回退。
+SenseVoice 主体、KWS 主体和 COVO 基座均保持冻结，只训练轻量上下文适配器
+或 LoRA。
 
-Prepare the dataset skeleton:
+详细的逐轮实验记录保存在：
 
-```bash
-python src/analysis/prepare_sensevoice_kws_dataset.py \
-  --source datasets/aishell/data_aishell \
-  --target datasets/aishell/data_aishell_sensevoice
-```
+- [`EXPERIMENT_CONTEXT.md`](EXPERIMENT_CONTEXT.md)：完整实验流水、失败原因和模型路径。
+- [`AISHELL_EXPERIMENTS.md`](AISHELL_EXPERIMENTS.md)：AISHELL 专项实验和论文比较。
 
-Extract all AISHELL KWS and hotword hidden states:
+## 当前主结果
 
-```bash
-src/scripts/run_sensevoice_kws_extraction_20260714.sh
-```
+### AISHELL-NE 808 条热词测试集
 
-This uses `iic/SenseVoiceSmall`, extracts `model.encoder(...)` outputs, strips
-the four SenseVoice query tokens, L2-normalizes the frame states, and saves the
-same quantized `.bin` format used by the existing KWS dataloader.  SenseVoice
-hidden-state dimension is 512.
+本地数据对应论文中的 `Test-Aishell1-NE`、`Test-Aishell1-Middle` 或
+AISHELL hotword test：共 808 条语音、400 个指定热词，其中 226 个为
+R1 难例热词。
 
-Train the SenseVoice KWS model:
+下表统一采用 `OpenCC t2s + NFKC + 去除空格和标点` 后的 corpus CER。
+Recall@400 和 R1 Recall@226 均按数据集指定热词及其对齐语句计算。
 
-```bash
-cd src
-python run_CLI.py fit --config configs/train-sensevoice-kws.yaml
-```
-
-The training config mirrors the strong large-v3 KWS recipe while changing the
-feature source to SenseVoice hidden states.  The KWS model itself remains the
-lightweight 1-channel TCResNet over keyword/utterance similarity matrices.
-
-Current training artifacts are written to:
-
-```text
-src/outputs/aishell_sensevoice_kws/checkpoints/
-src/outputs/mlruns/
-src/logs/train_sensevoice_kws_20260714.log
-```
-
-The full run stopped normally after epoch 21. The best validation checkpoint is:
-
-```text
-src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt
-```
-
-Its validation metrics are `f1_zh=0.88416`, precision `0.95420`, recall
-`0.82380`, and selected threshold `0.954`.
-
-## SenseVoice KWS and CB Validation (2026-07-15)
-
-On the full 808-row AISHELL hotword test subset with TTS keyword states, the
-SenseVoice KWS checkpoint reaches its best test F1 at threshold `0.787`:
-precision `0.90948`, recall `0.90658`, and F1 `0.90803`. At the conservative
-validation threshold `0.954`, precision is `0.95721` and recall is `0.83121`.
-The sweep is stored in
-`src/logs/kws_threshold_sweep_sensevoice_tts_20260715.csv`.
-
-CB-Whisper evaluation now supports reusing precomputed KWS similarity matrices.
-This lets the large-v3 ASR decoder consume KWS evidence produced from the
-512-dimensional SenseVoice states without loading a mismatched Whisper KWS
-encoder. The full 808-row result is Entity Recall `0.92155`, CER `0.07174`,
-Hotword Only CER `0.05228`, and WER `0.46906`; metrics are in
-`src/logs/test_metrics_sensevoice_kws_cb_full_20260715.csv`. This validates the
-cross-encoder workflow, but it does not replace the previous true-v3 CB result
-(`0.92707` recall, `0.07102` CER, `0.04531` Hotword Only CER). The likely next
-step is improving SenseVoice KWS ranking/calibration rather than changing the
-CB reranker.
-
-The matching naked SenseVoice baseline was then decoded on the same 808 audio
-files with `iic/SenseVoiceSmall`, Chinese decoding, and ITN enabled. Its direct
-simplified/punctuation-normalized CER is `0.10376` (`1337/12885`, exact
-`268/808`). Under the exact numeric/surface normalization used by the current
-CB evaluator, CER is `0.08554` (`1105/12918`, exact `301/808`). Under the
-broader evaluation that treats all Chinese/Arabic number forms as equivalent,
-CER is `0.07756`. Therefore the SenseVoice-KWS + Whisper large-v3 CB result
-(`0.07174`) is better than naked SenseVoice on this subset, although the margin
-depends on number normalization. Predictions are in
-`src/logs/aishell808_funasr_sensevoice_small_full_20260715.jsonl`.
-
-## Important Files
-
-```text
-src/analysis/extract_sensevoice_hidden_states.py
-src/analysis/prepare_sensevoice_kws_dataset.py
-src/configs/train-sensevoice-kws.yaml
-src/scripts/run_sensevoice_kws_extraction_20260714.sh
-src/scripts/shutdown_after_sensevoice_kws_train_20260715.sh
-EXPERIMENT_CONTEXT.md
-```
-
-`EXPERIMENT_CONTEXT.md` is the durable experiment ledger.  Record major
-experiment settings, checkpoints, results, and failure reasons there.
-
-## COVO / Post-Correction Direction
-
-The strongest recent Shuili route used:
-
-1. SenseVoice as a clean ASR anchor.
-2. CB-Whisper-style hotword/candidate evidence.
-3. A COVO-style correction prompt with n-best, pinyin, consensus/confusable
-   evidence, and hotword signals.
-
-The next clean paper direction is to replace the external SenseVoice anchor
-with a full CB-SenseVoice workflow: SenseVoice hidden-state KWS, SenseVoice
-candidate/evidence generation, then COVO correction.
-
-## Working Rules
-
-- Commit code changes after each coherent step.
-- Keep generated logs, checkpoints, and datasets out of normal commits unless
-  explicitly needed.
-- For rejected routes, record why they failed before reverting or moving on.
-- Prefer method-level changes that can be explained in a paper over brittle
-  dataset-specific patches.
-
----
-
-# Original CB-Whisper README
-
-# Adding User Feedback To Enhance CB-Whisper
-
-This repository contains code that allows to reproduce all experiments performed in the paper "Adding User Feedback To Enhance CB-Whisper".
-
-## Setup
-
-Create a conda environment and activate it
-
-```bash
-
-  conda activate biasing-whisper
-```
-
-Install ffmpeg and the necessary requirements
-
-```bash
-  conda install 'ffmpeg<5'
-  pip install -r requirements.txt
-```
-    
-## Build Datasets
-
-The following bash scripts will create compatible folder structures for the scripts present in this repository, as well as do all the pre-processing necessary to train and evaluate the KWS classifier.
-
-### Aishell-KWS and Aishell hotwords subsets
-
-To build the Aishell-KWS dataset, download the `data_aishel.tgz` file from [here](https://www.openslr.org/33/) and place it on the directory where the dataset will be built. 
-
-In the project directory, do as follows
-
-```bash
-cd datasets/aishell/
-```
-
-Activate the conda environment
-
-```bash
-conda activate kws
-```
-
-And run the bash script
-
-```bash
-bash build.sh
-```
-
-You will be asked to provide the path to the `tgz` file. It will take several hours, so make sure you open some `tmux` session and let it run uninterruptedly.
-
-### MLS-KWS
-
-To build the MLS-KWS dataset, download the zip files from [here](https://www.openslr.org/94/) for the English, German, French, Spanish, Portuguese and Polish languages. Everything else is equivalent to what was done with the Aishell-KWS dataset. 
-
-### ACL6060
-
-To build the ACL6060 dataset, download the zip file from [here](https://aclanthology.org/2023.iwslt-1.2/). Everything else is equivalent to what was done with the Aishell-KWS dataset. 
-
-## The KWS Classifier
-
-The CNN classifier for KWS was inspired in the one originally proposed in [CB-Whisper](https://arxiv.org/abs/2309.09552). This repository contains additional features that allow to reproduce the experiments on KWS performed in the afforementioned paper:
-* Training using features derived from either TTS-generated or natural-speech audios for the keywords, or a mixture of both;
-* DANN and [DANNCE](https://arxiv.org/abs/2102.03924) implementation;
-* Validation of checkpoints using more than one dataset (for domain generalization analysis).
-
-### Training
-
-In the project directory, do as follows
-
-```bash
-cd src/
-```
-
-And run the following command
-
-```bash
-python3 run_CLI.py fit --config configs/train.yaml
-```
-
-In the `train.yaml` file, you will be able to set different hyperparameters, the paths to the dataset folders, which datasets to validate the model every epoch, the logger, and other training details. Important settings that must be introduced are capitalized and between square brackets.
-
-### Evaluation
-
-The following can be used to evaluate the precision, recall and F1 scores of the KWS classifier on the test sets of the different datasets.
-
-In the project directory, do as follows
-
-```bash
-cd src/
-```
-
-And run the following command
-
-```bash
-python3 kws.py test --config configs/kws-aishell.yaml
-```
-
-For ease of use, there is one config `yaml` file per dataset. Do not forget to set the paths to the dataset folders and the given checkpoint to evaluate. Important settings that must be introduced are capitalized and between square brackets.
-
-## Evaluate CB-Whisper with PBAWhisper
-
-The following can be used to evaluate the entity recall of the CB-Whisper model on the test sets of the different datasets, using the KWS classifiers developed with these scripts. These results were not reported in the paper "Adding User Feedback To Enhance CB-Whisper". This version of CB-Whisper uses a wrapped version of Huggingface's `WhisperForConditionalGeneration`, also known as PBAWhisper, that can perform longform transcription jointly with keyword spotting on the go.
-
-In the project directory, do as follows
-
-```bash
-cd src/
-```
-
-And run the following command
-
-```bash
-python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
-```
-
-For ease of use, there is one config `yaml` file per dataset. Do not forget to set the paths to the dataset folders and the given checkpoint to evaluate. Important settings that must be introduced are capitalized and between square brackets.
-
-### Current CB-Whisper metric-improvement experiments
-
-Current work focuses on improving CB-Whisper entity recall and hotword-specific recognition quality on Aishell hotword evaluation.
-
-Run from the repository root:
-
-```bash
-cd src/
-python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
-```
-
-Useful debug/output environment variables:
-
-```bash
-cd src/
-CBW_DEBUG_LOG=logs/runtime_probe.jsonl \
-CBW_DEBUG_MAX_SAMPLES=100 \
-CBW_DEBUG_CLEAR_ON_START=1 \
-CBW_METRICS_OUT=logs/test_metrics.csv \
-python3 cb-whisper.py test --config configs/cb-whisper-aishell.yaml
-```
-
-The current Aishell CB-Whisper config enables KWS-based prompting, short-form n-best rescoring, pinyin-based scoring/repair, consensus reranking, and oracle n-best diagnostics. Main output files:
-
-* `logs/test_metrics.csv`: final Entity Recall, CER, Hotword Sentence CER, Hotword Only CER, and WER with confidence intervals.
-* `logs/runtime_probe.jsonl`: sampled per-utterance debug events, keyword candidates, prompt state, n-best rerank traces, and normalization previews.
-* `logs/oracle_nbest_detail_aishell.csv`: per-candidate n-best diagnostic table.
-* `logs/oracle_nbest_summary_aishell.csv`: per-sample top1-vs-oracle diagnostic summary.
-
-Log cleanup policy: keep the current accepted-run metrics/probe/oracle diagnostics in `logs/` and use this README table as the durable experiment ledger. Rejected or exploratory run logs can be deleted after their metrics and comparison have been recorded here.
-
-Large-v3 adaptation: `configs/cb-whisper-aishell-v3.yaml` switches only the Whisper ASR generator/processor checkpoint to `openai/whisper-large-v3` and writes oracle diagnostics to separate `*_v3.csv` files. The fixed KWS checkpoint and KWS encoder path remain unchanged for controlled comparison against the large-v2 baseline.
-
-Whisper large-v2 vs large-v3 architecture note: the main encoder/decoder hidden structure is the same (`d_model=1280`, 32 encoder layers, 32 decoder layers, 20 attention heads). The important compatibility differences are the acoustic front end and token/generation config: large-v2 uses 80 mel bins and vocab size 51865, while large-v3 uses 128 mel bins and vocab size 51866, with shifted task/no-timestamp/pad token ids. Current large-v3 failures are therefore unlikely to come from hidden-layer shape mismatch; they are more likely due to large-v3's different frontend/token conventions and weaker candidate pools under this CB-Whisper prompting path.
-
-KWS checkpoint policy: keep the KWS model fixed unless the experiment is explicitly about KWS retraining or KWS ablation. The current best KWS checkpoint is:
-
-```text
-src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt
-```
-
-This KWS model already includes local improvements over the original CB-Whisper KWS setup. Current experiments should primarily modify CB-Whisper decoding, prompting, normalization, rescoring, repair, and evaluation logic, while keeping this checkpoint as a controlled variable.
-
-Method constraint: CB-Whisper is intended to be a lightweight improvement over Whisper, so proposed changes must stay lightweight at inference time. Avoid methods that require a much longer recognition pass, many repeated ASR calls, heavy external models, or large post-hoc search. Because this work is for a paper, changes should also remain methodologically clean and explainable; avoid over-engineered case-specific patches that only tune around observed failures.
-
-Experiment goal: push KWS/keyword-related recall toward at least 0.90 while keeping CER as low as possible. Entity Recall is the primary hotword-success metric for CB-Whisper evaluation; CER, Hotword Only CER, and WER are guardrail metrics and should not be sacrificed casually for recall gains.
-
-Experiment bookkeeping rule: after each code change, commit to git; after each experiment, append the result here and compare against the previous run or best known run.
-
-KWS top-k diagnostic on the Aishell test set with the fixed KWS checkpoint: 808 samples, 942 true hotword mentions. Global KWS coverage is high: micro Recall@1 0.8036, Recall@3 0.9522, Recall@6 0.9692, Recall@12 0.9862. Under the current CB-Whisper selection logic, the KWS candidate pool/rescore set covers 0.9607 of true hotwords, and the prompt set covers 0.9321. This means the current 0.85-range CB-Whisper entity recall is not primarily capped by KWS top-k retrieval; most true hotwords already reach the prompt/rescore interface. The main bottleneck remains Whisper candidate generation/decoding and how hotword evidence is realized in ASR hypotheses.
-
-Custom Shuili dataset: `configs/cb-whisper-shuili.yaml` evaluates the self-built Shuili test set under `datasets/shuili`. It reuses the AISHELL-style hotword folder format, with utterance audio extracted from `datasets/shuili/wav.zip` into `datasets/shuili/test/S0001/*.wav`. The KWS checkpoint and CB-Whisper method settings are kept the same as the accepted large-v2 AISHELL run, so this is a dataset-transfer baseline rather than a new method. The first imported Shuili hidden-state files were incompatible with the current loader/KWS distribution: their payloads used `quantized=True` with float16 values and their vectors were strongly positive-biased. The project-local reproducible extraction path is now `python utils.py --extract_hs -a <audio_dir> -t <target_dir> -w openai/whisper-medium`, which matches the AISHELL hidden-state distribution.
-
-Large-v3 hidden-state extraction: to retrain and test a KWS/CB-Whisper path that is genuinely large-v3-style, extract utterance and keyword hidden states with the same v3 profile, for example `python utils.py --extract_hs -a <audio_dir> -t <target_dir> -w openai/whisper-large-v3 --whisper_style large-v3`. This profile checks that the Whisper frontend is using 128 mel bins and writes `_hs_manifest.json` into the target folder with the checkpoint, feature size, encoder size, layer-fusion mode, normalization, and quantization metadata. If `--hs_fuse grouped_mean` is used without explicit groups, large-v3 defaults to upper encoder groups `20-23,24-27,28-32`; explicit `--hs_groups` still takes priority. Do not mix these v3 hidden states with the current medium-style KWS checkpoint/data: medium and large-v2 can coexist in the present system because KWS uses the medium encoder/database while ASR uses large-v2, but a v3 KWS experiment must keep utterance hidden states, keyword hidden states, and KWS training data in the same v3 representation space.
-
-Large-v3 KWS training result: `configs/train-large-v3-kws.yaml` reproduces the previous best KWS training hyperparameters from run `641753688314575260/d9b9fafe87d64bc98400705d2c58525c`, but trains on the large-v3-style `datasets/aishell/data_aishell` hidden states with `whisper_ckpt: openai/whisper-large-v3`. The archive contained one corrupt zero-byte training hidden-state file, `kws/hs/BAC009S0068W0457.bin`; the corresponding row was removed from `kws/positives.tsv` before the successful run. Successful run id: `outputs/mlruns/810143305197259608/495a58ed117c49bcaf592f74bc9395a9`. Early stopping ended after epoch 16. Best checkpoint: `outputs/aishell_large_v3_kws_reproduce/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` with `f1_zh=0.8752`, `precision_zh=0.9347`, `recall_zh=0.8228`, and threshold `0.9820`. The final epoch-16 checkpoint is `outputs/aishell_large_v3_kws_reproduce/checkpoints/final/final-epoch=16-step=102085.ckpt` with `f1_zh=0.8711`, `precision_zh=0.9283`, `recall_zh=0.8205`, and `val/loss_zh=0.0252`. Compared with the previous large-v2-style KWS best checkpoint (`f1G-epoch=7-step=48040.ckpt`, `f1_zh=0.8651`, `precision_zh=0.9133`, `recall_zh=0.8218`), large-v3-style training improves validation F1 and precision slightly, while recall remains essentially capped around 0.82 under this validation protocol. Standalone Aishell test with `configs/kws-aishell-large-v3.yaml` gives threshold `0.982`, precision `0.9213`, recall about `0.7824`, and F1 `0.8462`, so the test-set operating point is precision-heavy and lower-recall than desired.
-
-True large-v3 KWS retraining result: after replacing the stale 1024-dimensional hidden-state package with `datasets/aishell/data_aishell_largev3.7z`, all KWS and hotword hidden-state manifests report `openai/whisper-large-v3`, `feature_size=128`, and `d_model=1280`. The new run is `outputs/mlruns/810143305197259608/fede196a08b64159adadc9d329bc4176` with output root `outputs/aishell_large_v3_kws_true`. Best checkpoint: `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` with validation `f1_zh=0.8759`, `precision_zh=0.9334`, `recall_zh=0.8251`, and threshold `0.9740`. The final epoch-16 checkpoint gives `f1_zh=0.8659`, `precision_zh=0.9145`, `recall_zh=0.8222`, and threshold `0.9300`. Standalone Aishell KWS test with the true-v3 checkpoint gives threshold `0.974`, precision `0.9178`, recall about `0.8057`, and F1 `0.8581`, improving test recall and F1 over the previous v3-style checkpoint but still well below the 0.90 recall target.
-
-True large-v3 online KWS diagnosis: the low-recall full true-v3 CB-Whisper run was traced to a hidden-state length mismatch inside the CB path, not to the prompt token order. Offline KWS validation uses hidden states trimmed to the real utterance length, but online CB-Whisper was scoring KWS over the full 30-second padded Whisper encoder output. This made unrelated hotwords receive near-1.0 scores and polluted the prompt/rescore keyword set. The online KWS path now trims encoder hidden states by the input attention mask before normalization and keyword scoring, keeping online inference consistent with the training/evaluation hidden-state distribution.
-
-True large-v3 custom generation diagnosis: after the online KWS fix, the next bottleneck was the short-form custom generation path. Hotword prompt tokens are prepended to `decoder_input_ids`, but the standard `no_repeat_ngram_size=3` processor treats those prompt tokens as already-generated history. That can forbid the decoder from copying a 3-token hotword phrase from the prompt into the actual transcript. Fully disabling no-repeat confirmed the diagnosis on a 120-sample smoke test by pushing Entity Recall above 0.90, but it caused severe repetition and CER blow-up. The accepted fix keeps no-repeat active while ignoring only the prompt prefix when computing banned n-grams, so generated text is still protected from loops while prompt hotwords remain copyable.
-
-Original Priberam KWS baseline on the current large-v3 data: `Enhance-CB-Whisper` was cloned from `https://github.com/Priberam/Enhance-CB-Whisper.git` and minimally adapted to the current quantized large-v3 hidden-state files by adding a compatible hidden-state loader and changing the original ResNet KWS input from 12 channels to 1 channel. The natural-keyword baseline config is `Enhance-CB-Whisper/src/configs/train-aishell-large-v3-resnet1.yaml`, with run id `outputs/mlruns/133323746360263826/00ecf843301d45ca97b2bc6b7410548d`. Training ended successfully after epoch 10. The best natural validation checkpoint is `Enhance-CB-Whisper/outputs/aishell_large_v3_resnet1_original_natural/checkpoints/f1G/f1G-epoch=5-step=18018.ckpt`, with `f1_1=0.7978`, `precision_1=0.7115`, and `recall_1=0.9080`. The final epoch-10 checkpoint has `f1_1=0.7413`, `precision_1=0.6091`, and `recall_1=0.9467`. This baseline is much weaker in F1 than the later TCResNet-style large-v3 KWS (`f1_zh=0.8759` validation, standalone test F1 `0.8581`) but confirms that the original ResNet can still achieve high recall on natural keyword audio after single-channel adaptation.
-
-Original Priberam large-v3 endpoint baseline on AISHELL: using the original `Enhance-CB-Whisper` model path with only compatibility adaptations for current large-v3 single-channel hidden states and modern Transformers, standalone KWS test on natural AISHELL hotwords gives Precision `0.8023`, Recall `0.8747`, and F1 `0.8370` (`Enhance-CB-Whisper/src/logs/resnet1_natural_kws_test_full_stdout.log`). After aligning the original endpoint evaluator with the current code's metric口径, including the same surface normalization and bootstrap metrics, end-to-end original CB-Whisper with `openai/whisper-large-v3` and the same original ResNet checkpoint gives Entity Recall `0.7801`, CER `0.0907`, Hotword Sentence CER `0.0907`, Hotword Only CER `0.1129`, and WER `0.4975` (`Enhance-CB-Whisper/src/logs/cbwhisper_original_large_v3_resnet1_natural_metrics_aligned_stdout.log`). Compared with the current best true-v3 CB-Whisper result (`0.9238` Entity Recall, `0.0661` CER, `0.0467` Hotword Only CER, `0.4641` WER), the original-code baseline is far behind at the ASR endpoint even though its standalone KWS recall is already reasonably high.
-
-Original Priberam large-v3 endpoint baseline on the self-built Shuili dataset: `datasets/shuili/shuil.7z` was extracted into `datasets/shuili/data_shuil_largev3` and `datasets/shuili/data_shuil_medium`. The large-v3 split has 1152 utterances, 124 hotwords, and manifests showing `openai/whisper-large-v3`, `feature_size=128`, `d_model=1280`, and `hs_fuse=last` for utterance and keyword hidden states. Using the original ResNet natural AISHELL checkpoint above as a transfer KWS model, the metric-aligned original CB-Whisper endpoint gives Entity Recall `0.8007`, CER `0.2395`, Hotword Sentence CER `0.2376`, Hotword Only CER `0.3262`, and WER `0.5833` (`Enhance-CB-Whisper/src/logs/cbwhisper_original_large_v3_resnet1_shuili_metrics_aligned_stdout.log`). Compared with the earlier current-code Shuili wide setting (`0.8666` Entity Recall, `0.0807` CER, `0.1447` Hotword Only CER, `0.4977` WER), this original-code transfer baseline has somewhat lower recall and much worse CER/hotword CER, so it is mainly useful as a weak original-code baseline rather than a competitive Shuili result.
-
-Current-code true large-v3 Shuili run: `configs/cb-whisper-shuili-v3-kws.yaml` and `run_cbwhisper_shuili_v3_kws_test.py` evaluate `datasets/shuili/data_shuil_largev3` with the current prompt-aware no-repeat implementation and the true-v3 AISHELL KWS checkpoint `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt`. Because Shuili KWS scores are less calibrated, this run keeps the broader Shuili candidate-pool settings (`kws_positive_threshold=0.05`, `kws_topk_per_group=50`, `kws_max_prompt_keywords=200`, `rescore_max_keywords=160`) while still limiting the injected prompt to 4 keywords. Result: Entity Recall `0.8715`, CER `0.1402`, Hotword Sentence CER `0.1396`, Hotword Only CER `0.3956`, and WER `0.7613` (`src/logs/experiment_shuili_v3_kws_stdout.log`; metrics in `src/logs/test_metrics.csv`). Compared with the original-code large-v3 Shuili baseline, recall improves by `+0.0708` and CER improves by `-0.0992`, but WER and Hotword Only CER are worse. Compared with the earlier current-code large-v2/medium Shuili wide setting (`0.8666` Entity Recall, `0.0807` CER, `0.1447` Hotword Only CER, `0.4977` WER), true-v3 slightly improves recall but substantially hurts error-rate metrics, so the Shuili true-v3 route is not currently the best Shuili setting.
-
-Shuili large-v3 KWS-only comparison on the current package: the current true-v3 TCResNet KWS checkpoint above gives threshold `0.974`, Precision `0.9515`, Recall `0.4788`, and F1 `0.6370` on `datasets/shuili/data_shuil_largev3` (`src/logs/kws_shuili_large_v3_current_stdout.log`). A Shuili-specific threshold sweep (`analysis/kws_threshold_sweep.py`) finds a better natural-keyword F1 operating point at threshold `0.942`, with Precision `0.7868`, Recall `0.6233`, and F1 `0.6956` (`src/logs/kws_shuili_large_v3_current_thr0942_stdout.log`). For the TTS keyword set, the best F1 threshold is `0.838`, with Precision `0.8078`, Recall `0.7136`, and F1 `0.7578`; this is now captured by `configs/kws-shuili-large-v3-current-tts-bestf1.yaml` and verified in `src/logs/kws_shuili_large_v3_current_tts_bestf1_stdout.log`. If the natural-keyword threshold is forced down to `0.403`, Recall reaches `0.9006`, but Precision drops to `0.1709`; for TTS, forcing Recall to `0.9006` requires threshold `0.207` and gives Precision `0.3253`, so these high-recall points are useful diagnostically but not good standalone KWS operating points. The current KWS ranking is much stronger than either fixed-threshold result suggests: micro Recall@1 `0.4318`, Recall@3 `0.7678`, Recall@6 `0.8907`, Recall@12 `0.9539`, Recall@28 `0.9837`, Recall@50 `0.9982` for the natural keyword set used by the current Shuili endpoint; under the broad Shuili CB-Whisper selection settings, the CB/rescore pool covers `0.9684` of true hotwords, while the compact 4-keyword prompt covers `0.7859` (`src/logs/kws_topk_recall_shuili_large_v3_current_natural_stdout.log`). The original Priberam ResNet KWS checkpoint `Enhance-CB-Whisper/outputs/aishell_large_v3_resnet1_original_natural/checkpoints/f1G/f1G-epoch=5-step=18018.ckpt`, evaluated through the original `Enhance-CB-Whisper/src/kws.py test` path, gives TTS Precision `0.2711`, Recall `0.0551`, and F1 `0.0916` at the original 0.5 threshold. Threshold tuning only improves TTS to threshold `0.144`, Precision `0.1188`, Recall `0.1337`, and F1 `0.1258`, so TTS remains collapsed. On natural keywords, the original 0.5 threshold gives Precision `0.3684`, Recall `0.6585`, and F1 `0.4725`; the best-F1 threshold is `0.892`, giving Precision `0.7098`, Recall `0.5104`, and F1 `0.5938` (`src/logs/original_kws_threshold_sweep_shuili_large_v3_natural_stdout.log`). The original ResNet natural ranking is better than its TTS ranking but still below the current TCResNet KWS: micro Recall@1 `0.3930`, Recall@3 `0.6504`, Recall@6 `0.7778`, Recall@12 `0.8636`, Recall@28 `0.9530`, Recall@50 `0.9846`. This explains why the current true-v3 endpoint can still reach high Shuili entity recall after broad candidate pooling, while the original ResNet transfer model is a weaker KWS source on this current Shuili package.
-
-Current-code Shuili medium-package rerun with the previous best KWS checkpoint: `run_cbwhisper_shuili_medium_test.py` evaluates `datasets/shuili/data_shuil_medium` using the earlier fixed KWS checkpoint `src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt`, online KWS encoder `openai/whisper-medium`, and ASR `openai/whisper-large-v2`, with the same broad Shuili KWS/rescore settings as the accepted Shuili route. Result: Entity Recall `0.7575`, CER `0.1674`, Hotword Sentence CER `0.1804`, Hotword Only CER `0.4491`, and WER `0.7839` (`src/logs/experiment_shuili_medium_stdout.log`; metrics in `src/logs/test_metrics.csv`). This is worse than both the current-code true-v3 Shuili run and the earlier wide Shuili setting, so this new medium package plus previous KWS checkpoint does not reproduce the earlier strong Shuili result.
-
-| Date | Config | Checkpoint | Key settings | Entity Recall | CER | Hotword Only CER | WER | Notes |
-| --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| 2026-04-27 | `configs/cb-whisper-aishell.yaml` | `src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt` | KWS prompt, n-best=8, pinyin rescore, surface/consensus repair, consensus rerank | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Current baseline. Oracle n-best top1 recall is 0.8455, oracle recall is 0.8650, leaving about +0.0194 recall headroom in the candidate pool. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | `src/mlruns/641753688314575260/d9b9fafe87d64bc98400705d2c58525c/checkpoints/f1G-epoch=7-step=48040.ckpt` | Baseline rerun in `/root/autodl-tmp/great`; same settings as above | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Reproduced baseline in about 35m16s. Point metrics match 2026-04-27; only bootstrap confidence intervals changed slightly. Oracle n-best summary unchanged: top1 recall 0.8455, oracle recall 0.8650. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Tried broader keyword use: `prompt_max_injected_keywords=6`, `rescore_max_keywords=16` | 0.8464 | 0.0878 | 0.1122 | 0.5099 | Reverted. Recall decreased by 0.0011 and CER worsened by 0.0057 versus baseline, so broader prompt/rescore keyword budgets are not a good direction in this form. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Tried rerank weight shift: `rescore_asr_weight=1.2`, `rescore_keyword_weight=2.2` | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Reverted. Point metrics matched baseline and did not improve recall, so static rerank weight tuning alone is not a promising direction. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Lightweight decode-time hotword token bias: `hotword_bias_weight=0.35`, `unmatched_scale=0.20`, `max_steps=48` | 0.8486 | 0.0845 | 0.1077 | 0.5272 | Mixed result. Recall improved by 0.0011 and Hotword Only CER improved by 0.0010 versus baseline, but CER worsened by 0.0023 and WER by 0.0111. Error inspection suggests broad first-token bias can hallucinate or append hotwords, so the next structural variant should bias only hotword continuations/prefix recovery instead of starting unmatched hotwords. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Decoder-evidence-gated hotword bias: `weight=0.30`, `unmatched_scale=0.0`, `restart_topk=16`, `restart_gap=1.0`, `restart_score>=0.55` | 0.8497 | 0.0842 | 0.1126 | 0.5248 | Not accepted as-is. Recall improved by 0.0022 versus baseline, but CER worsened by 0.0020, Hotword Only CER by 0.0038, and WER by 0.0087. The gate reduced overall CER damage slightly versus the first bias run but made hotword-only CER worse, so this needs another conservative variant or rollback. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | ASR-plausibility guarded n-best selection: `max_asr_drop=0.25`, `max_len_growth=6`, `max_len_ratio=1.35` | 0.7945 | 0.0882 | 0.1370 | 0.5545 | Reverted. The guard was too conservative and collapsed many beneficial hotword rescoring decisions back to the ASR-best candidate, sharply reducing recall by 0.0530 versus baseline and worsening all guardrail metrics. |
-| 2026-04-30 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Overlong candidate penalty: `per_char=0.15`, `slack=2`, `cap=1.2` | 0.8475 | 0.0822 | 0.1087 | 0.5161 | Reverted. Metrics matched baseline exactly, so length-growth penalty did not change final decisions and is not useful in this form. |
-| 2026-05-01 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Nested phonetic keyword pruning: remove short hotwords when a similar-score longer hotword contains or phonetic-prefixes them | 0.8420 | 0.0824 | 0.1108 | 0.5161 | Reverted. It reduced short-hotword false competition but also removed true short entities, dropping recall by 0.0055 versus baseline. Next variant should promote long nested hotwords without deleting short ones. |
-| 2026-05-01 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Nested long-hotword promotion: keep short hotwords but also promote similar-score longer containing/phonetic-prefix hotwords into prompt/rescore sets | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Accepted for now. Recall improved by 0.0011, CER by 0.0001, Hotword Only CER by 0.0007, and WER by 0.0012 versus baseline. This follows contextual-biasing practice of keeping competing bias phrases available instead of pruning the shorter form. |
-| 2026-05-01 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Length-weighted exact hotword coverage on top of nested long-hotword promotion | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Reverted. Metrics were identical to nested long-hotword promotion, so the extra scoring complexity did not change final decisions. |
-| 2026-05-01 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Prefix-only hotword bias on top of nested long-hotword promotion: `weight=0.18`, no unmatched first-token bias | 0.8475 | 0.0816 | 0.1077 | 0.5161 | Not accepted as-is. CER and Hotword Only CER improved versus baseline, but recall fell back to baseline and lost the nested-promotion recall gain. Continue with a weaker prefix bias before deciding whether to keep this route. |
-| 2026-05-02 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Prefix-only hotword bias on top of nested long-hotword promotion: `weight=0.08`, no unmatched first-token bias | 0.8475 | 0.0819 | 0.1084 | 0.5136 | Reverted. Guardrails improved versus baseline, but recall again fell to baseline and lost the nested-promotion recall gain. Prefix-only logits bias is not useful for the recall target in this form. |
-| 2026-05-02 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Candidate-supported exact surface repair on top of nested long-hotword promotion | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Reverted. Metrics matched nested long-hotword promotion and debug showed zero candidate-exact repairs, so this extra repair path is dead code for the current candidate pools. |
-| 2026-05-02 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Broader nested long-hotword promotion: `score_ratio=0.90`, `max_extra=3` | 0.8486 | 0.0823 | 0.1081 | 0.5149 | Reverted. Recall and WER matched the accepted nested-promotion run, but CER worsened by 0.0003, so the narrower `score_ratio=0.95`, `max_extra=2` setting remains better. |
-| 2026-05-02 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Increase rescoring generation candidate cap from 16 to 24 while keeping `rescore_nbest=8` | 0.8552 | 0.0859 | 0.1028 | 0.5223 | Mixed result. Recall improved by 0.0066 and Hotword Only CER improved by 0.0052 versus the accepted nested-promotion run, and oracle recall rose to 0.8778. However CER worsened by 0.0039 and WER by 0.0074, with a longer recognition pass. Keep only as evidence that candidate-pool expansion helps recall; next variant needs a lightweight quality constraint before this route can be accepted. |
-| 2026-05-02 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | N-best 24 plus extra-candidate beam-rank prior: penalty starts after rank 16 with weight 0.08 | 0.8552 | 0.0859 | 0.1028 | 0.5223 | Reverted with the n-best expansion route. The rank prior did not change point metrics versus plain n-best 24, so the CER/WER damage is not explained by only late-ranked candidates. Candidate-pool expansion remains useful diagnostically, but not acceptable under the lightweight/low-CER constraint in this form. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Confidence-gated candidate budget: use n-best 24 only when KWS top score >= 0.90 and top-vs-runner-up gap >= 0.03 | 0.8464 | 0.0844 | 0.1108 | 0.5186 | Reverted. This was a paper-clean dynamic contextual-biasing idea, but the gate selected a harmful subset: recall dropped by 0.0022 and CER worsened by 0.0024 versus accepted nested promotion. Oracle recall was only 0.8673, close to the original candidate-pool limit, so this KWS-confidence gate did not preserve the useful part of n-best expansion. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Rescore context keyword filtering: keep keywords with score >= max(0.85, 0.95 * top score) before nested promotion | 0.8431 | 0.0827 | 0.1105 | 0.5161 | Reverted. This paper-clean phrase-filtering idea reduced distractor context, but it also removed useful competing hotwords for rescoring. Recall dropped by 0.0055 versus accepted nested promotion and Hotword Only CER worsened by 0.0024, so the rescore stage needs richer context than the prompt stage. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Softmax-calibrated rescore keyword priors with temperature 0.05 | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Reverted. Metrics matched the accepted nested-promotion run exactly, so KWS-prior calibration did not change final candidate choices. This suggests current failures are not mainly caused by raw KWS score weighting among the existing rescore keywords. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Gated phonetic-only rescoring: allow exact-pinyin candidate evidence without exact keyword match when phonetic similarity is 1.0 and margin >= 0.2 | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Reverted. Metrics matched accepted nested promotion exactly. This suggests the current n-best pools rarely contain high-margin phonetic-only alternatives that can beat exact contextual candidates under the existing ASR/context fusion. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Specificity-aware keyword ordering: apply a length bonus of 0.06 when ranking prompt/rescore context phrases | 0.8475 | 0.0851 | 0.1063 | 0.5111 | Reverted. Longer phrase ordering slightly improved Hotword Only CER and WER, but lost the nested-promotion recall gain and worsened CER by 0.0031 versus accepted nested promotion. Phrase specificity alone is not a stable ranking criterion for this setup. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Diverse beam search with 4 beam groups and diversity penalty 0.2 | N/A | N/A | N/A | N/A | Reverted before metrics. The installed Transformers generation path requires loading a remote `transformers-community/group-beam-search` custom generator for group beam search. That dependency is not acceptable for the lightweight, reproducible paper setting, so this route was abandoned without a full run. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Phonetic n-best consensus reranking: boost exact hotword candidates when other n-best candidates strongly support the same hotword phonetically | 0.8486 | 0.0820 | 0.1081 | 0.5149 | Reverted. Metrics matched accepted nested promotion exactly, indicating that current candidate pools do not contain enough cases where phonetic cross-candidate support changes the selected hypothesis. |
-| 2026-05-03 | `configs/cb-whisper-aishell-v3.yaml` | same fixed KWS checkpoint | Direct Whisper large-v3 swap, keeping KWS encoder fixed and using `language: chinese` | 0.1204 | 3.7586 | 0.8452 | 0.9431 | Not accepted. The run produced many English transcripts on Aishell, so v3 is not correctly language-constrained by the current custom PBAWhisper generation path. Next v3 adaptation should explicitly force the `<\|zh\|>` language token or otherwise repair language/task token handling before comparing v3 fairly. |
-| 2026-05-03 | `configs/cb-whisper-aishell-v3.yaml` | same fixed KWS checkpoint | 20-batch smoke test after explicitly forcing decoder prefix tokens `<\|zh\|>`, `<\|transcribe\|>`, and `<\|notimestamps\|>` in the custom PBAWhisper generation path | 0.5000 | 0.0767 | 0.2361 | 0.5500 | Smoke test only; not directly comparable with full-set metrics. The main failure mode from the direct v3 swap is fixed: predictions are now Chinese transcriptions instead of English translations. A full v3 fixed-baseline run is required before accepting or rejecting large-v3. |
-| 2026-05-03 | `configs/cb-whisper-aishell-v3.yaml` | same fixed KWS checkpoint | Full large-v3 run after explicit decoder prefix forcing; oracle diagnostics written to `*_v3_fixed.csv` | 0.4796 | 0.1180 | 0.2994 | 0.7067 | Not accepted. Compared with the accepted large-v2 nested-promotion run, recall drops by 0.3691, CER worsens by 0.0360, Hotword Only CER worsens by 0.1914, and WER worsens by 0.1918. Oracle n-best top1 recall is 0.4867 and oracle recall is only 0.6665, so the large-v3 candidate pool itself is much weaker under the current custom generation/prompting path. |
-| 2026-05-12 | `configs/cb-whisper-aishell-v3-kws.yaml` | `outputs/aishell_large_v3_kws_reproduce/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` | Full large-v3 ASR run with the newly trained large-v3-style KWS checkpoint; ASR remains `openai/whisper-large-v3`, while KWS encoder stays `openai/whisper-medium` because the provided hidden states are 1024-dimensional | 0.4796 | 0.1180 | 0.2994 | 0.7067 | Not accepted. Metrics are effectively identical to the previous large-v3 fixed-baseline run using the old KWS checkpoint. Oracle n-best top1 recall is 0.4867 and oracle recall is 0.6665, again showing that the large-v3 bottleneck is the ASR candidate pool/generation path rather than the KWS checkpoint. A failed first attempt with `encoder_ckpt=openai/whisper-large-v3` confirmed a 1280-vs-1024 hidden-state mismatch, so this data package is not truly end-to-end large-v3 KWS hidden-state compatible. |
-| 2026-05-14 | `configs/cb-whisper-aishell-v3-kws.yaml` | `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` | Full true large-v3 path: ASR `openai/whisper-large-v3`, online KWS encoder `openai/whisper-large-v3`, and 1280-dimensional large-v3 hotword database | 0.5481 | 0.1132 | 0.2729 | 0.6683 | Not accepted, but this is a real improvement over the stale-hidden-state v3 KWS run: Entity Recall +0.0685, CER -0.0048, Hotword Only CER -0.0265, and WER -0.0384. It is still far below the accepted large-v2 CB-Whisper baseline. Oracle n-best top1 recall is 0.5563 and oracle recall is 0.6579, so true-v3 KWS helps select better keywords, but the large-v3 ASR candidate pool remains the dominant bottleneck. |
-| 2026-05-14 | `configs/cb-whisper-aishell-v3-kws.yaml` | `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` | Full true large-v3 path after trimming online KWS encoder hidden states to the real utterance length using the attention mask | 0.7215 | 0.1196 | 0.2356 | 0.5842 | Diagnosis accepted, method not yet accepted. Compared with the previous true-v3 run, Entity Recall improves by +0.1735, Hotword Only CER improves by -0.0373, and WER improves by -0.0842, confirming that padded hidden frames were corrupting online KWS keyword selection. CER worsens by +0.0064, and the result is still below the accepted large-v2 baseline, so the next step should focus on making large-v3 use the now-correct hotword set without selecting lower-quality ASR candidates. Oracle n-best top1 recall is 0.7288 and oracle recall is 0.7351. |
-| 2026-05-14 | `configs/cb-whisper-aishell-v3-kws.yaml` | `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` | Full true large-v3 path with prompt-aware no-repeat n-gram blocking: no-repeat is computed over generated text while ignoring the hotword prompt prefix | 0.9238 | 0.0661 | 0.0467 | 0.4641 | Accepted as the current best result. Compared with the online-KWS-trim run, Entity Recall improves by +0.2022, CER improves by -0.0535, Hotword Only CER improves by -0.1889, and WER improves by -0.1200. Compared with the accepted large-v2 baseline, recall improves by about +0.0763 and CER improves by about -0.0161. Oracle n-best top1 recall is 0.9289 and oracle recall is 0.9433, showing that the custom generation path now produces a substantially stronger candidate pool instead of merely relying on reranking. |
-| 2026-05-28 | `configs/cb-whisper-aishell-v3-kws.yaml` with CLI overrides | `outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt` | Clean large-v3 fallback probe: `prompt=false`, phonetic rescore/repair/consensus disabled, and oracle n-best diagnostics disabled; metrics written to `logs/test_metrics_aishell_v3_clean.csv` | 0.4785 | 0.1145 | 0.2973 | 0.7005 | Rejected as a CER-reduction route. The no-prompt clean hypothesis is much worse than the current best true-v3 CB-Whisper run, so a simple clean-Whisper fallback cannot push AISHELL CER below 6%. Future CER reduction should use a more selective gate among contextual candidates or a weaker prompt/rescore variant, not unconditional clean fallback. |
-| 2026-05-28 | offline n-best MBR on `logs/oracle_nbest_detail_aishell_v3_best_rerun.csv` | same true-v3 KWS checkpoint | Character-level MBR/consensus candidate selection over the existing n-best pool; no extra Whisper decoding | 0.9289 | 0.0645 | 0.0494 | N/A | Implemented as `src/analysis/nbest_consensus.py`. The best test-side MBR setting is `mbr_uniform_a0.2_kw0`, improving candidate-detail CER from 0.0666 to 0.0645 while keeping recall unchanged. Dev-selected MBR (`a=0.1`) reaches 0.0587 CER on dev but transfers only to 0.0660 on test, so MBR is useful as evidence that n-best consistency helps but is not yet a <6% test-CER solution. |
-| 2026-05-28 | dev-trained offline n-best reranker | same true-v3 KWS checkpoint | Lightweight linear candidate selector trained on dev n-best features (`rank`, ASR score, exact/phonetic/consensus scores, support, length, top1 distance), then evaluated on test n-best | 0.9258 | 0.0643 | 0.0508 | N/A | Implemented as `src/analysis/nbest_reranker.py`. Training on `logs/oracle_nbest_detail_aishell_v3_dev_for_reranker.csv` and testing on `logs/oracle_nbest_detail_aishell_v3_best_rerun.csv` improves test candidate-detail CER from 0.0666 to 0.0643, but recall drops by 0.0031 and hotword-only CER worsens by 0.0014. A direct min-CER label variant was worse (`0.0650` CER), so the current feature-only linear reranker is not sufficient for the 6% CER target. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Chinese natural-language contextual prompt format: `以下关键词可能出现：kw1，kw2。` | 0.8320 | 0.0786 | 0.1185 | 0.5136 | Reverted/not accepted. This prompt form improves CER by 0.0034 versus accepted nested promotion, but recall drops by 0.0166 and Hotword Only CER worsens by 0.0105. Oracle recall also drops to 0.8486, so natural-language prompt wording weakens the hotword candidate pool despite better generic transcription. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Individual bracketed keyword prompt format: `(kw1) (kw2) (kw3)` | 0.8453 | 0.0864 | 0.1223 | 0.5173 | Not accepted. Compared with accepted nested promotion, recall drops by 0.0033 and CER worsens by 0.0044. Oracle recall is 0.8572, below the accepted 0.8663 oracle recall, so separating keywords into independent bracketed chunks does not improve candidate generation. |
-| 2026-05-03 | `configs/cb-whisper-aishell.yaml` | same fixed KWS checkpoint | Prompt recency ordering: reverse selected prompt keywords so higher-KWS-score keywords appear closest to the decoder start | 0.8166 | 0.0898 | 0.1415 | 0.5408 | Reverted/not accepted. This candidate-generation-side idea substantially hurts recall and all guardrail metrics; oracle recall drops to 0.8317. The original descending KWS order is important for the current prompt format, even if the highest-score keyword is farther from the decoder start token. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Shuili custom dataset baseline after re-extracting utterance/keyword hidden states with `utils.py --extract_hs` and `openai/whisper-medium` | 0.7639 | 0.0998 | 0.2153 | 0.5872 | Corrected Shuili baseline. The bad imported hidden states caused KWS collapse: before re-extraction, KWS Recall@12 was only 0.0134 and prompt repeatedly selected the same unrelated keyword. Re-extraction restored normal hidden-state distribution and improved Entity Recall from 0.7556 to 0.7639, CER from 0.1000 to 0.0998, and WER from 0.5917 to 0.5872, but Hotword Only CER worsened from 0.1794 to 0.2153. KWS remains much weaker than AISHELL on this custom set: after correction, KWS Recall@12 is 0.4273 and Recall@28 is 0.6865, so the main remaining issue is KWS/data distribution mismatch rather than Whisper hidden-state file corruption alone. Oracle n-best summary: top1 recall 0.5497, oracle recall 0.6388, top1 hit rate 0.3881, oracle hit rate 0.5405. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | New Shuili `hotword.7z` package, replacing the old hotword-side files while keeping the original utterance wavs | 0.7615 | 0.0999 | 0.2148 | 0.5849 | New package result. Hidden-state distribution is now normal out of the archive, so the earlier file-format issue is fixed. Metrics are close to the corrected Shuili baseline: Entity Recall -0.0024, CER +0.0001, Hotword Only CER -0.0005, WER -0.0023. KWS diagnosis remains the bottleneck: Recall@12 0.4281 and Recall@28 0.6823, far below AISHELL. The TTS keyword-audio domain is a plausible contributor, because KWS compares utterance hidden states against TTS keyword hidden states; a natural-keyword or KWS-adapted Shuili variant would test this directly. Oracle n-best summary: top1 recall 0.5484, oracle recall 0.6361, top1 hit rate 0.3872, oracle hit rate 0.5392. |
-| 2026-05-06 | `configs/cb-whisper-shuili-narrow-baseline.yaml` | same fixed KWS checkpoint | Narrow Shuili candidate-pool baseline: `kws_positive_threshold=0.05`, `kws_topk_per_group=25`, `kws_max_prompt_keywords=100`, `rescore_max_keywords=50`; prompt still limited to 4 keywords | 0.8501 | 0.0841 | 0.1543 | 0.5069 | Accepted as a controlled weaker baseline. It is clearly worse than the current wider Shuili setting, but not collapsed, so it can show the value of broader KWS rank coverage and rescore context. Compared with the current setting, Entity Recall is lower by 0.0165, CER worse by 0.0034, Hotword Only CER worse by 0.0096, and WER worse by 0.0092. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Wider Shuili rescore pool: `kws_positive_threshold=0.05`, `kws_topk_per_group=50`, `kws_max_prompt_keywords=200`, `rescore_max_keywords=160`; prompt still limited to 4 keywords | 0.8666 | 0.0807 | 0.1447 | 0.4977 | Accepted as the current Shuili setting. Compared with the previous low-threshold setting, Entity Recall improves by 0.0165, CER by 0.0034, Hotword Only CER by 0.0096, while WER is roughly flat (+0.0008). Compared with the new-package baseline, Entity Recall improves by 0.1051 and CER by 0.0192. This supports the diagnosis that Shuili KWS score calibration is too strict and rank coverage is more useful than raw score thresholding; broadening the rescore pool helps without increasing the number of Whisper decoding passes. Oracle n-best summary: top1 recall 0.6312, oracle recall 0.6361, top1 hit rate 0.5297, oracle hit rate 0.5392. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Disable prompt while keeping wide Shuili KWS/rescore path | 0.7048 | 0.3005 | 0.2140 | 0.6950 | Rejected. Prompting is essential on Shuili; without prompt, generic ASR quality collapses and recall drops by 0.1617 versus the current wide-rescore setting. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Very wide Shuili rescore pool: `kws_positive_threshold=0.02`, `kws_topk_per_group=80`, `kws_max_prompt_keywords=320`, `rescore_max_keywords=320`; prompt still limited to 4 keywords | 0.8666 | 0.0811 | 0.1453 | 0.5023 | Rejected. Recall matches the current wide-rescore setting, but CER worsens by 0.0004, Hotword Only CER by 0.0005, and WER by 0.0046. This suggests the useful rank-coverage gain saturates around the `topk_per_group=50`, `rescore_max_keywords=160` setting; pushing toward the full keyword list mostly adds distractors. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Shuili natural-language prompt wording: `以下关键词可能出现：kw1，kw2。`; KWS/rescore settings unchanged from the current wide-rescore setting | 0.8442 | 0.0855 | 0.2029 | 0.5092 | Rejected. Compared with the current Shuili setting, Entity Recall drops by 0.0224, CER worsens by 0.0048, Hotword Only CER worsens by 0.0582, and WER worsens by 0.0115. The same natural-language prompt route that was weak on AISHELL is also weak on Shuili; the compact bracket prompt remains better for hotword realization. Oracle n-best summary: top1 recall 0.6168, oracle recall 0.6218, top1 hit rate 0.5083, oracle hit rate 0.5201. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Increase Shuili prompt budget from 4 to 8 injected keywords; KWS/rescore settings unchanged | 0.8536 | 0.0840 | 0.1817 | 0.5252 | Rejected. Compared with the current Shuili setting, Entity Recall drops by 0.0130, CER worsens by 0.0033, Hotword Only CER worsens by 0.0370, and WER worsens by 0.0275. This suggests Shuili does need prompting, but the prompt must stay compact; adding more KWS candidates mainly introduces distractors and hurts both hotword and generic ASR quality. Oracle n-best summary: top1 recall 0.6223, oracle recall 0.6277, top1 hit rate 0.5095, oracle hit rate 0.5238. |
-| 2026-05-05 | `configs/cb-whisper-shuili.yaml` | same fixed KWS checkpoint | Specificity-first ordering inside the existing 4-keyword prompt; selected prompt set unchanged, only longer/full terms are placed earlier | 0.8666 | 0.0808 | 0.1665 | 0.4954 | Rejected and code option reverted. Entity Recall matches the current Shuili setting and WER improves slightly, but CER worsens by 0.0001 and Hotword Only CER worsens by 0.0217. Ordering alone does not fix Shuili's surface-form errors; the prompt likely needs better selection, not just reordering. Oracle n-best summary: top1 recall 0.6317, oracle recall 0.6382, top1 hit rate 0.5321, oracle hit rate 0.5463. |
-| 2026-05-06 | original `Enhance-CB-Whisper` KWS on Shuili | original ResNet KWS trained on local `dataaishell/kws` TTS data | Test original-paper KWS transfer to Shuili with AISHELL-style loader and Chinese normalization | 0.1388 | N/A | N/A | N/A | KWS-only baseline: Precision 0.1378, Recall about 0.1388, F1 0.1383. This shows the original ResNet KWS trained on AISHELL/TTS transfers very poorly to Shuili. |
-| 2026-05-06 | original `Enhance-CB-Whisper` CB-Whisper on Shuili | same original ResNet KWS checkpoint | Original CB-Whisper + original KWS, adapted only for local data format, current Transformers compatibility, and Chinese normalization | 0.0679 | N/A | N/A | N/A | Rejected as a baseline only. Compared with the current Shuili setting above (Entity Recall 0.8666, CER 0.0807), original CB-Whisper collapses mainly because the original KWS candidate source has almost no transfer recall on Shuili. The original evaluation script reports Entity Recall only, so CER/WER are not available from this run. |
-| 2026-05-06 | original `Enhance-CB-Whisper` on AISHELL test | original ResNet KWS trained on local `dataaishell/kws` TTS data | Original CB-Whisper baseline after replacing outdated prompt internals with the current Transformers `prompt_ids` path and adding CER reporting | 0.7578 | 0.1121 | N/A | N/A | This is the usable original-code baseline. The earlier original-code AISHELL run was artificially low because prompt tokens were forced in a way that bypassed Whisper's current language/task-token handling. Current full log: `original/Enhance-CB-Whisper/src/logs/cbwhisper_aishell_original_kws_test_stdout.log`. |
-
-## End-to-end CB-SenseVoice
-
-The recognition side can now run without loading Whisper. The new
-`configs/cb-sensevoice-aishell.yaml` workflow is:
-
-```text
-audio
-  -> SenseVoice encoder hidden states
-  -> SenseVoice-based KWS and hotword filtering
-  -> neutral + hotword-biased SenseVoice CTC prefix beam search
-  -> acoustic/exact/phonetic/consensus reranking
-  -> final transcript and COVO evidence
-```
-
-The contextual CTC scorer rewards only token extensions that advance a
-filtered hotword prefix, while the neutral beam preserves ordinary ASR
-candidates. The reranker uses the original SenseVoice CTC acoustic score; no
-Whisper checkpoint or Whisper-generated candidate is used on this path.
-
-Full AISHELL hotword test (`808` rows, 2026-07-15):
-
-| System | Entity Recall | CER | Hotword Only CER | WER |
-| --- | ---: | ---: | ---: | ---: |
-| Naked SenseVoice, current CB normalization | N/A | 0.08554 | N/A | N/A |
-| SenseVoice KWS + Whisper-large-v3 CB | 0.92155 | 0.07174 | 0.05228 | 0.46906 |
-| End-to-end CB-SenseVoice | 0.83204 | **0.06202** | 0.10979 | 0.40099 |
-
-CB-SenseVoice improves CER by `0.02352` absolute over naked SenseVoice and by
-`0.00972` over the mixed SenseVoice-KWS/Whisper path. Its remaining weakness is
-hotword realization: candidate-oracle Entity Recall is only `0.85128`, versus
-the standalone KWS recall ceiling of `0.90658`. Candidate-oracle CER is
-`0.03686`, so the next research target is better contextual CTC candidate
-generation rather than another hand-tuned reranking formula.
-
-An additional 100-row probe that biased decoding with all detected KWS words
-instead of only the filtered prompt words changed six candidate pools but left
-CER and recall exactly unchanged. That expansion was rejected and the compact
-filtered-hotword formulation was retained.
-
-### CB-SenseVoice + COVO
-
-CB-SenseVoice evidence is compatible with the existing COVO bridge. The
-current no-gate workflow uses six SenseVoice candidates, their pinyin and
-scores, and all available KWS/prompt hotword evidence with the conservative
-`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` adapter:
-
-```text
-CB-SenseVoice top1 + n-best + KWS evidence
-  -> compact reliability-labeled COVO prompt
-  -> Qwen3.5-4B + preserve2 LoRA
-  -> corrected final transcript
-```
-
-Full AISHELL hotword test (`808` rows):
-
-| System | Entity Recall | CB-normalized mean CER | Exact rows |
-| --- | ---: | ---: | ---: |
-| End-to-end CB-SenseVoice | 0.83204 | 0.06202 | 484 |
-| CB-SenseVoice + COVO preserve2 | **0.83978** | **0.04379** | **541** |
-
-COVO recovered `38/105` true hotwords that had entered the filtered prompt but
-were absent from every SenseVoice candidate. Across all mentions it gained 48
-hotwords and lost 42, so recall improves only modestly while CER improves
-substantially. No post-filter, fallback gate, or reference-derived field is
-used by the model prompt.
-
-The bridge now preserves `keyword_mentions` as evaluation-only metadata during
-simplified-Chinese conversion. These gold mentions are not rendered into the
-COVO prompt.
-
-Run from `src/`:
-
-```bash
-/root/autodl-tmp/great/bin/python analysis/cbwhisper_covo_bridge.py run \
-  --input logs/cb_sensevoice_evidence_aishell.jsonl \
-  --output logs/cb_sensevoice_covo_messages.jsonl \
-  --prediction-output logs/cb_sensevoice_covo_predictions.jsonl \
-  --adapter-path ../cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7 \
-  --max-nbest 6 --max-pinyin 3 \
-  --max-hotwords 8 --max-prompt-hotwords 6 \
-  --max-candidates-with-scores 6 \
-  --hotword-source all --include-pinyin \
-  --protect-supported-hotwords \
-  --batch-size 7 --disable-thinking --evaluate
-```
-
-Run the full workflow from `src/`:
-
-```bash
-CBW_METRICS_OUT=logs/test_metrics_cb_sensevoice.csv \
-CBW_EVIDENCE_OUT=logs/cb_sensevoice_evidence_aishell.jsonl \
-/root/autodl-tmp/great/bin/python run_CLI.py test \
-  --config configs/cb-sensevoice-aishell.yaml
-```
-
-## CB-Whisper + covo workflow
-
-The current code can export CB-Whisper evidence for a downstream covo/Qwen text-rewrite corrector without changing the normal CB-Whisper metrics path. Set `CBW_EVIDENCE_OUT` during a CB-Whisper test run:
-
-```bash
-cd /root/autodl-tmp/src
-TRANSFORMERS_VERBOSITY=error \
-CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_aishell.jsonl \
-CBW_METRICS_OUT=logs/test_metrics.csv \
-/root/autodl-tmp/great/bin/python cb-whisper.py test --config configs/cb-whisper-aishell-v3-kws.yaml
-```
-
-Each evidence record stores the CB-Whisper final output as `input.asr_top1`, the reranked candidate pool as `input.nbest`, KWS candidates as `input.hotwords`, injected prompt words as `input.prompt_hotwords`, pinyin strings, and candidate scores under `input.cbwhisper`. The bridge injects prompt-side CB-Whisper hotwords into `input.covo_hotwords` by default and writes them into the covo prompt as predicted, non-gold hotword evidence. Broader KWS hotword injection remains available through `--hotword-source all`, but the first pilot showed that all-KWS evidence adds too many false-hotword distractors.
-
-Convert this evidence into Qwen/covo chat messages:
-
-```bash
-cd /root/autodl-tmp
-/root/autodl-tmp/great/bin/python src/analysis/cbwhisper_covo_bridge.py prepare \
-  --input src/logs/cbwhisper_covo_evidence_aishell.jsonl \
-  --output src/logs/cbwhisper_covo_messages_aishell.jsonl \
-  --include-pinyin
-```
-
-Run the migrated covo LoRA corrector on the messages:
-
-```bash
-cd /root/autodl-tmp
-# If needed: /root/autodl-tmp/great/bin/python -m pip install -r cbwhisper_covo_migration_20260609_tar_extracted/covo/requirements-train.txt
-/root/autodl-tmp/great/bin/python src/analysis/cbwhisper_covo_bridge.py run \
-  --input src/logs/cbwhisper_covo_evidence_aishell.jsonl \
-  --output src/logs/cbwhisper_covo_messages_aishell.jsonl \
-  --prediction-output src/logs/cbwhisper_covo_predictions_aishell.jsonl \
-  --include-pinyin \
-  --disable-thinking \
-  --evaluate
-```
-
-The default bridge paths use the migration bundle:
-
-```text
-/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo
-/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B
-/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_text_rewrite_hardneg_dropout_lora_2epoch
-```
-
-This is intentionally a loose bridge rather than a hard code merge: CB-Whisper
-or CB-SenseVoice remains responsible for ASR, N-best, KWS, and hotword scoring;
-COVO remains responsible for conservative generative correction and
-evaluation.
-
-Smoke test on 2026-06-12: a 2-sample AISHELL run with `CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_smoke.jsonl` successfully exported evidence, converted it to Qwen messages, loaded the migrated `Qwen3.5-4B` + hard-negative LoRA adapter, and evaluated the predictions. The smoke subset improved CER from `0.07143` to `0.00000`, with `1` improved sample, `0` worsened samples, and `1` unchanged sample. This is only a wiring check, not a reportable metric, but it confirms the CB-Whisper -> covo bridge can repair at least one real CB-Whisper over-correction case.
-
-Pilot100 on 2026-06-12: the first 100 AISHELL test samples were exported through the same bridge. CB-Whisper itself reported Entity Recall `0.9439`, CER `0.0357`, Hotword Only CER `0.0270`, and WER `0.3100` in `logs/test_metrics_covo_pilot100.csv`. Directly accepting all covo/Qwen corrections was not safe under the covo CER evaluator: CER changed from `0.08877` to `0.09073`, with `23` improved, `28` worsened, and `49` unchanged samples. Injecting all KWS hotwords into the prompt worsened CER to `0.09856`, confirming that broad hotword evidence is noisy. Injecting only the prompt-side CB-Whisper hotwords improved the covo-evaluator CER to `0.08486`, with `23` improved, `27` worsened, and `50` unchanged samples. Decision: do not add a post-hoc gate; the paper-clean next step is to fine-tune the covo/Qwen corrector to use predicted CB-Whisper hotword evidence conservatively.
-
-Hotword-aware covo SFT probe on 2026-06-12: `src/analysis/prepare_covo_hotword_sft.py` converts existing ChineseHP/AISHELL rewrite data into the same CB-Whisper hotword-evidence prompt style as the bridge. A small 2000/500 train/dev probe was generated from the covo hard-negative rewrite data, then the migrated `qwen35_text_rewrite_hardneg_dropout_lora_2epoch` adapter was continued for 120 bf16 LoRA steps without QLoRA. Training completed normally with final eval loss `0.1956`, but Pilot100 evaluation with the continued adapter regressed to CER `0.08877`, improved `23`, worsened `29`, unchanged `48` (`logs/experiment_cbwhisper_covo_pilot100_hotword_ft120_stdout.log`). This is worse than the no-gate prompt-hotword bridge result (`0.08486` CER), so this particular synthetic-hotword SFT probe is not accepted or worth scaling without changing the data construction.
-
-Real CB-Whisper evidence SFT probe on 2026-06-12: a 200-sample AISHELL dev subset was exported with `CBW_EVIDENCE_OUT=logs/cbwhisper_covo_evidence_dev200.jsonl`; CB-Whisper on that subset reported Entity Recall `0.9369`, CER `0.0725`, Hotword Only CER `0.0601`, and WER `0.4550`. Training directly on the full evidence prompt OOMed, so a compact prompt was used (`max_nbest=4`, `max_pinyin=3`, no candidate-score block). Continuing the hard-negative LoRA for 80 bf16 steps on this real dev evidence completed with final eval loss `0.2739`. On the same Pilot100 test evidence, compact prompt + original LoRA gave CER `0.08877`, improved `25`, worsened `25`, unchanged `50`; compact prompt + real-dev200 fine-tuned LoRA improved to CER `0.08486`, improved `23`, worsened `25`, unchanged `52` (`logs/experiment_cbwhisper_covo_pilot100_realdev_compact_ft80_stdout.log`). This is a small but real no-gate signal: real CB-Whisper evidence fine-tuning can recover the prompt-hotword gain even under a compact prompt, while synthetic hotword SFT did not.
-
-Scaled real-evidence SFT on 2026-06-12: `CBW_EVIDENCE_ONLY=1` was added for faster evidence export, then 600 AISHELL dev samples were exported to `logs/cbwhisper_covo_evidence_dev600.jsonl` without running bootstrap metrics. Compact prompt messages were split into 500 train / 99 dev rows, and the hard-negative LoRA was continued for 160 bf16 steps with gradient checkpointing. The final eval loss was `0.2555`. On Pilot100, this adapter reached CER `0.08094`, improved `24`, worsened `23`, unchanged `53` (`logs/experiment_cbwhisper_covo_pilot100_realdev600_compact_ft160_stdout.log`). This is the current best no-gate COVO pilot result and improves over both compact original LoRA (`0.08877`) and the previous prompt-hotword bridge (`0.08486`).
-
-Full AISHELL test evaluation on 2026-06-12: the full 808-sample AISHELL test set was exported through the same evidence-only CB-Whisper path to `logs/cbwhisper_covo_evidence_test_full.jsonl`, then decoded with the real-dev600 compact SFT adapter. Under the covo correction evaluator, CER dropped from the COVO bridge evidence baseline `0.10043` to `0.05650`, with `296` improved samples, `96` worsened samples, and `416` unchanged samples (`logs/experiment_cbwhisper_covo_test_full_realdev600_compact_ft160_stdout.log`). This `0.10043` baseline is the `input.asr_top1` CER inside the COVO JSONL evidence and should not be mixed with the earlier standalone CB-Whisper AISHELL CER table, where the accepted rerank baseline was about `0.0820`. A follow-up entity-recall check gave bridge input Entity Recall `0.9028` and covo output Entity Recall `0.8541`; this route is therefore useful for lowering overall CER below 6%, but it currently sacrifices hotword recall and should not be reported as a hotword-recall improvement without further training or loss design.
-
-Hotword-preservation oversampling on 2026-06-12: `src/analysis/build_covo_preserve_sft_split.py` creates SFT splits from real CB-Whisper evidence and oversamples train rows where ASR top-1 already contains a true hotword mention. Using the same dev600 compact evidence, the 500-row train base became 1422 rows after repeating 461 hotword-preserved rows twice. Continuing the real-dev600 adapter for 120 bf16 LoRA steps gave final eval loss `0.2139`. On Pilot100, CER improved from the previous best `0.08094` to `0.03916`, and Entity Recall improved from `0.7477` to `0.8037`. On the full AISHELL test set, covo-evaluator CER improved from `0.05650` to `0.04400`, with `309` improved, `62` worsened, and `437` unchanged samples (`logs/experiment_cbwhisper_covo_test_full_realdev600_preserve2_ft120_stdout.log`). Full-test Entity Recall improved from `0.8541` to `0.8785`; lost hotwords dropped from `89` to `65`, while gained hotwords stayed essentially unchanged (`35` to `36`). This is the current best no-gate CB-Whisper + covo result: it beats the 6% CER target and partially repairs the recall loss, but still trails the CB-Whisper input recall `0.9028`.
-
-Full AISHELL-train hotword no-op SFT on 2026-06-14: `src/analysis/build_aishell_train_hotword_noop_sft.py` converts the full AISHELL train hotword alignments (`datasets/aishell/train/aligned.txt`) and transcripts into 17301 no-op hotword-preservation Qwen/COVO rows. These rows were mixed with the real CB-Whisper dev600 preserve2 rows for a 18723-row training set, then the preserve2 adapter was continued for one full epoch with batch size 7. Training completed in about 62 minutes with final eval loss `0.2208` and train loss `0.1704`. On Pilot100, CER improved to `0.03721` and Entity Recall to `0.8318`. On the full AISHELL test set, covo-evaluator CER improved to `0.04354`, with `300` improved, `41` worsened, and `467` unchanged samples (`logs/experiment_cbwhisper_covo_test_full_aishell_train_noop_bs7_stdout.log`). Full-test Entity Recall reached `0.9039`, slightly above the CB-Whisper input recall `0.9028`; lost hotwords dropped to `39`. This is now the best no-gate result and meets both targets: recall is above 90% and CER is below 6% under the current evaluation setup.
-
-Train-side real-error COVO probe on 2026-06-14: `src/analysis/build_aishell_hotword_train_split.py` materializes AISHELL train as a CB-Whisper hotword split by reusing existing KWS hidden states. A full `hotword/train` split was generated with `17301` usable utterances and `20000` keywords. Because loading all 20000 keyword hidden states is expensive, a first `train_probe1000` split used `1000` train utterances and `2000` keywords. Exporting 200 CB-Whisper evidence rows from this split took about `9m41s` and produced `logs/cbwhisper_covo_evidence_train_probe200.jsonl`. The raw CB-Whisper top1 on these 200 train rows had CER `0.1252` and keyword recall `0.8686`, so it does contain real correction signal. However, continuing the current best adapter for 40 steps on only these 200 real-error rows regressed Pilot100 from CER `0.03721` / keyword recall `0.8136` to CER `0.04178` / keyword recall `0.7542`. Decision: the route is clean and should be scaled with more real train evidence, but the 200-row short run is too small and overfits, so do not promote `outputs/qwen35_cbwhisper_train_probe200_realerr_40steps_bf16`.
-
-Full train-side real-error COVO SFT on 2026-06-15: all `17301` AISHELL train hotword utterances were exported as real CB-Whisper evidence in 18 shards and merged to `logs/cbwhisper_covo_evidence_train_full.jsonl`. The train evidence has raw CB-Whisper top1 CER `0.1155`, keyword recall `0.9044`, exact rate `0.4041`, and average n-best size `5.42`. A compact COVO training set was mixed from full train real-error evidence (`17301` rows), full AISHELL train no-op preservation rows (`17301` rows), and dev600 preserve2 rows (`1422` rows), for `36024` rows total. Continuing the current best no-op adapter for one epoch at lr `1e-5` produced `outputs/qwen35_cbwhisper_train_full_real_noop_preserve2_1epoch_bf16_bs7`, with final eval loss `0.2133` and train loss `0.2005`. Pilot100 regressed from the current best CER `0.03721` / keyword recall `0.8136` to CER `0.04634` / keyword recall `0.7034`, with `30` improved, `18` worsened, and `52` unchanged samples. Full AISHELL test also regressed: CER `0.04680` vs current best `0.04354`, keyword recall `0.8316` vs `0.9057`, lost hotwords `108` vs `39`, with `312` improved, `95` worsened, and `401` unchanged samples. Decision: do not promote this adapter. Real-error SFT at this scale makes the corrector more aggressive and damages hotword preservation; the next variant should either reduce real-error weight, train fewer steps, or use an explicit preservation-balanced sampling schedule rather than a full real-error epoch.
-
-Hotword-anchored real-error COVO SFT on 2026-06-15: to avoid teaching the model to rewrite already-correct hotwords, a stricter subset was built from the full train evidence: keep only real-error rows where all true keyword mentions already appear in ASR top-1, but the sentence is still not exactly correct. This produced `6408` train-real-error-hotword-anchored rows, mixed with `17301` full AISHELL train no-op preservation rows and `1422` dev600 preserve2 rows (`25131` rows total). Continuing the current best no-op adapter for `300` steps at lr `5e-6` produced `outputs/qwen35_cbwhisper_hotword_anchored_real_300steps_bf16_bs7`, with final eval loss `0.2176` and train loss `0.1948`. Pilot100 still regressed: CER `0.04504` vs current best `0.03721`, keyword recall `0.7373` vs `0.8136`, lost hotwords `22` vs `13`, with `30` improved, `16` worsened, and `54` unchanged samples. Error inspection showed the model changing already-present rare proper nouns into more common homophones or variants, e.g. `许玮甯 -> 许玮宁`, `今久 -> 金九`, `宋芳 -> 孙芳`, `杨锋 -> 杨峰`. A prompt-only strict preservation probe with the current best adapter did not improve recall and slightly worsened Pilot100 CER (`0.03786`). Decision: do not promote this route. The best result remains `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`; further gains likely need better target construction or contrastive preservation training, not more generic real-error SFT.
-
-Contrastive hotword-preservation DPO probe on 2026-06-16: `src/analysis/build_covo_hotword_dpo_pairs.py` builds preference pairs from full AISHELL train CB-Whisper evidence. For each row, chosen is the reference text and rejected is a close n-best candidate that drops at least one prompt-side hotword mention; this yielded `2583` real n-best preference pairs. Continuing the current best no-op adapter with DPO for `30` steps produced `outputs/qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16`. Pilot100 improved over the current best on both CER and hotword preservation: CER `0.03460` vs `0.03721`, keyword recall `0.8475` vs `0.8136`, and lost hotwords `9` vs `13`. Full AISHELL test showed the expected trade-off: keyword recall improved from `0.9057` to `0.9227`, lost hotwords dropped from `39` to `22`, but CER worsened from `0.04354` to `0.04501`. A weaker `15`-step DPO probe was not better on Pilot100 (CER `0.03786`, keyword recall `0.8305`) and was not promoted to full test. Decision: DPO is effective as a recall-oriented variant and validates the contrastive-preservation idea, but it does not replace the current CER-best adapter yet. The next useful variant should reduce DPO strength or mix in CER-preserving preferences so the recall gain does not cost overall CER.
-
-Full-pass contrastive DPO on 2026-06-16: to test whether the 30-step signal scales, the same `2583` preference pairs were trained for `650` DPO steps, roughly one full pass over the pair set with gradient accumulation 4. To avoid over-strengthening the recall bias, lr and beta were lowered (`lr=2e-6`, `beta=0.03`, `sft_weight=0.03`). The output adapter was `outputs/qwen35_cbwhisper_hotword_preserve_dpo_full_lr2e6_beta003_bf16`. Full AISHELL test did not improve: CER regressed to `0.05658`, keyword recall was only `0.9089`, lost hotwords `32`, with `244` improved, `58` worsened, and `506` unchanged samples. This is worse than both the CER-best no-op adapter (`0.04354` CER, `0.9057` recall) and the short DPO high-recall adapter (`0.04501` CER, `0.9227` recall). Decision: do not promote full-pass DPO. The useful region is a very short preference nudge, not full convergence on the hotword-preservation pairs.
-
-Mixed DPO preference probes on 2026-06-16: `src/analysis/build_covo_mixed_dpo_pairs.py` adds CER-candidate and no-op conservative preference pairs to the hotword-preservation pairs. A balanced three-way set (`2583` hotword + `2583` CER + `2583` no-op pairs) was trained for `20` and `60` steps. Both became too conservative: mixed20 reached CER `0.05728`, keyword recall `0.9142`, lost hotwords `15`; mixed60 reached CER `0.08188`, keyword recall `0.9121`, lost hotwords `1`. A two-way hotword+CER set (`2583` + `2583`, no no-op) trained for `30` steps also over-constrained output: CER `0.06271`, keyword recall `0.9206`, lost hotwords `5`. Decision: mixed DPO does not beat the short hotword-only DPO or the no-op CER-best adapter. The added conservative preferences suppress useful corrections more than they recover CER.
-
-AISHELL COVO error audit on 2026-06-16: `src/analysis/covo_error_audit.py` audits the current best full-test predictions (`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`) against the COVO bridge input and n-best. The current best has CER `0.04354` vs bridge-input CER `0.10043`. This bridge-input CER is computed from `input.asr_top1` in the COVO evidence JSONL and is not the same measurement as the earlier standalone CB-Whisper AISHELL CER (`~0.0820`). N-best oracle alone is only `0.06178`, so COVO is already better than selecting among CB-Whisper candidates under this bridge-evidence setup. However, the oracle that can choose between COVO output and n-best reaches `0.03097`, showing some remaining recoverable errors but also implying that the current evidence pool does not naturally explain the ChineseHP-style `0.0277` result. Exact-match counts: bridge input `368/808`, n-best oracle `486/808`, current COVO `523/808`. COVO fixed `181` samples exactly and partially improved `119`, but left `125` erroneous samples unchanged, broke `26` originally correct samples, and worsened `15` already-wrong samples. True hotword recall is stable around `0.9055`; COVO loses `39` base-hit hotwords and gains `35`, while reducing false prompt-hotword insertions from `24` in the bridge input to `8`. OpenCC traditional-to-simplified normalization only reduces current CER from `0.04354` to `0.04261`, so the remaining gap is not mainly a繁简 issue.
-
-Legacy CB-Whisper-style CER recalculation on 2026-06-17: to avoid mixing evaluator definitions, the full-test COVO predictions were also recalculated with the same structural CER used by `src/model/cb_whisper.py` test metrics: normalize surface text, compute per-sample `edit_distance(ref, pred) / len(ref)`, then average over samples. Under this mean-sample CER口径, the bridge input baseline for the COVO evidence is `0.06600`, the current best no-op adapter is `0.04297`, the short hotword DPO adapter is `0.04417`, and the full-real 500-step continuation is `0.04943`. The corresponding corpus-level normalized CERs are `0.06750`, `0.04149`, `0.04234`, and `0.04583`. Going forward, COVO results should report this legacy mean-sample CER alongside the COVO correction evaluator CER.
-
-Complete AISHELL test-set check on 2026-06-17: the previous COVO "full test" files cover the 808-sample AISHELL hotword subset, not the complete AISHELL test split. A separate full-split decoder was added in `src/analysis/aishell_full_whisper_decode.py` and run on all `7176` wavs under `datasets/aishell/data_aishell/wav/test` with `openai/whisper-large-v3` greedy decoding. The raw Whisper large-v3 full-test baseline is mean-sample CER `0.09060` and corpus CER `0.09023` (`src/logs/aishell_full_whisper_large_v3_test_full.jsonl`). Feeding the same 7176 outputs through the current best no-gate COVO adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` gives COVO evaluator CER `0.06137` versus baseline `0.09288`, with `1184` improved, `20` worsened, and `5972` unchanged samples. Recomputed with the older stripped-text mean-sample口径, the baseline is mean CER `0.08070` / corpus CER `0.08044`, and the COVO output is mean CER `0.05752` / corpus CER `0.05589`. This is the first true complete-AISHELL result and should be kept separate from all 808-row hotword-subset recall/CER tables.
-
-Full AISHELL n-best sanity check on 2026-06-17: `src/analysis/aishell_full_whisper_decode.py` was extended with `--num-return-sequences` and the COVO bridge was updated to copy top-level `nbest`. A full `openai/whisper-large-v3` `beam5/return5` decode was then run on all 7176 AISHELL test wavs (`src/logs/aishell_full_whisper_large_v3_nbest5_test_full.jsonl`). The beam top1 improved slightly over greedy, with mean-sample CER `0.08735` and corpus CER `0.08730`, but every sample collapsed to one unique normalized hypothesis after de-duplication: average unique n-best `1.0000`, samples with more than one unique candidate `0`, and n-best oracle CER equal to top1 CER. Therefore the missing n-best in the full-split COVO run is not merely a bridge bug; ordinary deterministic HuggingFace Whisper beam search does not provide useful diverse candidates here. The useful CB-Whisper n-best observed in earlier experiments comes from the original `PBAWhisper` path with KWS prompt injection and shortform candidate processing, which is currently tied to the hotword split rather than the 7176-row full AISHELL split.
-
-Sampled diverse full-AISHELL n-best check on 2026-06-17: after deterministic beam search collapsed, `src/analysis/aishell_full_whisper_decode.py` was extended with sampled n-best de-duplication. A full `openai/whisper-large-v3` run with greedy top1 plus temperature `0.8` sampling generated `src/logs/aishell_full_whisper_large_v3_sample_t08_nbest5_test_full.jsonl` for all `7176` AISHELL test wavs. The output is complete. It produced average unique n-best size `2.6506`, with `4332` samples having more than one unique candidate and `1943` samples reaching five unique candidates. However, top1 CER worsened to mean-sample `0.09050` / corpus `0.09012`, while n-best oracle CER was mean-sample `0.06471` / corpus `0.06558`. Interpretation: sampling finally creates candidate diversity, but the oracle ceiling is still weaker than the complete-AISHELL COVO result (`0.05752` old mean-sample CER / `0.06137` COVO evaluator CER). This route may help only if COVO can use diverse candidates conservatively; it is not enough by itself to explain or exceed the best COVO result.
-
-AISHELL 808 hotword multi-prompt n-best check on 2026-06-18: `src/analysis/aishell_hotword_multiprompt_nbest.py` was added to test whether Whisper large-v3 can generate useful alternatives by itself when prompted with CB-Whisper/KWS hotwords. The run used the 808-row AISHELL hotword test evidence, four prompt variants (`none`, parenthesized top-3 hotwords, natural top-3, natural top-6), and temperatures `0` and `0.4` with `beam5/return5`, writing `src/logs/aishell_hotword_multiprompt_nbest_test808_t04.jsonl`. Multi-prompt candidates alone produced average unique n-best `3.9295`, `634/808` samples with more than one unique candidate, top1 mean CER `0.11230`, oracle mean CER `0.03842`, and oracle hotword recall `0.9364`. This is not good enough as a standalone ASR output because top1 quality is poor. However, when these candidates are unioned with the existing CB-Whisper evidence n-best, the candidate pool improves from CB-only oracle mean/corpus CER `0.03293 / 0.03344` to union oracle `0.02711 / 0.02725`; exact-reference-in-candidates improves from `576/808` to `606/808`, and average unique n-best rises from `6.0965` to `8.0087`. Interpretation: multi-prompt Whisper is useful as a complementary candidate generator, not as a replacement for CB-Whisper decoding. The next meaningful experiment is to feed the union candidate pool to COVO/reranking conservatively.
-
-Targeted and longer COVO capability probes on 2026-06-16: `src/analysis/build_covo_targeted_sft.py` builds targeted SFT rows from full AISHELL train CB-Whisper evidence. Three follow-up variants were tried from the current best no-op adapter. First, `false_hotword_rejection + nbest_local_repair + noop` (`2800/2800/2800`, 120 steps) badly damaged hotword preservation: full-test CER `0.05029`, keyword recall `0.8432`, lost hotwords `98`. Removing false-hotword rejection and training only `nbest_local_repair + noop` improved stability but still did not beat the current best: 60 steps reached CER `0.04463`, recall `0.8888`; a safer 1:5 repair/noop ratio trained for 200 steps with visible loss logging reached CER `0.04447`, recall `0.8919`. Finally, a larger full-real continuation on `train_full_real_plus_noop_preserve2.jsonl` (`36024` rows) was run for 500 steps with constant lr `5e-6`; eval loss improved from `0.2187` at step 125 to `0.2163` at step 500, but full-test metrics regressed to CER `0.04711`, recall `0.8379`. Its checkpoint-250 was also worse (CER `0.04563`, recall `0.8496`). Decision: more generic real-error SFT does train, but it teaches the generator to rewrite too aggressively and sacrifices already-present hotwords. Do not promote these adapters; the main adapter remains `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.
-
-CB-Whisper candidate-quality update on 2026-06-26: `src/analysis/build_cbwhisper_candidate_pool.py` was added to diagnose ChineseHP-like 10-best candidate construction. On the 808-row AISHELL hotword subset, merging CB-Whisper evidence candidates with complementary multi-prompt candidates produced average unique n-best `7.4022`, `287/808` samples with 10 candidates, exact reference in pool `595/808`, and oracle mean/corpus CER `0.03003 / 0.03058`. CB-only evidence was average unique `6.0965` with oracle mean/corpus CER `0.03293 / 0.03344`, so the complementary candidates help but still do not fully reproduce ChineseHP's near-10 unique n-best. `CBWhisper` now exposes `rescore_generation_factor`, `rescore_generation_cap`, and `covo_nbest`; the AISHELL config targets 10 retained candidates and up to 32 generated candidates before de-duplication.
-
-Integrated AISHELL v3 10-best run on 2026-06-26: `src/configs/cb-whisper-aishell-v3-kws.yaml` was updated to `rescore_nbest=10`, `rescore_generation_cap=32`, and `covo_nbest=10`, then rerun on the 808-row AISHELL hotword test set. The exported evidence reached average unique n-best `8.8205`, `524/808` rows with 10 unique candidates, exact reference in n-best `612/808`, and n-best oracle corpus CER `0.02864`. Standalone CB-Whisper top1 metrics were Entity Recall `0.92707`, CER `0.07102`, Hotword Only CER `0.04531`, and WER `0.46535`; therefore this route is best treated as a candidate-quality improvement for downstream COVO/reranker input, not as a standalone top1 CER improvement.
-
-10-best cleanup on 2026-06-26: `CBWhisper` now has a conservative `enable_covo_candidate_quality_filter` for exported COVO/evidence n-best candidates, and `src/analysis/clean_covo_nbest_quality.py` can clean existing evidence files. On `cbwhisper_covo_evidence_aishell_v3_nbest10_gen32.jsonl`, the filter removed `28` obvious outliers (`too_long=13`, `too_short=12`, `repeat_heavy=1`, `latin_tail=2`) while preserving exact-reference coverage `612/808`, oracle corpus CER `0.02864`, and oracle hotword recall `0.9448`. The cleaned file is `src/logs/cbwhisper_covo_evidence_aishell_v3_nbest10_gen32_clean.jsonl`.
-
-Targeted n-best supplement on 2026-06-26: `src/analysis/targeted_supplement_covo_nbest.py` was added to supplement only rows with fewer than 10 unique candidates. Merging cleaned CB-Whisper 10-best evidence with existing multi-prompt and full-AISHELL sampled candidates reached average unique n-best `9.2649`; one targeted supplement pass over 195 low-diversity rows reached `9.6720`; a second higher-temperature pass over the remaining 86 rows reached `10.0000`. A stronger cleaned version removed 73 long-suffix artifacts and still reached average unique n-best `9.9097`, rows with 10 candidates `789/808`, and oracle corpus CER `0.02864`. This confirms that the ChineseHP-like `9.8+` candidate-diversity target is reachable, though the clean and unclean supplemented pools should both be compared before downstream COVO use.
-
-Cleanliness-first candidate pool on 2026-06-26: the quality filter was tightened so severe pollution is removed before length statistics are computed, including video/platform tails, Unicode replacement characters, long Latin tails, and repeated-heavy strings. The final preferred clean file is `src/logs/cbwhisper_candidate_pool_v3_nbest10_targeted_supplement_round2_clean_strict_slack5.jsonl`: average unique n-best `9.9332`, rows with 10 candidates `779/808`, exact reference in n-best `616/808`, oracle corpus CER `0.03019`, and oracle hotword recall `0.9459`. A strict audit found `0` bad phrase tails, `0` long Latin tails, `0` replacement-character candidates, `0` repeated-heavy candidates, and `0` extreme length outliers.
-
-COVO check on the cleanliness-first 9.8+ pool on 2026-06-26: using the current best no-gate adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` with `max_nbest=10` produced COVO evaluator CER `0.04594` versus baseline `0.10446`, with `310` improved, `48` worsened, and `450` unchanged samples. Under the legacy CB-Whisper-style normalization, prediction mean/corpus CER was `0.04564 / 0.04327`. Hotword recall fell from base `0.9151` to prediction `0.8907`. This is slightly worse than the current best no-op COVO result (`0.04354` evaluator CER), so it is not promoted; the existing COVO adapter does not yet exploit the richer clean 10-best evidence well enough.
-
-COVO reliability-label probe on 2026-06-27: `src/analysis/cbwhisper_covo_bridge.py` now labels each n-best hypothesis as `trusted_scored` when it matches a CB-Whisper scored candidate, or `supplemental_unscored` when it comes only from candidate supplementation, and annotates which prompt/context hotwords each hypothesis preserves. The prompt also tells COVO not to let supplemental candidates alone override ASR top-1 or high-score trusted candidates, especially when this would replace an already-present prompt hotword with a common homophone. On the cleanliness-first pool, full-test `max_nbest=6` with reliability labels improved over the previous `max_nbest=10` COVO run but still did not beat the current best adapter result: COVO evaluator CER `0.04494` vs `0.04594`, improved/worsened/unchanged `314/43/451`, legacy mean/corpus CER `0.04671 / 0.04494`, and hotword recall `0.9034` vs `0.8907`. This confirms the diagnosis: the richer pool is useful, but the current COVO adapter needs training on reliability-labeled 10-best evidence to exploit it fully.
-
-Compact reliability-label COVO training probe on 2026-06-27: the reliability prompt was shortened by keeping `max_nbest=6`, `max_pinyin=3`, `max_hotwords=6`, and removing the duplicate candidate-score block. Without retraining, this compact prompt improved the cleanliness-first pool to COVO evaluator CER `0.04408`, legacy mean/corpus CER `0.04625 / 0.04408`, and hotword recall `0.9108`. Continuing the current best adapter on AISHELL train reliability-labeled compact evidence for 40 and 80 steps both reached COVO evaluator CER `0.04362`; 80 steps had slightly better legacy mean CER (`0.04564` vs `0.04574`) while 40 steps had slightly higher hotword recall (`0.9087` vs `0.9076`). This nearly matches the old CER-best no-gate adapter (`0.04354`) while using the richer clean n-best pool and retaining higher recall than the old result. It is a useful direction, but not yet a clean replacement for the current main result.
-
-Full Shuili CB-SenseVoice + COVO comparison on 2026-07-15: the 990-row
-`data_shuil_videos_largev3` test set was decoded by end-to-end CB-SenseVoice,
-then passed to three historical COVO adapters with identical ChineseHP-style
-evidence (`6` n-best, consensus/uncertain spans, pinyin, and predicted
-hotwords). No gate or post-hoc fallback was used. Under the CB normalization,
-the CB-SenseVoice input has mean/corpus CER `0.06522 / 0.05520`, Entity Recall
-`0.96847`, and `671/990` exact rows. The original ChineseHP hard-negative COVO
-adapter improves these to mean/corpus CER `0.06399 / 0.05331`, Entity Recall
-`0.97748`, and `701/990` exact rows. The prior AISHELL-best preserve2/no-op
-adapter increases recall to `0.97973`, but regresses mean/corpus CER to
-`0.08896 / 0.08520`, with only `642/990` exact rows. The later hotword-use
-adapter behaves almost identically (`0.08910 / 0.08520` CER, `0.97973` recall,
-`641/990` exact). Therefore the original COVO is the accepted model for this
-integrated Shuili path; both AISHELL hotword-specialized adapters are rejected
-because their small recall gain is outweighed by generic over-correction.
-Machine-readable details are in
-`src/logs/cb_sensevoice_covo_shuili_videos_model_comparison_20260715.json`.
-When Chinese and Arabic number forms are treated as equivalent, the current
-CB-SenseVoice input corpus CER is `0.04798`; original COVO improves it to
-`0.04565`, while preserve2 and hotword-use remain worse at `0.05562` and
-`0.05553`. The historical external SenseVoice-anchor route remains best at
-`0.04304`, but it includes same-length and digit post-filters. Shuili results
-should therefore report number-normalized CER as the semantic metric and raw
-CER as a surface-form diagnostic.
-
-Shuili error-hotword diagnostic on 2026-07-15: an explicit, corpus-backed
-hotword extension path was added to `src/analysis/build_shuili_video_dataset.py`.
-Adding 79 terms identified from current test errors expands the lexicon from
-180 to 259 words and lowers number-normalized CB-SenseVoice corpus CER from
-`0.04798` to `0.04072` (`515 -> 437` edits; `696 -> 745` exact rows). This run
-is a diagnostic upper bound and must not be reported as an untuned paper test
-because its lexicon was derived from test errors. The original no-gate COVO
-regresses the stronger input to `0.04304` CER, so CB-SenseVoice top1 is the
-accepted output for this diagnostic. A reportable version must freeze a
-lexicon built only from train/dev data or an external domain glossary.
-
-Listwise COVO update on 2026-07-15: the expanded CB-SenseVoice candidate pool
-has a number-normalized oracle CER of `0.02227`, so COVO was changed from
-free-form rewriting to conditional-likelihood N-best scoring. Oracle-candidate
-SFT on independent AISHELL CB-SenseVoice evidence lowers Shuili diagnostic CER
-to `0.03764`; a 60-step near-miss/no-op DPO continuation improves it to
-`0.03736` (`437 -> 401` edits, `745 -> 768` exact rows). An independent
-1152-row old-Shuili source-domain continuation regresses to `0.03960` and is
-rejected. The DPO listwise model is the current best, but the sub-3% target has
-not been reached without test-label tuning.
-
-Independent course-recording transfer on 2026-07-15: the AISHELL-trained
-DPO60 listwise COVO was evaluated on all `1152` utterances of the original
-`data_shuil_largev3` classroom recording, without training on this test set or
-removing spoken fillers. Number-normalized corpus CER changes from naked
-SenseVoice `0.04636`, to CB-SenseVoice `0.04059`, and finally to listwise COVO
-`0.03887`. Aligned hotword recall changes from `0.82884`, to `0.93050`, and
-then `0.93136`. COVO reduces edits from `640` to `613`, with `61/40/1051`
-improved/worsened/unchanged rows. The candidate oracle is `0.01820`, leaving
-substantial candidate-selection headroom.
-
-Explicit test-leak diagnostic on 2026-07-15: `259` terms and oracle candidate
-labels from the 990-row Shuili-video test set were used to build `344` domain
-DPO pairs. A 43-step continuation does not improve the fixed AISHELL-selected
-score interpolation (`0.03722 -> 0.03769` filler+number-normalized CER). When
-the CB interpolation weight is also tuned on the same test set, the leaked
-model reaches `0.03636` versus the original model's test-tuned `0.03703`, a
-gain of only seven edits. This result is diagnostic only and must never be
-reported as an untuned paper result.
-
-Test-leaked confusion coverage was then tightened with 20 manually checked
-professional phrases injected directly into the COVO evidence and 408 repeated
-exact-homophone hard pairs. A 70-step DPO continuation lowers filler+number
-normalized CER to `0.03522` at weight `0.5`, or **`0.03484`** after leaked
-test-set interpolation tuning (`366` edits). Pure-homophone misses fall from
-`42` to `36`, and exact-reference homophone misses from `23` to `15`.
-Aligned hotword recall is `790/826 = 0.95642`, compared with CB-SenseVoice
-`786/826 = 0.95157` and naked SenseVoice `682/826 = 0.82567`.
-Suspected reference errors such as `南路/南麓` and `饮水量/引水量` were excluded
-from the injected phrase list. This remains a deliberately invalid test-leak
-diagnostic, not a paper result.
-
-## Current consolidated results (2026-07-15)
-
-Metrics with different normalization rules are not directly interchangeable.
-AISHELL uses the original CB mean-sample CER convention. The two Shuili tables
-use corpus CER with Chinese/Arabic numbers normalized; filler removal is shown
-only where explicitly stated. `Independent` means the evaluated references
-were not used for model/lexicon fitting, while `Leaked diagnostic` must never
-be reported as a paper test result.
-
-### Standalone KWS results
-
-| Dataset / model | Threshold | Precision | Recall | F1 | Notes |
-|---|---:|---:|---:|---:|---|
-| AISHELL previous large-v2 KWS, validation | learned | 91.33% | 82.18% | 86.51% | Previous accepted checkpoint |
-| AISHELL stale 1024-d large-v3-style KWS, test | 0.982 | 92.13% | 78.24% | 84.62% | Representation was not true v3 |
-| AISHELL true large-v3 KWS, validation | 0.974 | 93.34% | 82.51% | 87.59% | Best true-v3 checkpoint |
-| AISHELL true large-v3 KWS, test | 0.974 | 91.78% | 80.57% | 85.81% | Independent test |
-| AISHELL original ResNet1 natural KWS, test | 0.500 | 80.23% | 87.47% | 83.70% | Original-paper code, minimally adapted |
-| Shuili true-v3 TCResNet, fixed threshold | 0.974 | 95.15% | 47.88% | 63.70% | AISHELL-to-Shuili transfer |
-| Shuili true-v3 TCResNet, best-F1 natural | 0.942 | 78.68% | 62.33% | 69.56% | Threshold sweep |
-| Shuili true-v3 TCResNet, best-F1 TTS | 0.838 | 80.78% | 71.36% | 75.78% | Threshold sweep |
-| Shuili original ResNet1, best-F1 natural | 0.892 | 70.98% | 51.04% | 59.38% | Original-paper transfer baseline |
-| Shuili original ResNet1, best-F1 TTS | 0.144 | 11.88% | 13.37% | 12.58% | TTS transfer collapsed |
-
-The full chronological table above retains smoke tests, rejected settings,
-threshold sweeps, and per-run log paths. The consolidated tables below keep
-the principal full-set endpoint results and informative upper bounds.
-
-### AISHELL hotword test (808 utterances)
-
-| System | CER | Hotword recall | Hotword CER | WER | Status |
-|---|---:|---:|---:|---:|---|
-| Naked SenseVoice | 8.554% | - | - | - | Independent |
-| SenseVoice KWS + Whisper-v3 | 7.174% | 92.155% | 5.228% | 46.906% | Independent |
-| End-to-end CB-SenseVoice | 6.202% | 83.204% | 10.979% | 40.099% | Independent |
-| CB-SenseVoice + preserve2 COVO | **4.379%** | 83.978% | - | - | Independent |
-| Candidate oracle | 3.686% | 85.128% | - | - | Upper bound |
-
-The accepted COVO row has `541/808` exact utterances. Under COVO's separate
-corpus evaluator, the same prediction is `4.137%` CER; this value must not be
-mixed with the CB mean-sample CER column above.
-
-### Original Shuili course recording (1152 utterances)
-
-| System | Number-normalized CER | Raw CER | Hotword recall | Edits | Exact | Status |
+| 系统 | CER | Edits | Exact | Recall@400 | R1 Recall@226 | 状态 |
 |---|---:|---:|---:|---:|---:|---|
-| Naked SenseVoice | 4.636% | 4.654% | 82.884% | 731 | 722 | Independent |
-| CB-SenseVoice | 4.059% | 4.076% | 93.050% | 640 | 763 | Independent |
-| AISHELL DPO60 listwise COVO | **3.887%** | **3.905%** | **93.136%** | **613** | **774** | Independent |
-| Candidate oracle | 1.820% | - | - | - | - | Upper bound |
+| 裸 SenseVoiceSmall | 10.3609% | 1335 | 268 | 159/400 | 23/226 | 无上下文基线 |
+| 裸 SenseVoice + preserve2 COVO | 7.7299% | - | - | 173/400 | 29/226 | COVO 单模块消融 |
+| 原始 CB-SenseVoice | 7.8231% | 1008 | 432 | 313/400 | 141/226 | 无适配器 |
+| + frame position adapter | 7.6911% | 991 | 436 | 318/400 | 146/226 | 第一代适配器 |
+| + phrase cross-attention | 4.8273% | 622 | 498 | 323/400 | 150/226 | 结构改进 |
+| **CB-SenseVoice w14** | **3.7951%** | **489** | 536 | **366/400** | **192/226** | 当前单独 CB 主结果 |
+| w14 + preserve2 COVO | **3.0268%** | **390** | **587** | 357/400 | 184/226 | CER 最优消融 |
+| **w14 + DPO-30 COVO** | **3.1354%** | **404** | 575 | **362/400** | **189/226** | **当前联合主结果** |
 
-### New Shuili video set (990 utterances)
+选择 DPO-30 作为联合主结果的原因是其 Recall@400 为 `90.50%`，达到项目
+设定的 90% 热词召回目标；preserve2 的 CER 更低，但召回为 `89.25%`。
 
-| System | CER | Filler+number CER | Hotword recall | Edits | Exact | Status |
-|---|---:|---:|---:|---:|---:|---|
-| Naked SenseVoice | 4.873% | 4.902% | 82.567% (259-term mentions) | 523 | 699 | Independent |
-| CB-SenseVoice, original 180 terms | 4.798% | - | 97.849% (historical 180-term mentions) | 515 | 696 | Independent |
-| CB-SenseVoice, expanded 259 terms | 4.072% | 4.074% | 95.157% | 437 | 745 | Leaked diagnostic |
-| Original COVO free generation | 4.304% | - | - | 462 | 748 | Rejected, leaked pool |
-| AISHELL oracle SFT free generation | 4.090% | - | - | 439 | 761 | Rejected, leaked pool |
-| SFT output projected to N-best | 3.950% | - | - | 424 | 764 | Diagnostic, leaked pool |
-| AISHELL SFT listwise | 3.764% | - | - | 404 | 767 | Superseded, leaked pool |
-| AISHELL DPO60 listwise | 3.736% | 3.722% | - | 401 | 768 | Best before direct test-label training |
-| Old-Shuili source continuation | 3.960% | - | - | 425 | 759 | Rejected distribution shift |
-| First direct test-term DPO, test-tuned | - | 3.636% | - | 382 | - | Explicit test leak |
-| Confusion-term DPO70, weight 0.5 | 3.540% | 3.522% | - | 380 | 787 | Explicit test leak |
-| **Confusion-term DPO70, test-tuned weight 0.3** | **3.503%** | **3.484%** | **95.642%** | **376** | **790** | **Explicit test leak** |
-| Candidate oracle | 2.227% | 2.208% | - | 239 | - | Upper bound on leaked pool |
+历史对照：
 
-The final test-tuned row has `796` exact utterances after filler removal.
-Current 259-term aligned recall uses 826 mentions:
-naked SenseVoice `682/826`, CB-SenseVoice `786/826`, and the final leaked COVO
-`790/826`.
+| 系统 | CER | 热词召回 | 说明 |
+|---|---:|---:|---|
+| 原论文 CB-Whisper | MER 8.6% | 82.4% | 论文报告口径 |
+| 原始代码 + large-v3 + ResNet1 | 9.07% | 78.01% | 本地兼容性复现 |
+| 本项目 true-v3 CB-Whisper | 6.61% | 92.38% | Whisper 路线历史最好结果 |
+| 本项目 CB-Whisper + COVO | 4.284% | 91.083% | 迁移 SenseVoice 前的历史结果 |
 
-### Standard AISHELL-1 test (7176 utterances)
+这些历史行使用过不同的本地 evaluator，不能与统一 corpus CER 做逐字符的
+严格等价比较，主要用于说明方法演进。
 
-This experiment uses the complete official AISHELL-1 test split rather than the
-808-utterance hotword subset.  SenseVoice is decoded without KWS/context biasing,
-and its top-1 is passed to the previously selected, non-leaked COVO adapter
-`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`.  COVO receives
-one SenseVoice hypothesis per utterance; no test lexicon, rule gate, N-best
-oracle, or output post-filter is used.
+### 完整 AISHELL-1 test
 
-| System | Corpus CER | Mean-sample CER | Edits | Exact | Status |
+完整测试集含 7,176 条语音。808 条具有外部上下文词表的语句使用
+CB-SenseVoice w14，其余 6,368 条使用裸 SenseVoice。路由仅由是否存在
+上下文词表决定，不查看模型置信度和参考答案。
+
+| 系统 | Corpus CER | Edits | Exact | 说明 |
+|---|---:|---:|---:|---|
+| 裸 SenseVoiceSmall | 6.2922% | 6591 | 4454 | 全量、开放词表 |
+| SenseVoice + 原始 COVO | 5.7053% | 5977 | 4769 | 全量、开放词表 |
+| **SenseVoice + preserve2 COVO** | **3.7647%** | **3944** | **4982** | 全量、开放词表 |
+| Routed SenseVoice / CB-SenseVoice w14 | 5.4894% | 5751 | 4722 | 808 条有上下文 |
+| **Routed + DPO-30 COVO** | **3.2062%** | **3359** | **5235** | **联合主结果** |
+| Routed + preserve2 COVO | **3.1929%** | **3345** | **5247** | CER 消融，808 召回低于 90% |
+
+联合主结果在 AISHELL-NER 标注上的重新统计为：
+
+| CER | NNE-CER | NE-CER | 实体召回 |
+|---:|---:|---:|---:|
+| **3.2129%** | **3.1343%** | **3.9546%** | **3103/3393 = 91.453%** |
+
+另一个不使用 test 实体词表的检索消融，从 AISHELL-NER train/dev 建立实体库，
+仅接受整段拼音完全匹配的同长度实体候选：
+
+| 系统 | CER | NNE-CER | NE-CER | 实体召回 | 状态 |
 |---|---:|---:|---:|---:|---|
-| SenseVoiceSmall | 6.2914% | 6.3890% | 6591 | 4454/7176 | Full, independent |
-| SenseVoiceSmall + original COVO | 5.7053% | 5.8197% | 5977 | 4769/7176 | Full, independent |
-| **SenseVoiceSmall + COVO** | **3.7647%** | **3.9554%** | **3944** | **4982/7176** | **Full, independent** |
-| Routed SenseVoice / CB-SenseVoice w14 | 5.4894% | - | 5751 | 4722/7176 | 808 contextual + 6368 open-vocabulary |
-| **Routed + hotword-preserve COVO** | **3.2062%** | - | **3359** | **5235/7176** | **Joint main; 808-row Recall@400 90.50%** |
-| Routed + preserve2 COVO | **3.1929%** | - | **3345** | **5247/7176** | CER ablation; 808-row Recall@400 89.25% |
+| SenseVoice + COVO | 3.7732% | 3.2958% | 8.2777% | 82.85% | 无实体检索 |
+| + exact-pinyin entity retrieval | **3.5384%** | **3.2927%** | **5.8572%** | **88.15%** | train/dev 实体库 |
 
-COVO improves `1085` utterances, worsens `34`, and leaves the edit count equal
-on `6057`.  The corpus CER reduction is `2.5267` absolute percentage points and
-`40.16%` relative.  The shared normalization converts traditional Chinese to
-simplified Chinese, removes spaces/punctuation, and retains Chinese characters,
-digits, and ASCII letters.  The machine-readable summary is
-`src/logs/aishell_full_sensevoice_covo_best_noop_20260719_summary.json`.
-The original-COVO comparison uses
-`qwen35_text_rewrite_hardneg_dropout_lora_2epoch`; it improves `629` samples,
-worsens `180`, and is recorded in
-`src/logs/aishell_full_sensevoice_covo_original_comparison_20260719_summary.json`.
+`Routed` 结果属于上下文 ASR 协议，不应描述为完全开放词表的裸 AISHELL-1
+结果。
 
-The routed experiment uses context availability rather than model confidence:
-the 808 utterances in Test-Aishell1-NE have an externally supplied contextual
-lexicon and use CB-SenseVoice w14; the other 6368 utterances use naked
-SenseVoice. For the COVO result, contextual rows use hotword-preserve DPO-30
-and ordinary rows use the established preserve2/no-op corrector. This is a
-deterministic mixed contextual/open-vocabulary protocol, not a recognition
-score gate. It must be reported separately from a fully open-vocabulary
-AISHELL-1 result.
+## 模块实验
 
-### 2026 paper comparison
+### SenseVoice KWS
 
-We use 2026 academic systems with public evaluation protocols rather than
-industrial APIs.  The closest post-correction comparison is RASTAR, evaluated
-on AISHELL-1 with AISHELL-NER annotations.  Its ASR hypotheses come from the
-DANCER Conformer and its entity repository includes entities from the complete
-AISHELL-1 train, development, and test splits.  Our row uses the full 7176-item
-official test split, the AISHELL-only `preserve2` COVO adapter, no test lexicon,
-and no output gate.  Therefore the overall system numbers are informative, but
-the different upstream ASR hypotheses prevent a strict component-only claim.
+KWS 使用 SenseVoice 编码器隐藏层构造热词/语音相似度矩阵，再由单通道
+TCResNet 分类。SenseVoice 隐藏层维度为 512。
 
-| System | CER | NNE-CER | NE-CER | NE recall | Comparison |
+| 数据/模型 | 阈值 | Precision | Recall | F1 | 状态 |
 |---|---:|---:|---:|---:|---|
-| DBA-wav2vec 2.0 (Hu et al., 2026) | 6.97% | - | - | - | AISHELL-1 ASR |
-| Streaming Decoder-Only LLM ASR (Wan et al., 2026) | 5.10% | - | - | - | AISHELL-1 ASR |
-| RASTAR-8B (An et al., 2026) | 4.21% | 4.05% | 6.21% | 89.33% | AISHELL-1 NEC |
-| SenseVoiceSmall | 6.2950% | 6.0216% | 8.8754% | 81.26% | Local full evaluation |
-| **SenseVoiceSmall + COVO** | **3.7732%** | **3.2958%** | 8.2777% | 82.85% | Local full evaluation |
-| **Routed CB-SenseVoice/SenseVoice + COVO** | **3.2129%** | **3.1343%** | **3.9546%** | **91.45%** | 808 rows receive contextual evidence |
+| AISHELL large-v2 KWS validation | learned | 91.33% | 82.18% | 86.51% | Whisper 历史模型 |
+| AISHELL true large-v3 KWS validation | 0.974 | 93.34% | 82.51% | 87.59% | Whisper-v3 KWS |
+| AISHELL true large-v3 KWS test | 0.974 | 91.78% | 80.57% | 85.81% | 独立测试 |
+| 原始 ResNet1 natural KWS test | 0.500 | 80.23% | 87.47% | 83.70% | 原论文代码对照 |
+| **SenseVoice KWS test, TTS** | **0.787** | **90.948%** | **90.658%** | **90.803%** | 当前 SenseVoice KWS |
+| SenseVoice KWS test, validation 阈值 | 0.954 | 95.721% | 83.121% | - | 高精度工作点 |
 
-The non-contextual SenseVoice+COVO result supports only a bounded claim: it is
-better on overall and non-entity CER, while RASTAR remains stronger on named
-entities. The routed result also exceeds RASTAR's reported NE-CER and recall,
-but it is a contextual-ASR comparison because 808 rows receive a supplied
-hotword lexicon. The two protocols must not be presented as interchangeable.
-The local entity-aware scorer uses character-level minimum-edit alignment and
-exact entity-span recall, so small differences from another implementation are
-possible.  Reproduce both local rows with:
+Whisper KWS 的 top-k 诊断表明真正热词进入候选池的概率已经很高：
+Recall@1 `80.36%`、Recall@3 `95.22%`、Recall@6 `96.92%`、
+Recall@12 `98.62%`。因此当前瓶颈不是 KWS 检索，而是 ASR 是否能把热词
+实现为完整且正确的候选。
 
-```bash
-git clone --depth 1 https://github.com/Alibaba-NLP/AISHELL-NER.git \
-  datasets/aishell_ner
+### 上下文适配器
 
-python src/analysis/evaluate_aishell_ner.py \
-  --annotations datasets/aishell_ner/data/aishell_ner_transcript.test.txt \
-  --predictions src/logs/aishell_full_sensevoice_test_full_20260719.jsonl
+当前接受的适配器使用完整短语表示，而不是把热词拆成独立字符：
 
-python src/analysis/evaluate_aishell_ner.py \
-  --annotations datasets/aishell_ner/data/aishell_ner_transcript.test.txt \
-  --predictions src/logs/aishell_full_sensevoice_covo_predictions_best_noop_20260719.jsonl
+- 冻结 SenseVoice 和 KWS。
+- 以 CTC 字符向量、短语内位置和带声调拼音构造短语表示。
+- 使用两层轻量 Transformer 编码热词。
+- 通过 frame-to-phrase cross-attention 将声学帧与热词短语对齐。
+- 训练目标包括 transcript CTC、短语位置和正负短语检测。
+- 可训练参数约 729k。
+
+训练使用完整 17,301 条 AISHELL train 热词语句，共 2,162 optimizer steps。
+
+最终候选生成将适配器的 phrase-presence probability 注入 CTC prefix beam：
+
+```text
+effective_hotword_score = KWS_score * (1 + weight * phrase_probability)
 ```
 
-The streaming decoder-only LLM paper is a cleaner ordinary-ASR comparison than
-FormalASR: it evaluates AISHELL-1 with CER 5.1% and AISHELL-2 with CER 5.5%.
-Our full AISHELL-1 run is already on the same official test split, so the
-comparison is not based on a small sample.  The comparison is still system
-level rather than a strict architecture ablation because the upstream models,
-streaming constraints, and training data differ.
+权重扫描：
 
-We also checked two independent public Speechio-Formal domains with the same
-SenseVoice/COVO pipeline.  The COVO adapter was trained on AISHELL evidence and
-was not retrained on Speechio-Formal.
-
-| Speechio-Formal domain | Samples | SenseVoice formal CER | COVO formal CER | Changed samples |
-|---|---:|---:|---:|---:|
-| ZH00000 | 879 | 25.8634% | **25.8014%** | 12 better / 1 worse |
-| ZH00006 | 1561 | 19.8511% | **19.7852%** | 15 better / 4 worse |
-
-The cross-domain result is consistent across both subsets but small.  It is
-not evidence that the existing COVO adapter matches FormalASR: FormalASR is
-trained specifically for spoken-to-formal rewriting, whereas our adapter is
-trained for conservative ASR correction.  The full comparison summary is
-`src/logs/speechio_formal_cross_domain_summary_20260719.json`.
-
-#### Entity-retrieval follow-up
-
-To address the entity gap, we built a phonetic entity-retrieval evidence pool
-from AISHELL-NER train and dev annotations only.  Retrieval requires an exact
-whole-span pinyin match; the test annotations are not used as a lexicon.  The
-retrieved entity is offered as a same-length alternative to the SenseVoice
-anchor and is passed to the same best COVO adapter.  The full 7176-utterance
-run used batch size 10 and no output gate.
-
-| System | CER | NNE-CER | NE-CER | NE recall | Improved | Worsened |
-|---|---:|---:|---:|---:|---:|---:|
-| SenseVoiceSmall + COVO, no retrieval | 3.7732% | 3.2958% | 8.2777% | 82.85% | - | - |
-| **SenseVoiceSmall + exact-pinyin entity retrieval + COVO** | **3.5384%** | **3.2927%** | **5.8572%** | **88.15%** | **1268** | 91 |
-
-This is a useful positive result: overall CER improves by 0.2348 absolute
-points, entity CER improves by 2.4205 points, and entity recall rises by 5.30
-points.  It is still 1.18 recall points below RASTAR's reported 89.33%, so the
-remaining work is entity-span detection and candidate precision, not a larger
-general-purpose entity list.  The run log is
-`src/logs/experiment_aishell_entity_retrieval_exact_covo_full_20260719.log`;
-the large JSONL inputs and outputs remain local under `src/logs/`.
-
-Two additional 2026 targets are useful but not yet strict head-to-head tests.
-EC-BERT reports only relative AISHELL-1 reductions in its public abstract, so
-an absolute comparison requires its full table and ASR hypotheses.  The new
-Mandarin technical-lecture benchmark reports 11.37% CER and 52.50% term recall
-for its segment-only Breeze-ASR-25 baseline, but states that its dataset and
-term metadata will be released upon publication.  We should run that benchmark
-when the files become public instead of approximating its test set.
-
-### 2025 paper comparison record
-
-The following 2025 papers were discussed as comparison targets. They are kept
-separate by task and protocol rather than merged into the ordinary-ASR table.
-
-| Paper | Dataset/task | Reported result | Relation to our result |
-|---|---|---:|---|
-| Adaptive Context Biasing in Transformer-Based ASR Systems | AISHELL context-biased subset | 5.56% dev / 6.01% test CER | Our full AISHELL SenseVoice+COVO CER is 3.7732%, but the subsets and upstream ASR differ |
-| Generative Annotation for ASR Named Entity Correction | AISHELL entity correction | Best CER 9.85%, NE-CER 7.41%, NE recall 87.31% | Our full AISHELL entity-retrieval COVO is 3.5384% CER, 5.8572% NE-CER, 88.15% recall; not identical entity protocol |
-| PARCO: Phoneme-Augmented Robust Contextual ASR | AISHELL-1 contextual biasing | 4.22% CER with 1000 distractors | Our 3.5384% is lower, but PARCO's THCHS-30 cross-domain result has no public absolute CER |
-| ASR-EC Benchmark | Mixed Chinese ASR-error benchmark built from THCHS-30, AISHELL-1/2, and long WeNetSpeech utterances | Kaldi-K1/K2 mixed-test baselines 12.42%/8.11%; LoRA 12.36%/7.88%; multimodal 5.96%/5.12% | The paper does not report corpus-specific AISHELL-1, THCHS-30, or ST-CMDS results, so our per-corpus COVO scores are not directly comparable |
-| Lightweight Prompt Biasing for Contextual ASR | In-house entity-biasing set | 30.7%/18.0% relative entity-WER reduction | No public absolute CER or common test set |
-
-The AISHELL rows are useful contextual comparisons, while the THCHS-30 row is
-the reason we performed the complete THCHS-30 evaluation above. The ASR-EC
-paper's numbers come from generated ASR errors and correction evaluation, not
-direct recognition on the original audio. References:
-[Adaptive Context Biasing](https://www.nature.com/articles/s41598-025-12121-4),
-[Generative Annotation](https://aclanthology.org/2025.emnlp-main.1052/),
-[PARCO](https://arxiv.org/abs/2509.04357),
-[ASR-EC Benchmark](https://aclanthology.org/2025.emnlp-industry.110.pdf).
-
-#### FormalASR / Speechio-Formal pilot
-
-FormalASR (arXiv:2605.19266) is a 2026 paper with a comparatively weak public
-baseline on Speechio-Formal: Qwen3-ASR-1.7B reports 23.93% CER and
-FormalASR-1.7B reports 14.99%.  This benchmark rewrites spoken transcripts into
-formal text, so it must not be mixed with ordinary verbatim-ASR numbers.  We
-therefore ran a reproducible pilot on the public ZH00006 subset (1561 items),
-using the embedded audio and both its formal and verbatim references.
-
-| System | Formal-target CER | Verbatim-target CER |
-|---|---:|---:|
-| SenseVoiceSmall | 19.8511% | 6.7333% |
-| SenseVoiceSmall + existing COVO adapter | 19.7852% | 6.7675% |
-
-On the formal target, COVO changed 15 samples positively and 4 negatively,
-for only 0.0658 absolute CER-point improvement.  On the verbatim target it
-slightly worsened CER by 0.0342 points.  The formal and verbatim references
-themselves differ by 15.3583 CER points on this subset, which explains why a
-verbatim-trained COVO adapter is not an adequate substitute for FormalASR's
-formalization training.  This is a pilot subset, not a claim on the complete
-43,178-item Speechio-Formal test set; the large raw audio artifacts remain
-local and are intentionally excluded from git.
-
-Reproduction helpers are `src/analysis/prepare_speechio_formal.py` and
-`src/analysis/build_speechio_covo_evidence.py`.  The corresponding summaries
-are in `src/logs/speechio_formal_zh00006_sensevoice_summary.json` and
-`src/logs/speechio_formal_zh00006_covo_summary_20260719.json`.
-
-## License
-
-See the [LICENSE.md](LICENSE.md) file for details.
-
-## Citation
-
-If you use any of the resources in this repository, please cite the following paper:
-
-Citation will be added in the future.
-## THCHS-30 Evaluation (2026-07-19)
-
-The THCHS-30 test split was obtained from the domestic HF-Mirror mirror
-(`urarik/thchs30`), not from the official OpenSLR endpoint. The downloaded
-Parquet test shard contains 1,339 utterances with embedded 16-kHz audio. It
-was extracted by `src/analysis/prepare_thchs30.py` into
-`datasets/thchs30/test_wav` and evaluated with the same SenseVoice/COVO CER
-normalization used by the existing correction evaluator.
-
-| System | Samples | CER | Improved | Worsened |
-|---|---:|---:|---:|---:|
-| SenseVoiceSmall baseline | 1,339 | 0.06698 | - | - |
-| SenseVoiceSmall + current best COVO adapter | 1,339 | **0.04733** | 331 | 14 |
-
-The COVO run used the current best AISHELL-trained preservation adapter
-`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`, with only the
-SenseVoice top-1 supplied as evidence and no hotword evidence. This is a
-cross-domain pilot result, not a direct reproduction of THCHS-30 paper
-baselines; the exact evaluation files are under `src/logs/thchs30_*`.
-
-### Complete test split
-
-The domestic mirror repository `FluidInference/THCHS-30-tests` was then used
-to obtain the complete 2,495-utterance test split matching the original
-speaker/sentence partition. The full evaluation gives:
-
-| System | Samples | CER | Improved | Worsened |
-|---|---:|---:|---:|---:|
-| SenseVoiceSmall baseline | 2,495 | 0.07959 | - | - |
-| SenseVoiceSmall + current best COVO adapter | 2,495 | **0.05601** | 676 | 17 |
-
-The full-split files are `src/logs/thchs30_full_*`. The earlier 1,339-row
-result is retained as a mirror-subset pilot and should not be used as the main
-comparison.
-
-### Comparable 2025 paper
-
-One motivation for adding THCHS-30 was the **ASR-EC Benchmark: Evaluating
-Large Language Models on Chinese ASR Error Correction** (EMNLP 2025 Industry
-Track). Its benchmark pools utterances originating from THCHS-30, AISHELL-1,
-AISHELL-2, and WeNetSpeech, then generates two mixed error sets with Kaldi-K1
-and Kaldi-K2. The reported whole-test CER values are 12.42%/8.11% for those
-two ASR inputs, 12.36%/7.88% after text-only LoRA correction, and 5.96%/5.12%
-for multimodal correction. The two columns identify the Kaldi-K1 and Kaldi-K2
-error sources, not THCHS-30 and AISHELL-1. The paper gives no independent
-AISHELL-1, THCHS-30, or ST-CMDS endpoint CER.
-
-Consequently, our complete THCHS-30 SenseVoiceSmall+COVO result of 5.60%
-must not be described as above or below the paper's 5.96%/5.12% rows. A fair
-comparison requires evaluating COVO on the released ASR-EC mixed test pairs or
-reproducing its Kaldi-K1/K2 error-generation protocol.
-
-Reference: [ASR-EC Benchmark, EMNLP 2025](https://aclanthology.org/2025.emnlp-industry.110.pdf).
-
-For completeness, the earlier direct THCHS-30 reference results used during
-the comparison are also recorded here: Interspeech 2018 reports 11.93% for
-LSTM, 10.97% for TDNN-LSTM, and 10.38% for mGRUIP-B; Interspeech 2024 reports
-8.60% for Whisper-medium, 6.80% for Whisper-large-v2, and 6.00% for its
-HuBERT-CTC system. These use the original clean test split and remain the
-closest direct CER references to our 5.60% full-test result.
-
-References: [Interspeech 2018](https://www.isca-archive.org/interspeech_2018/li18k_interspeech.pdf),
-[Interspeech 2024](https://www.isca-archive.org/interspeech_2024/li24s_interspeech.pdf).
-
-## ST-CMDS Pilot Evaluation (2026-07-19)
-
-The archive `/root/autodl-tmp/ST-CMDS-20170001_1-OS.tar.gz` contains 102,600
-16-kHz utterances, but does not provide a canonical train/dev/test directory
-split. Therefore, a deterministic 2,000-utterance pilot was selected with
-seed `20260719`, stratified by the archive's A/I device suffix (1,036 A and
-964 I utterances). This is a validation pilot rather than a full-dataset or
-paper-protocol result.
-
-| System | Samples | CER | Improved | Worsened |
-|---|---:|---:|---:|---:|
-| SenseVoiceSmall baseline | 2,000 | 0.06101 | - | - |
-| SenseVoiceSmall + current best COVO adapter | 2,000 | **0.05788** | 51 | 11 |
-
-SenseVoice's direct summary reports 0.06092 CER; the table uses the correction
-evaluator's normalization for both rows. The COVO run used the AISHELL-trained
-preservation adapter `qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
-with one SenseVoice top-1 candidate and no hotword evidence. Reproduction
-artifacts are `src/logs/stcmds_pilot2000_{sensevoice,covo_*}.*`; the archive
-itself and extracted audio remain local and are not tracked by git.
-
-## ST-CMDS ChineseHP-Style COVO Fine-Tuning (2026-07-20)
-
-ST-CMDS was deterministically divided with seed `20260719` into 95,418 train,
-2,052 dev, and 5,130 held-out test utterances. SenseVoiceSmall CTC prefix beam
-search used an internal beam size of 32 and retained up to ten simplified,
-punctuation-free, de-duplicated hypotheses per utterance. Each hypothesis was
-paired with its Pinyin, following the ChineseHP input structure. The assistant
-training target was the complete corrected sentence as `{"text":"..."}`.
-
-Training continued from the previous best SenseVoice candidate model
-`qwen35_cb_sensevoice_oracle_correction_dpo60_20260715` for one full epoch
-(5,964 optimizer steps) on the complete ST-CMDS train split. Final train loss
-was 0.2583 and dev loss was 0.2392.
-
-| System | Test samples | CER | Improved | Worsened | Unchanged |
-|---|---:|---:|---:|---:|---:|
-| SenseVoiceSmall CTC beam top-1 | 5,130 | 0.05641 | - | - | - |
-| Starting DPO60 adapter, no ST-CMDS tuning | 5,130 | 0.06969 | 498 | 1,065 | 3,567 |
-| ST-CMDS ChineseHP-style COVO | 5,130 | **0.05167** | 545 | 330 | 4,255 |
-
-This is a 0.474 percentage-point absolute and 8.40% relative CER reduction
-over the matching SenseVoice top-1. The result uses a held-out test split; no
-test transcript was used for training or checkpoint selection. The final
-adapter is `qwen35_stcmds_chinesehp_text_1epoch_from_dpo60_20260719`, and the
-machine-readable metrics are in
-`src/logs/stcmds_chinesehp_covo_from_dpo60_metrics_20260719.json`.
-
-The starting DPO60 adapter was also evaluated with exactly the same 5,130
-prompts and decoding settings. Its 0.06969 CER is worse than SenseVoice top-1,
-because it was trained for AISHELL CB-SenseVoice listwise evidence rather than
-free generation from the compact ChineseHP prompt. Relative to that starting
-checkpoint, ST-CMDS fine-tuning reduces CER by 25.86%, removes 1,012 corpus
-edits, and increases exact utterances from 2,863 to 3,353. On direct paired
-comparison, the fine-tuned model is better on 1,012 utterances, worse on 237,
-and tied on 3,881.
-
-## AISHELL-1 Named-Entity Hotword Benchmark Identity and References (2026-07-21)
-
-The local 808-utterance AISHELL evaluation set is the public named-entity
-hotword subset introduced by SeACo-Paraformer. Different papers refer to the
-same 808-utterance/400-hotword benchmark as `Test-Aishell1-NE`,
-`Test-Aishell1-Middle`, `Aishell-1 test NT`, or the AISHELL hotword test
-subset. The local files contain 808 utterances, 400 hotwords, and 226 R1
-difficult hotwords, exactly matching the published benchmark statistics.
-
-This benchmark must not be confused with either the complete 7,176-utterance
-AISHELL-1 test split or AISHELL-NER, which annotates the complete AISHELL-1
-corpus. Results on the 808-row subset can be compared directly only with
-papers using the same subset, text normalization, hotword list, and metric
-definition.
-
-| Method | Year | Name used for the 808-row set | Reported result |
-|---|---:|---|---|
-| SeACo-Paraformer | 2023 | Test-Aishell1-NE | CER 2.48%, hotword recall 90% |
-| SeACo-Paraformer + ASF | 2023 | Test-Aishell1-NE | CER 2.27%, hotword recall 94% |
-| CB-Whisper | 2024 | Aishell-test | MER 8.6%, entity recall 82.4%; an alternative setting reports 87.7% recall |
-| Efficient Text Augmentation | 2024 | Test-Aishell1-NE | best CER 4.50% |
-| Confidence-based Homophone Detector (SF+CBCB) | 2024 | Test-Aishell1-Middle | CER 6.46%, recall 85.5%, F1 90.3% |
-| GLCLAP | 2025 | Aishell-1 test NT | retrieval F1 96.96%; no final ASR CER on this subset |
-| PAC | ICASSP 2026 | test-middle | reports CER/B-WER under no-context, ground-truth, and varying-list settings |
-
-Our current reference points on this subset are CB-SenseVoice at CER 6.202%
-and entity recall 83.204%, CB-SenseVoice+COVO at CER 4.379% and recall
-83.978%, and the earlier CB-Whisper+COVO route at CER 4.284% and recall
-91.083%. These recall values are currently produced by the local
-mention-level evaluator; before using them in a paper comparison, recompute
-recall over the benchmark's designated 400-hotword list (and separately over
-the 226 R1 list) to match SeACo's protocol.
-
-References: [SeACo-Paraformer](https://arxiv.org/abs/2308.03266),
-[CB-Whisper](https://aclanthology.org/2024.lrec-main.262/),
-[Efficient Text Augmentation](https://www.isca-archive.org/interspeech_2024/zheng24_interspeech.pdf),
-[Confidence-based Homophone Detector](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf),
-[GLCLAP](https://www.isca-archive.org/interspeech_2025/kong25_interspeech.pdf),
-and [PAC](https://arxiv.org/abs/2509.12647).
-
-## ST-CMDS Full CB-SenseVoice Result (2026-07-21)
-
-The complete contextual evaluation finished successfully on all 10,260 test
-utterances from the deterministic CopyNE-cardinality split. The run used the
-3,139-entry HanLP PERSON/LOCATION/ORGANIZATION dictionary derived from the
-test references, the AISHELL-trained SenseVoice KWS checkpoint, contextual
-CTC beam generation, and CB reranking. This is therefore a contextual
-test-dictionary result, not an ordinary open-vocabulary ASR result.
-
-| Samples | Entity recall | CER | Hotword-sentence CER | Hotword-only CER | WER |
-|---:|---:|---:|---:|---:|---:|
-| 10,260 | 87.9351% | 5.3331% | 5.7075% | 7.1991% | 34.2593% |
-
-The generated candidate pool contains an average of 13.97 candidates per
-utterance. Selecting the lowest-CER candidate with reference knowledge gives
-an oracle CER of 1.9355%, compared with the deployed top-1 CER of 5.3331%.
-This large gap indicates that candidate generation is already useful and that
-candidate selection/reranking is now the main remaining bottleneck.
-
-Artifacts:
-
-- `src/logs/test_metrics_cb_sensevoice_stcmds_full_20260721.csv`
-- `src/logs/oracle_nbest_summary_cb_sensevoice_stcmds.csv`
-- `src/logs/oracle_nbest_detail_cb_sensevoice_stcmds.csv`
-- `src/logs/experiment_cb_sensevoice_stcmds_full_20260721_stdout.log`
-
-## AISHELL-NE Standalone COVO Ablation (2026-07-21)
-
-To isolate COVO from contextual biasing, the 808-row AISHELL-NE subset was
-evaluated using naked `iic/SenseVoiceSmall` top-1 transcripts followed by the
-`qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7` COVO adapter.
-Each COVO prompt contained only the single SenseVoice hypothesis: no KWS,
-hotword prompt, CB-SenseVoice candidate generation, reranking, gate, or
-reference-aware selection was used. The predictions were extracted by
-utterance ID from the previously completed full 7,176-row run with exactly
-the same model and inference settings.
-
-| System | CER | Recall@400 | R1 Recall@226 | Improved / worsened / unchanged |
-|---|---:|---:|---:|---:|
-| Naked SenseVoice | 10.3609% | 39.75% (159/400) | 10.18% (23/226) | - |
-| Naked SenseVoice + standalone COVO | **7.7299%** | **43.25% (173/400)** | **12.83% (29/226)** | 159 / 9 / 640 |
-
-Standalone COVO reduces corpus CER by 2.6310 percentage points (25.39%
-relative), showing useful general language correction. Its designated-hotword
-recall remains low because no contextual hotword evidence is supplied. This
-is an appropriate ablation for separating COVO's generic correction ability
-from the KWS/CB module's contextual contribution, but it is not a competitive
-contextual-ASR configuration by itself.
-
-Artifacts:
-
-- `src/logs/aishellne808_sensevoice_covo_only_preserve2_predictions_20260721.jsonl`
-- `src/logs/aishellne808_sensevoice_covo_only_preserve2_cer_20260721.json`
-- `src/logs/aishellne808_sensevoice_covo_only_preserve2_hotword_recall_20260721.json`
-
-## AISHELL-NE Standalone CB-SenseVoice Evaluation (2026-07-21)
-
-The standalone contextual module was evaluated on all 808 AISHELL-NE rows as
-SenseVoice encoder/KWS -> contextual SenseVoice CTC beam -> CB reranking, with
-no COVO correction. The previously completed full output was rescored against
-the benchmark's designated 400-hotword list and 226-word R1 difficult subset.
-
-| Metric family | CER | Hotword recall | R1 recall | Exact utterances |
-|---|---:|---:|---:|---:|
-| Original local scorer | 6.2025% mean CER | 83.2044% mention-level | not previously reported | 484/808 under local normalization |
-| Unified COVO text normalization | 7.8231% corpus CER | **78.25% (313/400)** | **62.39% (141/226)** | 432/808 |
-
-The two rows are not contradictory: the historical local scorer applies the
-CB evaluation normalization and averages utterance CER, while the unified
-score removes punctuation/spaces with COVO normalization and computes corpus
-CER. The designated-list recalls are the appropriate values for comparison
-with SeACo-style Recall@400 and R1 Recall@226. They should not be replaced by
-the local 944-mention recall in a paper comparison.
-
-Artifact: `src/logs/aishellne808_cb_sensevoice_only_seaco_eval_20260721.json`.
-
-## Position-Supervised SenseVoice Context Adapter (2026-07-21)
-
-The AISHELL-NE funnel shows that KWS retrieves most target words, but many are
-lost before contextual CTC decoding: designated Recall@400 changes from
-380/400 in the KWS list to 369/400 in the prompt, 316/400 in any n-best
-candidate, and 313/400 in the final top1. This makes candidate generation,
-rather than another hand-tuned reranking rule, the current target.
-
-The new lightweight adapter borrows two complementary ideas from recent work:
-
-- The ICASSP 2026 paper *Contextual Biasing for ASR in Speech LLM with Common
-  Word Cues and Bias Word Position Prediction* supplies the auxiliary bias-word
-  position objective. AISHELL's aligned hotword timestamps supervise the
-  relevant SenseVoice frames during training.
-- The ICASSP 2026 PAC paper supplies pronunciation-aware context training.
-  Each positive hotword is mixed with pinyin-identical and character-overlap
-  hard negatives, plus random distractors.
-
-SenseVoice and the KWS checkpoint remain frozen. The trainable component has
-about 131k parameters and projects encoder frames and frozen CTC classifier
-rows into a shared 128-dimensional space. Its acoustically conditioned
-residual is added only to prompt-hotword CTC logits. There is no inference
-gate and no language-model post-processing in this module.
-
-References:
-
-- <https://arxiv.org/abs/2604.12398>
-- <https://arxiv.org/abs/2509.12647>
-- Related CTC word-spotting baseline: <https://arxiv.org/abs/2605.18222>
-
-### Full AISHELL-NE result
-
-One full epoch used all 17,301 aligned AISHELL training utterances (20,000
-hotword spans), 2,162 optimizer steps, and no skipped samples. Compared with
-the identical standalone CB-SenseVoice configuration, the adapter improves
-both recognition and contextual recall without COVO or a fallback gate.
-
-| System | Local mean CER | Mention recall | Recall@400 | R1 Recall@226 | Unified corpus CER |
-|---|---:|---:|---:|---:|---:|
-| CB-SenseVoice | 6.2025% | 83.2044% | 313/400 (78.25%) | 141/226 (62.39%) | 7.8231% |
-| + position/pronunciation adapter | **6.0861%** | **83.7569%** | **318/400 (79.50%)** | **146/226 (64.60%)** | **7.6911%** |
-
-The designated-hotword funnel changes from KWS/prompt/n-best/top1
-`380/369/316/313` to `380/369/321/318`. The unchanged KWS and prompt counts,
-followed by five additional n-best and top1 hits, isolate the gain to
-context-aware candidate generation.
-
-Artifacts:
-
-- `src/outputs/sensevoice_context_adapter/pac_position_aishell_full_20260721.pt`
-- `src/logs/test_metrics_cb_sensevoice_context_adapter_aishell808_20260721.csv`
-- `src/logs/cb_sensevoice_context_adapter_aishell808_evidence_20260721.jsonl`
-- `src/logs/aishellne808_cb_sensevoice_context_adapter_eval_20260721.json`
-
-## Phrase-Conditioned SenseVoice Context Fusion (2026-07-22)
-
-The second-generation adapter preserves complete hotword boundaries instead of
-flattening all context into independent characters. Each phrase combines
-frozen CTC grapheme vectors, within-phrase positions, and hashed tone-aware
-pinyin embeddings. Two small Transformer context layers encode each phrase;
-SenseVoice frames then retrieve phrase evidence through cross-attention before
-the frozen CTC classifier. Training jointly optimizes transcript CTC, aligned
-phrase-position prediction, and positive-versus-distractor phrase detection.
-
-The adapter has 729,092 trainable parameters. One full AISHELL epoch used all
-17,301 aligned rows and completed 2,162 optimizer steps with no skipped data.
-No fallback gate, COVO model, test lexicon, or reference-aware selection is
-used in the following standalone result.
-
-| System | Local mean CER | Mention recall | Recall@400 | R1 Recall@226 | Unified corpus CER | Exact rows |
-|---|---:|---:|---:|---:|---:|---:|
-| CB-SenseVoice | 6.2025% | 83.2044% | 313/400 | 141/226 | 7.8231% | 432 |
-| Frame position adapter | 6.0861% | 83.7569% | 318/400 | 146/226 | 7.6911% | 436 |
-| **Phrase cross-attention** | **5.0933%** | **83.9779%** | **323/400** | **150/226** | **4.8273%** | **498** |
-
-The designated KWS/prompt/n-best/top1 funnel is now `380/369/326/323`, versus
-`380/369/316/313` without an adapter. The method therefore adds ten complete
-hotwords to both the candidate pool and final output while also removing 386
-unified CER edits. It already beats the standalone true-v3 CB-Whisper CER
-(`6.61%`) but not its local hotword recall (`92.38%`), so the next refinement
-targets localized complete-hotword CTC supervision rather than more generic
-ASR training.
-
-Artifacts:
-
-- `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`
-- `src/logs/test_metrics_cb_sensevoice_phrase_crossattn_aishell808_20260722.csv`
-- `src/logs/cb_sensevoice_phrase_crossattn_aishell808_evidence_20260722.jsonl`
-- `src/logs/aishellne808_cb_sensevoice_phrase_crossattn_eval_20260722.json`
-
-### Follow-up ablations (2026-07-23)
-
-Four full 808-utterance evaluations tested whether stronger localized hotword
-supervision or cleaner branch separation could improve the phrase
-cross-attention result. None surpassed the accepted checkpoint on the joint
-CER/recall criterion, so all runtime changes were rolled back.
-
-| Variant | Local mean CER | Mention recall | Unified corpus CER | Recall@400 | R1 Recall@226 | Decision |
-|---|---:|---:|---:|---:|---:|---|
-| Accepted phrase cross-attention | 5.0933% | 83.9779% | **4.8273%** | **323/400** | **150/226** | Retain |
-| Narrow localized hotword CTC continuation | 5.6447% | 81.3260% | 5.4792% | 308/400 | 136/226 | Reject |
-| Refund abandoned CTC-prefix rewards | **5.0648%** | **84.4199%** | 4.8351% | 322/400 | 149/226 | Mixed; rollback |
-| Wide-window, low-weight hotword CTC continuation | 5.3775% | 83.8674% | 5.3628% | 319/400 | 147/226 | Reject |
-| True neutral/contextual dual candidate branches | 5.0752% | 84.4199% | 5.8750% | 323/400 | 150/226 | Reject |
-| Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
-| Monotonic complete-phrase activation | **5.0820%** | **84.5304%** | 5.0136% | **324/400** | **151/226** | Mixed; retain baseline |
-| Monotonic residual fusion (floor 0.75) | 5.1155% | 84.4199% | 5.0369% | **325/400** | **152/226** | Recall variant |
-| **Acoustic phrase evidence in CTC beam (w=14)** | **3.9188%** | **92.4862%** | **3.7951%** | **366/400** | **192/226** | **New main** |
-
-The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
-with insufficient alignment tolerance. A 0.5-second margin and lower learning
-rate reduced that mismatch but still moved the already-good adapter away from
-its general ASR optimum. Refunding incomplete prefix rewards produced a cleaner
-candidate pool and slightly improved the historical local metrics, but lost
-one strict hotword and added one unified edit. Separating naked and contextual
-logits restored strict recall, yet the existing reranker selected too many
-weaker naked hypotheses and added 135 unified edits. These results indicate
-that the next useful step is learned candidate selection over the existing
-mixed evidence, not stronger frame-level hotword forcing.
-
-The vocabulary-confusable ranking run continued the accepted adapter for one
-full 17,301-row epoch at `2e-5`. It ranked each aligned positive phrase above
-the nearest pinyin/character distractors in the prompt. The strict funnel
-regressed from `380/369/326/323` to `380/369/317/316`: lexicon-derived
-distractors were not necessarily errors SenseVoice would generate from the
-audio, so their gradients taught spurious exclusions. Future contrastive
-training must use actual acoustic decode confusions, not synthesized
-vocabulary negatives.
-
-The structural monotonic-activation variant searches ordered token paths at
-one, two, and three encoder frames per token before allowing a phrase to
-modify SenseVoice representations. It improved historical local CER and both
-mention and strict top1 recall, but left n-best coverage unchanged at
-`326/400` and added 24 unified edits (`622 -> 646`). The hard multiplicative
-activation suppresses useful generic acoustic evidence. It is retained as an
-ablation, while the 20260722 phrase cross-attention checkpoint remains the
-accepted model.
-
-Replacing hard activation with a 0.75 residual floor recovered more contextual
-coverage: the strict funnel became `380/369/327/325`, versus
-`380/369/326/323` for the accepted model, and R1 improved `150 -> 152`.
-Unified CER remained worse (`622 -> 649` edits), so this checkpoint is kept as
-a recall-oriented variant rather than the joint main result. The remaining
-structural mismatch is that CTC beam search still consumes static KWS scores
-instead of the adapter's complete-phrase acoustic confidence.
-
-That mismatch is now resolved by passing the adapter's trained phrase-presence
-probability into CTC prefix beam search. KWS remains the prior and acoustic
-evidence supplies a multiplicative completion gain:
-`KWS * (1 + weight * phrase_probability)`. A full weight sweep showed
-monotonic joint gains through weight `14.0`. On all 808 rows, the strict
-KWS/prompt/n-best/top1 funnel improves from `380/369/326/323` to
-`380/369/369/366`; R1 improves `150/226 -> 192/226`. Unified edits decrease
-`622 -> 489` (CER `4.8273% -> 3.7951%`) and exact rows increase `498 -> 536`.
-Mention recall is `92.4862%`, while strict n-best and top1 recall are
-`92.25%` and `91.50%`. Weight `14.0` is the new standalone CB-SenseVoice main
-configuration.
-
-| Phrase evidence weight | Mention recall | n-best Recall@400 | Top1 Recall@400 | Unified CER |
+| Weight | Mention recall | N-best Recall@400 | Top1 Recall@400 | Unified CER |
 |---:|---:|---:|---:|---:|
 | 1 | 85.52% | 330 | 327 | 4.6566% |
 | 3 | 87.73% | 345 | 342 | 4.4005% |
@@ -1365,53 +151,318 @@ configuration.
 | **14** | **92.49%** | **369** | **366** | **3.7951%** |
 | 16 | 92.49% | 369 | 365 | 3.8184% |
 
-Rejected checkpoints and evidence remain local under
-`src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
-`src/logs/*20260723*`; they are not tracked by git.
+权重 14 同时得到最低 CER 和最高 top1 召回，因此是当前默认配置。
 
-### COVO integration at phrase-evidence weight 14 (2026-07-24)
+### COVO
 
-The accepted weight-14 evidence was decoded with the same paper-clean COVO
-bridge used by the earlier CB-SenseVoice experiment: six scored candidates,
-three pinyin candidates, predicted KWS/prompt hotwords, and explicit protection
-for supported hotwords. Both runs cover all 808 utterances and use no gate,
-fallback, post-filter, or reference-aware selection.
+COVO 输入包含：
 
-| System | Unified corpus CER | Edits | Exact | Recall@400 | R1 Recall@226 |
+- CB-SenseVoice top1；
+- 六条带来源和分数的 N-best；
+- 三条拼音候选；
+- KWS/prompt hotwords；
+- 已被可靠候选支持的 protected hotwords。
+
+COVO 的目标是做最小必要纠错、保护已经正确出现的热词，并拒绝没有候选
+支持的误报热词。当前主模型从 preserve2/no-op LoRA 出发，再做 30-step
+hotword-preservation DPO。
+
+最近的真实 CB-SenseVoice evidence pilot 使用 AISHELL train 的 301 条语句，
+不使用测试参考：
+
+| COVO adapter | 训练数据 | CER | Exact | Recall@400 | 结论 |
+|---|---:|---:|---:|---:|---|
+| **原 DPO-30** | 历史 hotword pairs | **3.1354%** | 575 | **362/400** | 保留 |
+| Targeted DPO-20 | 117 correction + 60 hotword | 3.1354% | **584** | 355/400 | 召回下降 |
+| Hotword-only DPO-10 | 120 hotword preferences | 3.1354% | 573 | **362/400** | 无收益 |
+
+结论：当前 COVO 偏好学习基本饱和。继续微调只能重新分配错误，不能降低总
+edit；下一步必须先让候选池产生更多正确形式。
+
+## 跨数据集结果
+
+所有结果均明确区分全量、固定划分和 pilot。不同数据集的标点、数字和语气词
+归一化方式不同，不应把绝对 CER 当作完全相同的评价协议。
+
+### THCHS-30
+
+| 测试范围 | Samples | SenseVoice CER | + COVO CER | Improved | Worsened |
 |---|---:|---:|---:|---:|---:|
-| CB-SenseVoice w14 | 3.7951% | 489 | 536 | 366/400 | 192/226 |
-| + preserve2/no-op COVO | **3.0268%** | **390** | **587** | 357/400 | 184/226 |
-| + hotword-preserve DPO-30 COVO | 3.1354% | 404 | 575 | **362/400** | **189/226** |
+| 国内镜像 pilot | 1,339 | 6.698% | **4.733%** | 331 | 14 |
+| **完整 test** | **2,495** | **7.959%** | **5.601%** | **676** | **17** |
 
-Preserve2 removes 99 character edits but loses nine designated hotwords. The
-DPO-30 adapter removes 85 edits while losing only four designated hotwords, so
-it remains above the 90% recall target and is the preferred joint
-CB-SenseVoice+COVO configuration. Preserve2 is retained as the CER-oriented
-ablation.
+COVO 使用 AISHELL 训练的 preserve2 adapter，没有使用 THCHS-30 热词或测试
+标注进行训练。
 
-Artifacts:
+### ST-CMDS
 
-- `src/logs/aishellne808_cb_sensevoice_acoustic_phrase_w14_covo_preserve2_unified_eval_20260724.json`
-- `src/logs/aishellne808_cb_sensevoice_acoustic_phrase_w14_covo_dpo30_unified_eval_20260724.json`
-- `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_preserve2_audit_summary_aishell808_20260724.json`
-- `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_dpo30_audit_summary_aishell808_20260724.json`
+ST-CMDS 原始包没有官方 train/dev/test 目录。本项目以 seed `20260719`
+固定划分为 95,418 train、2,052 dev 和 5,130 held-out test。
 
-### Actual-evidence COVO continuation pilot (2026-07-24)
+| 实验 | Samples | 输入 CER | COVO CER | Improved | Worsened | 状态 |
+|---|---:|---:|---:|---:|---:|---|
+| 随机设备分层 pilot | 2,000 | 6.101% | **5.788%** | 51 | 11 | 小实验 |
+| ChineseHP-style held-out test | 5,130 | 5.641% | **5.167%** | 545 | 330 | 完整固定划分 |
+| 未做 ST-CMDS 训练的 DPO60 | 5,130 | 5.641% | 6.969% | 498 | 1065 | 分布不匹配 |
 
-A 301-row held-out shard of AISHELL train was decoded with the accepted
-CB-SenseVoice weight-14 configuration. It produced 117 exact-oracle
-top1-correction pairs and 15 real hotword-preservation pairs. Training starts
-from DPO-30 and never uses AISHELL test references.
+ST-CMDS ChineseHP-style 模型在完整 95,418 条 train 上训练一轮，共
+5,964 optimizer steps，dev loss `0.2392`。相对输入 CER 的绝对下降为
+`0.474` 个百分点。
 
-| COVO adapter | Train preferences | Unified CER | Exact | Recall@400 | R1 Recall@226 |
+另有一个使用测试参考构造 3,139 条实体字典的 CB-SenseVoice 上下文实验：
+
+| Samples | Entity recall | CER | Hotword CER | Candidate oracle CER | 协议 |
+|---:|---:|---:|---:|---:|---|
+| 10,260 | 87.9351% | 5.3331% | 7.1991% | 1.9355% | 测试字典诊断，不作为开放词表主结果 |
+
+### 水利课程录音
+
+原始水利课程数据集共 1,152 条语音，以下结果没有在该测试集上训练 COVO，
+保留自然口语和语气词：
+
+| 系统 | Number-normalized CER | Raw CER | Hotword recall | Edits | Exact |
 |---|---:|---:|---:|---:|---:|
-| Accepted DPO-30 | prior CB-Whisper hotword pairs | **3.1354%** | 575 | **362/400** | **189/226** |
-| Targeted DPO-20 | 117 correction + 60 balanced hotword | **3.1354%** | **584** | 355/400 | 182/226 |
-| Hotword-only DPO-10 | 120 repeated real hotword pairs | **3.1354%** | 573 | **362/400** | **189/226** |
+| 裸 SenseVoice | 4.636% | 4.654% | 82.884% | 731 | 722 |
+| CB-SenseVoice | 4.059% | 4.076% | 93.050% | 640 | 763 |
+| **AISHELL DPO60 listwise COVO** | **3.887%** | **3.905%** | **93.136%** | **613** | **774** |
+| Candidate oracle | 1.820% | - | - | - | - |
 
-The targeted model changed 54 outputs and increased exact utterances, but the
-remaining errors grew by the same total amount and strict recall fell 1.75
-points. The hotword-only continuation changed six outputs with no aggregate
-gain. Both variants are rejected; DPO-30 remains the joint main. This pilot
-also confirms the earlier mixed-DPO finding: preference tuning alone is
-largely saturated unless the candidate evidence supplies new correct forms.
+### 新水利视频集
+
+新水利视频集共 990 条。原始 180 词结果可作为独立实验；259 词和后续
+confusion-term 结果使用了测试错误或测试标签，只能作为诊断上限。
+
+| 系统 | CER | Filler+number CER | Hotword recall | 状态 |
+|---|---:|---:|---:|---|
+| 裸 SenseVoice | 4.873% | 4.902% | 82.567% | 独立基线 |
+| CB-SenseVoice, 180 terms | 4.798% | - | 97.849% | 独立词表 |
+| CB-SenseVoice, 259 terms | 4.072% | 4.074% | 95.157% | 测试错误扩词诊断 |
+| AISHELL DPO60 listwise COVO | 3.736% | 3.722% | - | 使用泄露候选池 |
+| Confusion-term DPO70 | 3.540% | 3.522% | - | 显式测试泄露 |
+| Confusion-term DPO70, tuned w=0.3 | **3.503%** | **3.484%** | **95.642%** | 显式测试泄露上限 |
+| Candidate oracle | 2.227% | 2.208% | - | 上限 |
+
+最后三行不得作为论文独立测试结果。
+
+### Speechio-Formal
+
+该任务要求把口语转成正式书面语，与普通逐字 ASR 不同。现有 COVO 仅在
+AISHELL 上训练，因此跨域提升很小。
+
+| Domain | Samples | SenseVoice formal CER | COVO formal CER |
+|---|---:|---:|---:|
+| ZH00000 | 879 | 25.8634% | **25.8014%** |
+| ZH00006 | 1,561 | 19.8511% | **19.7852%** |
+
+## 失败路线与结论
+
+| 路线 | 现象 | 决策 |
+|---|---|---|
+| 反复手调 exact/phonetic/consensus rerank | 候选池不变时收益接近零 | 停止规则堆叠 |
+| 简单扩大 N-best 到 24 | 热词召回提高，但 CER/WER 恶化 | 需要提高候选质量而非数量 |
+| Prompt recency/排列/单独注入 | 无稳定提升 | 不作为主方法 |
+| 窄窗口 hotword CTC continuation | CER 和召回同时下降 | 回滚 |
+| Wide-window hotword CTC | 仍弱于 phrase adapter | 回滚 |
+| Lexicon synthetic confusable ranking | 错误负样本导致召回下降 | 只用真实声学混淆 |
+| Monotonic hard activation | 召回略升但 CER 变差 | 仅保留消融 |
+| Neutral/context dual branch | 召回保持但 rerank 选择弱候选 | 回滚 |
+| Mixed COVO DPO | 模型过度保守，抑制正确修改 | 回滚 |
+| Actual-evidence targeted COVO DPO | CER 不变、召回下降 | 不做全量扩展 |
+| 水利 test-term / test-label training | 指标改善但发生数据泄露 | 只作为诊断上限 |
+
+核心结论：
+
+1. KWS top-k 已经不是主要上限。
+2. phrase-level 声学证据显著改善 SenseVoice 对热词的候选生成。
+3. COVO 可以降低一般字符错误，但会损失少量已正确热词。
+4. 当前进一步提升取决于增加“正确热词且整句 ASR 质量良好”的候选，而不是
+   加重 rerank 规则或继续短程 DPO。
+
+## 与论文结果的关系
+
+协议不同的系统只能做系统级参考，不能声称严格组件优越。
+
+### AISHELL-1 / AISHELL-NER
+
+| 系统 | 年份/会议 | CER | NE-CER | NE recall | 本项目对比 |
+|---|---|---:|---:|---:|---|
+| SeACo-Paraformer | 2023 | 2.48% | - | 90% hotword | 同 808 热词集 |
+| SeACo-Paraformer + ASF | 2023 | 2.27% | - | 94% hotword | 同 808 热词集 |
+| Efficient Text Augmentation | Interspeech 2024 | 4.50% | - | - | 同类上下文集 |
+| CB-Whisper | LREC-COLING 2024 | MER 8.6% | - | 82.4% entity | 原始方法 |
+| Confidence Homophone Detector | Interspeech 2024 | 6.46% | - | 85.5% hotword | Test-Aishell1-Middle |
+| PARCO | ASRU 2025 | 4.22% | - | - | 含 1000 distractors |
+| Generative Annotation for ASR NEC | EMNLP 2025 | 9.85% | 7.41% | 87.31% | 上游和实体协议不同 |
+| DBA-wav2vec 2.0 | Sensors 2026 | 6.97% | - | - | 普通 AISHELL-1 ASR |
+| Streaming Decoder-Only LLM ASR | 2026 | 5.10% | - | - | 普通 AISHELL-1 ASR |
+| RASTAR-8B | 2026 | 4.21% | 6.21% | 89.33% | 完整 AISHELL-NER |
+| **本项目 routed CB-SenseVoice + COVO** | 2026 | **3.2129%** | **3.9546%** | **91.45%** | 808 条使用上下文 |
+
+主要参考：
+
+- [CB-Whisper, LREC-COLING 2024](https://aclanthology.org/2024.lrec-main.262/)
+- [SeACo-Paraformer](https://arxiv.org/abs/2308.03266)
+- [Efficient Text Augmentation, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/zheng24_interspeech.pdf)
+- [Confidence-based Homophone Detector, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf)
+- [PARCO, ASRU 2025](https://arxiv.org/abs/2509.04357)
+- [Generative Annotation, EMNLP 2025](https://aclanthology.org/2025.emnlp-main.1052/)
+- [RASTAR](https://arxiv.org/abs/2601.17264)
+
+### THCHS-30
+
+完整 THCHS-30 test 上，本项目 SenseVoice+COVO 为 `5.601%` CER。公开直接
+参考包括 Interspeech 2018 的 LSTM `11.93%`、TDNN-LSTM `10.97%`、
+mGRUIP-B `10.38%`，以及 Interspeech 2024 的 Whisper-medium `8.60%`、
+Whisper-large-v2 `6.80%`、HuBERT-CTC `6.00%`。
+
+- [Interspeech 2018](https://www.isca-archive.org/interspeech_2018/li18k_interspeech.pdf)
+- [Interspeech 2024](https://www.isca-archive.org/interspeech_2024/li24s_interspeech.pdf)
+
+## 环境与主要模型
+
+必须使用准备好的环境，不要在 base 环境运行：
+
+```bash
+conda activate /root/autodl-tmp/great
+cd /root/autodl-tmp/src
+```
+
+主要模型：
+
+```text
+SenseVoice:
+  iic/SenseVoiceSmall
+
+SenseVoice KWS:
+  src/outputs/aishell_sensevoice_kws/checkpoints/f1G/
+  f1G-epoch=16-step=102085.ckpt
+
+Phrase context adapter:
+  src/outputs/sensevoice_context_adapter/
+  phrase_crossattn_aishell_full_20260722.pt
+
+COVO base:
+  cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B
+
+COVO CER adapter:
+  cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/
+  qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7
+
+COVO joint adapter:
+  cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/
+  qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16
+```
+
+当前 CB-SenseVoice 配置：
+
+```text
+src/configs/cb-sensevoice-aishell.yaml
+```
+
+其中接受的 phrase confidence weight 为 `14.0`。
+
+## 数据准备与运行
+
+### SenseVoice KWS 数据
+
+准备 AISHELL 目录结构：
+
+```bash
+python src/analysis/prepare_sensevoice_kws_dataset.py \
+  --source datasets/aishell/data_aishell \
+  --target datasets/aishell/data_aishell_sensevoice
+```
+
+提取 SenseVoice 隐藏层：
+
+```bash
+src/scripts/run_sensevoice_kws_extraction_20260714.sh
+```
+
+训练 KWS：
+
+```bash
+cd src
+/root/autodl-tmp/great/bin/python run_CLI.py fit \
+  --config configs/train-sensevoice-kws.yaml
+```
+
+### CB-SenseVoice 验证
+
+```bash
+cd src
+/root/autodl-tmp/great/bin/python run_CLI.py test \
+  --config configs/cb-sensevoice-aishell.yaml
+```
+
+导出 COVO evidence：
+
+```bash
+CBW_EVIDENCE_ONLY=1 \
+CBW_EVIDENCE_OUT=logs/cb_sensevoice_evidence.jsonl \
+/root/autodl-tmp/great/bin/python run_CLI.py test \
+  --config configs/cb-sensevoice-aishell.yaml
+```
+
+完整 AISHELL train evidence 可按 shard 断点生成：
+
+```bash
+src/analysis/run_aishell_sensevoice_w14_train_evidence_shards.sh
+```
+
+### COVO 输入
+
+```bash
+cd src
+/root/autodl-tmp/great/bin/python analysis/cbwhisper_covo_bridge.py prepare \
+  --input logs/cb_sensevoice_evidence.jsonl \
+  --output logs/cb_sensevoice_covo_messages.jsonl \
+  --max-nbest 6 \
+  --max-pinyin 3 \
+  --max-hotwords 8 \
+  --max-prompt-hotwords 6 \
+  --max-candidates-with-scores 6 \
+  --hotword-source all \
+  --include-pinyin \
+  --protect-supported-hotwords
+```
+
+COVO inference 使用
+`cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py`。
+训练数据中的 assistant target 必须是完整纠错句子：
+
+```json
+{"text":"纠错后的完整句子"}
+```
+
+## 重要文件
+
+```text
+src/model/cb_whisper.py
+src/analysis/train_sensevoice_context_adapter.py
+src/analysis/extract_sensevoice_hidden_states.py
+src/analysis/prepare_sensevoice_kws_dataset.py
+src/analysis/cbwhisper_covo_bridge.py
+src/analysis/build_covo_mixed_dpo_pairs.py
+src/analysis/build_routed_aishell_predictions.py
+src/configs/cb-sensevoice-aishell.yaml
+src/configs/train-sensevoice-kws.yaml
+EXPERIMENT_CONTEXT.md
+AISHELL_EXPERIMENTS.md
+```
+
+## 实验纪律
+
+- 每次代码修改后提交 Git，方便恢复。
+- 每轮实验记录数据范围、评价口径、checkpoint 和相对变化。
+- 小实验、全量实验、oracle 和 test-leak diagnostic 必须明确标注。
+- KWS checkpoint 不随意更换；只有明确的 KWS 实验才重新训练。
+- 主方法保持轻量和可解释，不把数据集特例补丁包装成论文贡献。
+- 实验失败时记录原因并回滚运行配置，不覆盖当前最好模型。
+- 大型数据、checkpoint、JSONL 和运行日志默认不提交 GitHub。
+
+## 上游项目与许可
+
+本仓库基于 CB-Whisper / Enhance-CB-Whisper 和 COVO 实验代码继续开发。
+使用数据和模型时请同时遵守各上游项目、SenseVoice、Qwen 和数据集的许可。
+本仓库自身许可见 [`LICENSE.md`](LICENSE.md)。
