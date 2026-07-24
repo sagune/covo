@@ -115,6 +115,7 @@ class CBWhisper(pl.LightningModule):
         sensevoice_hotword_token_weight: float = 1.2,
         sensevoice_hotword_completion_weight: float = 0.8,
         sensevoice_context_adapter_path: str = "",
+        sensevoice_use_adapter_phrase_confidence: bool = False,
         use_precomputed_kws_features: bool = False,
         force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
@@ -294,6 +295,7 @@ class CBWhisper(pl.LightningModule):
         self._active_precomputed_kws_features = None
         self._active_precomputed_kws_hidden_states = None
         self._active_sensevoice_hidden_states = None
+        self._sensevoice_adapter_keyword_scores = {}
         self._debug_log_path = os.getenv("CBW_DEBUG_LOG", "logs/runtime_probe.jsonl")
         if self._debug_log_path.lower() in {"", "none", "off", "0"}:
             self._debug_log_path = ""
@@ -2514,6 +2516,7 @@ class CBWhisper(pl.LightningModule):
         return log_probs[0, speech_start:valid_len, :], speech_hidden
 
     def _apply_sensevoice_context_adapter(self, log_probs: torch.Tensor) -> torch.Tensor:
+        self._sensevoice_adapter_keyword_scores = {}
         if self.sensevoice_context_adapter is None or self._active_sensevoice_encoder_out is None:
             return log_probs
         prompt_keywords = self._latest_prompt_keywords[0] if self._latest_prompt_keywords else []
@@ -2524,6 +2527,7 @@ class CBWhisper(pl.LightningModule):
         phrase_token_ids = []
         phrase_pinyin_ids = []
         phrase_confidences = []
+        phrase_keywords = []
         for keyword in prompt_keywords:
             confidence = float(keyword_scores.get(keyword, 0.0))
             phrase = [
@@ -2534,6 +2538,7 @@ class CBWhisper(pl.LightningModule):
             if not phrase:
                 continue
             phrase_token_ids.append(phrase)
+            phrase_keywords.append(str(keyword))
             phrase_pinyin_ids.append(
                 pinyin_bucket_ids(
                     str(keyword),
@@ -2549,7 +2554,7 @@ class CBWhisper(pl.LightningModule):
         adapter = self.sensevoice_context_adapter.to(log_probs.device)
         with torch.inference_mode():
             if bool(getattr(adapter, "expects_phrases", False)):
-                adapted = adapter(
+                adapted, _, phrase_logits = adapter(
                     encoder_hidden=self._active_sensevoice_encoder_out,
                     base_log_probs=log_probs.unsqueeze(0),
                     ctc_token_weights=self.sensevoice_model.ctc.ctc_lo.weight,
@@ -2557,7 +2562,13 @@ class CBWhisper(pl.LightningModule):
                     context_phrases=phrase_token_ids,
                     context_pinyin_ids=phrase_pinyin_ids,
                     context_confidences=phrase_confidences,
+                    return_auxiliary=True,
                 )
+                acoustic_scores = torch.sigmoid(phrase_logits[0]).detach().float().cpu().tolist()
+                self._sensevoice_adapter_keyword_scores = {
+                    keyword: float(score)
+                    for keyword, score in zip(phrase_keywords, acoustic_scores)
+                }
             else:
                 adapted = adapter(
                     encoder_hidden=self._active_sensevoice_encoder_out,
@@ -2622,6 +2633,11 @@ class CBWhisper(pl.LightningModule):
 
         prompt_keywords = self._latest_prompt_keywords[0] if self._latest_prompt_keywords else []
         keyword_scores = self._latest_prompt_keyword_scores[0] if self._latest_prompt_keyword_scores else {}
+        adapter_scores = (
+            self._sensevoice_adapter_keyword_scores
+            if bool(getattr(self.hparams, "sensevoice_use_adapter_phrase_confidence", False))
+            else {}
+        )
         hotword_entries = []
         for keyword in prompt_keywords:
             token_ids = [
@@ -2629,7 +2645,15 @@ class CBWhisper(pl.LightningModule):
                 if int(token) not in excluded and int(token) != int(self.sensevoice_model.blank_id)
             ]
             if token_ids:
-                hotword_entries.append((token_ids, float(keyword_scores.get(keyword, 0.0))))
+                hotword_entries.append(
+                    (
+                        token_ids,
+                        max(
+                            float(keyword_scores.get(keyword, 0.0)),
+                            float(adapter_scores.get(str(keyword), 0.0)),
+                        ),
+                    )
+                )
         biased = []
         if hotword_entries:
             scorer = ContextualHotwordScorer(
