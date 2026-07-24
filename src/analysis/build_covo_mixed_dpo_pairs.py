@@ -153,6 +153,38 @@ def cer_pair(record: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]
     )
 
 
+def top1_correction_pair(record: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any] | None:
+    reference = norm_text(record.get("reference", ""))
+    input_block = record.get("input", {}) or {}
+    asr_top1 = norm_text(input_block.get("asr_top1", ""))
+    nbest = [norm_text(item) for item in input_block.get("nbest", []) or []]
+    nbest = [item for item in nbest[: max(2, int(args.max_nbest_scan))] if item]
+    if not reference or not asr_top1 or len(nbest) < 2:
+        return None
+
+    top1_distance = edit_distance(reference, asr_top1)
+    scored = sorted(
+        (edit_distance(reference, candidate), idx, candidate)
+        for idx, candidate in enumerate(nbest)
+        if candidate != asr_top1
+    )
+    if not scored:
+        return None
+    chosen_distance, _, chosen = scored[0]
+    if chosen_distance + int(args.top1_correction_margin) > top1_distance:
+        return None
+    if bool(args.top1_correction_exact_only) and chosen_distance != 0:
+        return None
+    return base_pair(
+        record,
+        "top1_correction_dpo",
+        chosen,
+        asr_top1,
+        chosen_edit_distance=chosen_distance,
+        rejected_edit_distance=top1_distance,
+    )
+
+
 def noop_pair(record: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any] | None:
     reference = norm_text(record.get("reference", ""))
     input_block = record.get("input", {}) or {}
@@ -183,28 +215,106 @@ def noop_pair(record: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any
     )
 
 
+def false_hotword_pair(record: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any] | None:
+    reference = norm_text(record.get("reference", ""))
+    input_block = record.get("input", {}) or {}
+    asr_top1 = norm_text(input_block.get("asr_top1", ""))
+    if not reference or not asr_top1:
+        return None
+
+    top1_distance = edit_distance(reference, asr_top1)
+    if top1_distance > int(args.false_hotword_max_chosen_distance):
+        return None
+    false_hotwords = {
+        keyword
+        for keyword in allowed_hotwords(input_block, args.hotword_source)
+        if len(keyword) >= int(args.min_hotword_len) and keyword not in reference
+    }
+    if not false_hotwords:
+        return None
+
+    best_rejected = None
+    best_inserted: List[str] = []
+    best_distance = 10**9
+    for candidate in (input_block.get("nbest", []) or [])[1 : max(2, int(args.max_nbest_scan))]:
+        candidate = norm_text(candidate)
+        if not candidate or candidate == asr_top1:
+            continue
+        inserted = sorted(keyword for keyword in false_hotwords if keyword in candidate)
+        if not inserted:
+            continue
+        distance = edit_distance(reference, candidate)
+        if distance >= top1_distance + int(args.false_hotword_margin) and distance < best_distance:
+            best_rejected = candidate
+            best_inserted = inserted
+            best_distance = distance
+    if best_rejected is None:
+        return None
+    return base_pair(
+        record,
+        "false_hotword_rejection_dpo",
+        asr_top1,
+        best_rejected,
+        false_hotwords_in_rejected=best_inserted,
+        chosen_edit_distance=top1_distance,
+        rejected_edit_distance=best_distance,
+    )
+
+
 def build_rows(args: argparse.Namespace) -> List[Dict[str, Any]]:
     hotword_rows: List[Dict[str, Any]] = []
     cer_rows: List[Dict[str, Any]] = []
+    top1_correction_rows: List[Dict[str, Any]] = []
     noop_rows: List[Dict[str, Any]] = []
+    false_hotword_rows: List[Dict[str, Any]] = []
     for record in read_jsonl(args.input):
         if row := hotword_pair(record, args):
             hotword_rows.append(row)
         if row := cer_pair(record, args):
             cer_rows.append(row)
+        if row := top1_correction_pair(record, args):
+            top1_correction_rows.append(row)
         if row := noop_pair(record, args):
             noop_rows.append(row)
+        if row := false_hotword_pair(record, args):
+            false_hotword_rows.append(row)
 
     rng = random.Random(int(args.seed))
-    for rows in (hotword_rows, cer_rows, noop_rows):
+    for rows in (hotword_rows, cer_rows, top1_correction_rows, noop_rows, false_hotword_rows):
         rng.shuffle(rows)
     if int(args.max_hotword_pairs) >= 0:
         hotword_rows = hotword_rows[: int(args.max_hotword_pairs)]
     if int(args.max_cer_pairs) >= 0:
         cer_rows = cer_rows[: int(args.max_cer_pairs)]
+    if int(args.max_top1_correction_pairs) >= 0:
+        top1_correction_rows = top1_correction_rows[: int(args.max_top1_correction_pairs)]
     if int(args.max_noop_pairs) >= 0:
         noop_rows = noop_rows[: int(args.max_noop_pairs)]
-    rows = hotword_rows + cer_rows + noop_rows
+    if int(args.max_false_hotword_pairs) >= 0:
+        false_hotword_rows = false_hotword_rows[: int(args.max_false_hotword_pairs)]
+    # Keep the most specific supervision when one candidate pair satisfies
+    # several objectives; repeated identical pairs would silently skew DPO.
+    rows = false_hotword_rows + hotword_rows + top1_correction_rows + cer_rows + noop_rows
+    unique_rows: List[Dict[str, Any]] = []
+    seen_pairs = set()
+    for row in rows:
+        key = (
+            row.get("id", ""),
+            norm_text((row.get("chosen", {}) or {}).get("text", "")),
+            norm_text((row.get("rejected", {}) or {}).get("text", "")),
+        )
+        if key in seen_pairs:
+            continue
+        seen_pairs.add(key)
+        unique_rows.append(row)
+    rows = []
+    for row in unique_rows:
+        repeat = 1
+        if row.get("pair_type") == "hotword_preserve_candidate_dpo":
+            repeat = max(1, int(args.hotword_repeat))
+        elif row.get("pair_type") == "top1_correction_dpo":
+            repeat = max(1, int(args.top1_correction_repeat))
+        rows.extend([row] * repeat)
     rng.shuffle(rows)
     return rows
 
@@ -219,11 +329,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-edit-distance", type=int, default=2)
     parser.add_argument("--max-edit-distance-ratio", type=float, default=0.25)
     parser.add_argument("--cer-margin", type=int, default=2)
+    parser.add_argument("--top1-correction-margin", type=int, default=1)
+    parser.add_argument("--top1-correction-exact-only", action="store_true")
     parser.add_argument("--noop-max-distance", type=int, default=1)
     parser.add_argument("--noop-margin", type=int, default=2)
+    parser.add_argument("--false-hotword-max-chosen-distance", type=int, default=1)
+    parser.add_argument("--false-hotword-margin", type=int, default=1)
     parser.add_argument("--max-hotword-pairs", type=int, default=2583)
     parser.add_argument("--max-cer-pairs", type=int, default=2583)
+    parser.add_argument("--max-top1-correction-pairs", type=int, default=2583)
     parser.add_argument("--max-noop-pairs", type=int, default=2583)
+    parser.add_argument("--max-false-hotword-pairs", type=int, default=2583)
+    parser.add_argument("--hotword-repeat", type=int, default=1)
+    parser.add_argument("--top1-correction-repeat", type=int, default=1)
     parser.add_argument("--seed", type=int, default=13)
     return parser.parse_args()
 

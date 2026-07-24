@@ -5279,3 +5279,27 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   protocol. It may be compared with contextual ASR/NEC systems when this
   supplied-context advantage is explicit, but not labeled as naked AISHELL-1
   ASR.
+
+## COVO actual-evidence continuation pilot (2026-07-24)
+
+- Training evidence: `301` AISHELL train utterances decoded by the accepted
+  CB-SenseVoice w14 pipeline; no test references were used.
+- Preference extraction:
+  - `117` pairs choose an exact-reference n-best candidate over an erroneous
+    top1;
+  - `15` pairs preserve a reference-supported prompt hotword against a nearby
+    candidate that drops it.
+- A targeted DPO-20 continuation balanced the 15 hotword pairs to 60 and
+  combined them with all 117 correction pairs:
+  - unified CER stayed `404/12885 = 3.1354%`;
+  - exact rows improved `575 -> 584`;
+  - Recall@400 regressed `362 -> 355`, R1 `189 -> 182`;
+  - reject because it moves errors between utterances without reducing total
+    edits and falls below the 90% recall target.
+- A hotword-only DPO-10 continuation used 120 repeated real hotword pairs:
+  - unified CER, Recall@400, and R1 were exactly unchanged at
+    `3.1354%`, `362/400`, and `189/226`;
+  - only six output strings changed, with no aggregate benefit.
+- Decision: retain the original hotword-preserve DPO-30 adapter. Do not spend a
+  full 17,301-row decode on this continuation route unless candidate
+  generation first increases exact-reference oracle coverage.

@@ -1395,3 +1395,23 @@ Artifacts:
 - `src/logs/aishellne808_cb_sensevoice_acoustic_phrase_w14_covo_dpo30_unified_eval_20260724.json`
 - `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_preserve2_audit_summary_aishell808_20260724.json`
 - `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_dpo30_audit_summary_aishell808_20260724.json`
+
+### Actual-evidence COVO continuation pilot (2026-07-24)
+
+A 301-row held-out shard of AISHELL train was decoded with the accepted
+CB-SenseVoice weight-14 configuration. It produced 117 exact-oracle
+top1-correction pairs and 15 real hotword-preservation pairs. Training starts
+from DPO-30 and never uses AISHELL test references.
+
+| COVO adapter | Train preferences | Unified CER | Exact | Recall@400 | R1 Recall@226 |
+|---|---:|---:|---:|---:|---:|
+| Accepted DPO-30 | prior CB-Whisper hotword pairs | **3.1354%** | 575 | **362/400** | **189/226** |
+| Targeted DPO-20 | 117 correction + 60 balanced hotword | **3.1354%** | **584** | 355/400 | 182/226 |
+| Hotword-only DPO-10 | 120 repeated real hotword pairs | **3.1354%** | 573 | **362/400** | **189/226** |
+
+The targeted model changed 54 outputs and increased exact utterances, but the
+remaining errors grew by the same total amount and strict recall fell 1.75
+points. The hotword-only continuation changed six outputs with no aggregate
+gain. Both variants are rejected; DPO-30 remains the joint main. This pilot
+also confirms the earlier mixed-DPO finding: preference tuning alone is
+largely saturated unless the candidate evidence supplies new correct forms.
