@@ -5227,3 +5227,28 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
   The next candidate-generation improvement should couple the richer mixed
   candidate pool with learned selection rather than stronger frame forcing.
+
+## Weight-14 CB-SenseVoice with COVO (2026-07-24)
+
+- Scope: full 808-row Test-Aishell1-NE; identical weight-14 CB-SenseVoice
+  evidence for both COVO adapters.
+- Bridge evidence: six scored n-best candidates, three pinyin candidates,
+  predicted KWS/prompt hotwords, and supported-hotword protection.
+- No gate, fallback, same-length filter, digit filter, or reference-aware
+  selection was used.
+- Standalone weight-14 input: unified CER `489/12885 = 0.037951`, exact
+  `536/808`, Recall@400 `366`, and R1 `192/226`.
+- Historical CER-best preserve2/no-op COVO:
+  - unified CER `390/12885 = 0.030268`, exact `587/808`;
+  - Recall@400 `357/400`, R1 `184/226`;
+  - correction counts under the COVO evaluator:
+    `110` improved, `39` worsened, `659` unchanged.
+- Hotword-preserve DPO-30 COVO:
+  - unified CER `404/12885 = 0.031354`, exact `575/808`;
+  - Recall@400 `362/400`, R1 `189/226`;
+  - correction counts under the COVO evaluator:
+    `91` improved, `24` worsened, `693` unchanged.
+- Decision: DPO-30 is the joint main because it remains above the 90% strict
+  recall target while reducing unified CER by `0.6597` absolute points.
+  Preserve2 is the lower-CER ablation but is not selected because its strict
+  recall falls to `89.25%`.

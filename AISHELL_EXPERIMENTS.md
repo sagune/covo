@@ -122,6 +122,9 @@ oracle is 3.097%, demonstrating genuine text rewriting rather than selection.
 | + frame position/pronunciation adapter | HW808 unified corpus | 7.691% | - | 318/400 | 146/226 | Candidate gain +5 |
 | + phrase cross-attention adapter | HW808 local | **5.093%** | **83.978%** | - | - | 729k parameters; CER main model |
 | + phrase cross-attention adapter | HW808 unified corpus | **4.827%** | - | **323/400** | **150/226** | Candidate/top1 gain +10 |
+| + acoustic phrase evidence (w=14) | HW808 unified corpus | **3.795%** | 92.486% local | **366/400** | **192/226** | Standalone CB-SenseVoice main |
+| + preserve2 COVO | HW808 unified corpus | **3.027%** | - | 357/400 | 184/226 | Lowest CER; recall below 90% |
+| + hotword-preserve DPO-30 COVO | HW808 unified corpus | **3.135%** | - | **362/400** | **189/226** | Joint main; no gate |
 
 ## Complete AISHELL-1 Test (7,176 Utterances)
 
@@ -169,9 +172,9 @@ Primary references:
 
 1. On HW808, the true-v3 CB-Whisper implementation substantially improves the
    original CB-Whisper endpoint: 6.61% vs 8.6% CER and 92.38% vs 82.4% recall.
-2. The independent combined HW808 route reaches 4.284% COVO CER and 91.083%
-   local mention recall, but designated Recall@400 must be recomputed for a
-   strict SeACo/PAC comparison.
+2. The full no-gate CB-SenseVoice w14 + hotword-preserve COVO route reaches
+   3.135% corpus CER and 362/400 designated-hotword recall. The unconstrained
+   preserve2 COVO variant reaches 3.027% CER but falls to 357/400 recall.
 3. On complete AISHELL-1, SenseVoice+COVO reaches 3.765% corpus CER and beats
    the listed 2026 systems on overall CER, while RASTAR remains stronger on
    named-entity CER and recall.

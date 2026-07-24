@@ -1,0 +1,26 @@
+{
+  "input": "logs/cb_sensevoice_acoustic_phrase_w14_aishell808_evidence_20260724.jsonl",
+  "output": "logs/cb_sensevoice_acoustic_phrase_w14_covo_messages_dpo30_aishell808_20260724.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py --input /root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_messages_dpo30_aishell808_20260724.jsonl --output /root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl --model-name-or-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B --adapter-path /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16 --batch-size 7 --max-new-tokens 128 --temperature 0.0 --top-p 1.0 --device auto --progress-every 100 --disable-thinking
+/root/autodl-tmp/great/lib/python3.10/site-packages/torch/cuda/__init__.py:65: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+`torch_dtype` is deprecated! Use `dtype` instead!
+The fast path is not available because one of the required library is not installed. Falling back to torch implementation. To install follow https://github.com/fla-org/flash-linear-attention#installation and https://github.com/Dao-AILab/causal-conv1d
+Loading weights:   0%|          | 0/426 [00:00<?, ?it/s]Loading weights:   0%|          | 1/426 [00:00<02:04,  3.42it/s]Loading weights:   5%|▌         | 22/426 [00:00<00:06, 67.01it/s]Loading weights:   9%|▉         | 39/426 [00:00<00:04, 96.45it/s]Loading weights:  12%|█▏        | 52/426 [00:00<00:03, 103.84it/s]Loading weights:  16%|█▌        | 67/426 [00:00<00:03, 113.98it/s]Loading weights:  21%|██        | 88/426 [00:00<00:02, 137.04it/s]Loading weights:  24%|██▍       | 103/426 [00:00<00:02, 128.80it/s]Loading weights:  28%|██▊       | 119/426 [00:01<00:02, 137.04it/s]Loading weights:  31%|███▏      | 134/426 [00:01<00:02, 136.27it/s]Loading weights:  35%|███▌      | 151/426 [00:01<00:01, 140.60it/s]Loading weights:  40%|███▉      | 170/426 [00:01<00:01, 153.03it/s]Loading weights:  44%|████▎     | 186/426 [00:01<00:01, 142.29it/s]Loading weights:  47%|████▋     | 201/426 [00:01<00:01, 139.89it/s]Loading weights:  52%|█████▏    | 220/426 [00:01<00:01, 151.89it/s]Loading weights:  55%|█████▌    | 236/426 [00:01<00:01, 150.29it/s]Loading weights:  59%|█████▉    | 252/426 [00:01<00:01, 148.32it/s]Loading weights:  63%|██████▎   | 267/426 [00:02<00:01, 136.87it/s]Loading weights:  67%|██████▋   | 287/426 [00:02<00:00, 148.98it/s]Loading weights:  71%|███████   | 303/426 [00:02<00:00, 149.81it/s]Loading weights:  75%|███████▍  | 319/426 [00:02<00:00, 136.58it/s]Loading weights:  80%|███████▉  | 339/426 [00:02<00:00, 149.14it/s]Loading weights:  84%|████████▍ | 358/426 [00:02<00:00, 158.02it/s]Loading weights:  88%|████████▊ | 375/426 [00:02<00:00, 154.75it/s]Loading weights:  92%|█████████▏| 393/426 [00:02<00:00, 157.42it/s]Loading weights:  96%|█████████▌| 409/426 [00:03<00:00, 154.93it/s]Loading weights: 100%|█████████▉| 425/426 [00:03<00:00, 140.80it/s]Loading weights: 100%|██████████| 426/426 [00:03<00:00, 134.92it/s]
+{"written": 700}
+{
+  "input": "/root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_messages_dpo30_aishell808_20260724.jsonl",
+  "output": "/root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl",
+  "written": 808
+}
++ /root/autodl-tmp/great/bin/python /root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/evaluate_correction_jsonl.py --input /root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl --prediction-field prediction --reference-field reference --baseline-field input.asr_top1
+{
+  "samples": 808,
+  "cer": 0.03174233604967016,
+  "baseline_cer": 0.03833915405510283,
+  "improved_samples": 91,
+  "worsened_samples": 24,
+  "unchanged_samples": 693
+}

@@ -1,0 +1,46 @@
+{
+  "predictions": "logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl",
+  "samples": 808,
+  "reference_chars": 12885,
+  "cer": {
+    "base": 0.03833915405510283,
+    "prediction": 0.03174233604967016,
+    "nbest_oracle": 0.0203337213814513,
+    "prediction_or_nbest_oracle": 0.018160651920838183
+  },
+  "edit_totals": {
+    "base_edits": 494,
+    "pred_edits": 409,
+    "nbest_oracle_edits": 262,
+    "pred_or_nbest_oracle_edits": 234
+  },
+  "delta_counts": {
+    "base_correct_kept": 517,
+    "fixed_to_exact": 54,
+    "unchanged_error": 176,
+    "improved_partial": 37,
+    "worsened_error": 7,
+    "base_correct_broken": 17
+  },
+  "oracle_reachability": {
+    "nbest_exact": 650,
+    "pred_exact": 571,
+    "base_exact": 534,
+    "nbest_better_than_pred": 147,
+    "nbest_better_than_base": 207,
+    "pred_better_than_nbest": 24
+  },
+  "hotword": {
+    "total_mentions": 942,
+    "base_hits": 878,
+    "pred_hits": 871,
+    "nbest_oracle_hits": 884,
+    "base_lost_by_pred": 17,
+    "pred_gained_over_base": 10,
+    "prompt_false_in_base": 15,
+    "prompt_false_in_pred": 14,
+    "base_recall": 0.9320594479830149,
+    "pred_recall": 0.9246284501061571,
+    "nbest_oracle_recall": 0.9384288747346072
+  }
+}

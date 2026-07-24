@@ -1353,3 +1353,30 @@ configuration.
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
 `src/logs/*20260723*`; they are not tracked by git.
+
+### COVO integration at phrase-evidence weight 14 (2026-07-24)
+
+The accepted weight-14 evidence was decoded with the same paper-clean COVO
+bridge used by the earlier CB-SenseVoice experiment: six scored candidates,
+three pinyin candidates, predicted KWS/prompt hotwords, and explicit protection
+for supported hotwords. Both runs cover all 808 utterances and use no gate,
+fallback, post-filter, or reference-aware selection.
+
+| System | Unified corpus CER | Edits | Exact | Recall@400 | R1 Recall@226 |
+|---|---:|---:|---:|---:|---:|
+| CB-SenseVoice w14 | 3.7951% | 489 | 536 | 366/400 | 192/226 |
+| + preserve2/no-op COVO | **3.0268%** | **390** | **587** | 357/400 | 184/226 |
+| + hotword-preserve DPO-30 COVO | 3.1354% | 404 | 575 | **362/400** | **189/226** |
+
+Preserve2 removes 99 character edits but loses nine designated hotwords. The
+DPO-30 adapter removes 85 edits while losing only four designated hotwords, so
+it remains above the 90% recall target and is the preferred joint
+CB-SenseVoice+COVO configuration. Preserve2 is retained as the CER-oriented
+ablation.
+
+Artifacts:
+
+- `src/logs/aishellne808_cb_sensevoice_acoustic_phrase_w14_covo_preserve2_unified_eval_20260724.json`
+- `src/logs/aishellne808_cb_sensevoice_acoustic_phrase_w14_covo_dpo30_unified_eval_20260724.json`
+- `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_preserve2_audit_summary_aishell808_20260724.json`
+- `src/logs/cb_sensevoice_acoustic_phrase_w14_covo_dpo30_audit_summary_aishell808_20260724.json`
