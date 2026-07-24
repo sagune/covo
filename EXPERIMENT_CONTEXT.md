@@ -5216,6 +5216,12 @@ Shuili COVO hotword-recall training probes, 2026-07-05:
   `0.855249`, unified CER `0.046566` (`600/12885`), exact rows `507`, strict
   funnel `380/369/330/327`, and R1 `154/226`. Use the 20260722 adapter with
   acoustic phrase beam evidence as the current standalone CB-SenseVoice main.
+- A complete phrase-evidence weight sweep continued improving both recall and
+  CER through weight `11.0`. Final local CER is `0.040341`, mention recall
+  `0.916022`, unified CER `0.039115` (`504/12885`), exact rows `533`, strict
+  funnel `380/369/364/361`, and R1 `187/226`. This crosses both n-best and
+  top1 strict Recall@400 targets (`91.00%` and `90.25%`) without changing KWS
+  or retraining the adapter. The accepted config weight is now `11.0`.
 - Decision: roll back all runtime changes and retain
   `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`.
   The next candidate-generation improvement should couple the richer mixed
