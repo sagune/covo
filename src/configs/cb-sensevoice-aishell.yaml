@@ -73,6 +73,9 @@ model:
     sensevoice_token_topk: 32
     sensevoice_hotword_token_weight: 1.2
     sensevoice_hotword_completion_weight: 0.8
+    sensevoice_context_adapter_path: ./outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt
+    sensevoice_use_adapter_phrase_confidence: true
+    sensevoice_adapter_phrase_confidence_weight: 1.0
     use_precomputed_kws_features: true
 
     prompt: true

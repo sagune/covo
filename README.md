@@ -1286,6 +1286,7 @@ CER/recall criterion, so all runtime changes were rolled back.
 | Vocabulary-confusable CTC ranking continuation | 5.6734% | 82.6519% | not retained | 316/400 | 144/226 | Reject |
 | Monotonic complete-phrase activation | **5.0820%** | **84.5304%** | 5.0136% | **324/400** | **151/226** | Mixed; retain baseline |
 | Monotonic residual fusion (floor 0.75) | 5.1155% | 84.4199% | 5.0369% | **325/400** | **152/226** | Recall variant |
+| **Acoustic phrase evidence in CTC beam** | **4.8925%** | **85.5249%** | **4.6566%** | **327/400** | **154/226** | **New main** |
 
 The narrow CTC loss over-constrained SenseVoice emissions to timestamp windows
 with insufficient alignment tolerance. A 0.5-second margin and lower learning
@@ -1323,6 +1324,15 @@ Unified CER remained worse (`622 -> 649` edits), so this checkpoint is kept as
 a recall-oriented variant rather than the joint main result. The remaining
 structural mismatch is that CTC beam search still consumes static KWS scores
 instead of the adapter's complete-phrase acoustic confidence.
+
+That mismatch is now resolved by passing the adapter's trained phrase-presence
+probability into CTC prefix beam search. KWS remains the prior and acoustic
+evidence supplies a multiplicative completion gain:
+`KWS * (1 + phrase_probability)`. On all 808 rows, the strict
+KWS/prompt/n-best/top1 funnel improves from `380/369/326/323` to
+`380/369/330/327`; R1 improves `150/226 -> 154/226`. Unified edits decrease
+`622 -> 600` (CER `4.8273% -> 4.6566%`) and exact rows increase `498 -> 507`.
+This is the new standalone CB-SenseVoice main result.
 
 Rejected checkpoints and evidence remain local under
 `src/outputs/sensevoice_context_adapter/*hotword_ctc*20260723.pt` and
