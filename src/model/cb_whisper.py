@@ -116,6 +116,7 @@ class CBWhisper(pl.LightningModule):
         sensevoice_hotword_completion_weight: float = 0.8,
         sensevoice_context_adapter_path: str = "",
         sensevoice_use_adapter_phrase_confidence: bool = False,
+        sensevoice_adapter_phrase_confidence_weight: float = 1.0,
         use_precomputed_kws_features: bool = False,
         force_decoder_prompt_ids: bool = False,
         prompt: bool = True,
@@ -2648,9 +2649,11 @@ class CBWhisper(pl.LightningModule):
                 hotword_entries.append(
                     (
                         token_ids,
-                        max(
-                            float(keyword_scores.get(keyword, 0.0)),
-                            float(adapter_scores.get(str(keyword), 0.0)),
+                        float(keyword_scores.get(keyword, 0.0))
+                        * (
+                            1.0
+                            + float(getattr(self.hparams, "sensevoice_adapter_phrase_confidence_weight", 1.0))
+                            * float(adapter_scores.get(str(keyword), 0.0))
                         ),
                     )
                 )
