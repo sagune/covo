@@ -128,6 +128,7 @@ class _ContextBiasASR(pl.LightningModule):
         kws_max_prompt_keywords: int = 24,
         kws_infer_chunk_size: int = 16,
         kws_prefilter_per_group: int = 0,
+        kws_force_group_fallback: bool = False,
         keyword_perturb_prob: float = 0.0,
         keyword_perturb_rules: Optional[List[str]] = None,
         prompt_max_injected_keywords: int = 4,
@@ -1696,7 +1697,11 @@ class _ContextBiasASR(pl.LightningModule):
                 topk = min(max(1, int(self.hparams.kws_topk_per_group)), probs_pos.numel())
                 top_vals, top_idx = torch.topk(probs_pos, k=topk)
                 selected_idx = top_idx[top_vals >= float(self.hparams.kws_positive_threshold)]
-                if selected_idx.numel() == 0 and top_idx.numel() > 0:
+                if (
+                    bool(getattr(self.hparams, "kws_force_group_fallback", False))
+                    and selected_idx.numel() == 0
+                    and top_idx.numel() > 0
+                ):
                     selected_idx = top_idx[:1]
                 for cand_idx in selected_idx.tolist():
                     kw = kw_group["keywords"][cand_idx]
@@ -1764,7 +1769,11 @@ class _ContextBiasASR(pl.LightningModule):
                 top_vals, top_idx = torch.topk(probs_pos, k=topk)
                 selected_idx = top_idx[top_vals >= float(self.hparams.kws_positive_threshold)]
 
-                if selected_idx.numel() == 0 and top_idx.numel() > 0:
+                if (
+                    bool(getattr(self.hparams, "kws_force_group_fallback", False))
+                    and selected_idx.numel() == 0
+                    and top_idx.numel() > 0
+                ):
                     selected_idx = top_idx[:1]
 
                 for cand_idx in selected_idx.tolist():

@@ -142,7 +142,29 @@ cd /root/autodl-tmp/src
 
 这两个入口用于测试 CB-SenseVoice 覆盖全量语句的能力，属于由测试参考文本构造
 词表的 `oracle-context` 协议。它们不能与开放词表 ASR 结果混写。运行脚本启用
-每组 top-32 声学预筛选，以限制大词表 KWS 的相似度矩阵开销。
+每组 top-32 声学预筛选，以限制大词表 KWS 的相似度矩阵开销。大词表评测不再
+为每个词表分组强制补入一个低于阈值的热词，避免误检数量随分组数线性增长。
+
+错误定向的高浓度诊断入口：
+
+```bash
+cd /root/autodl-tmp/src
+./scripts/run_cb_sensevoice_full_test.sh aishell-targeted
+./scripts/run_cb_sensevoice_full_test.sh stcmds-targeted
+```
+
+| 数据 | 词表 | 热词正样本 | 字符覆盖 | 裸 ASR 错误覆盖 |
+|---|---:|---:|---:|---:|
+| AISHELL-1 targeted | 3,499 | 52.26% | 16.65% | 85.50% |
+| ST-CMDS targeted | 5,241 | 51.73% | 15.39% | 92.49% |
+
+该协议根据测试参考文本和裸 SenseVoice 错误构造目标热词，存在明确的数据泄漏，
+只能作为热词利用能力的 oracle 上界诊断，不能作为论文主结果。AISHELL 前 71 条
+pilot 中，裸 SenseVoice CER 为 3.30%，大词表 KWS 使用原阈值时为 3.20%，关闭
+分组强制补词并将阈值提高到 0.95 后为 2.68%，gold 热词直接注入为 0.21%。
+高置信 KWS 相对裸模型降低约 18.8%，说明正确热词能显著影响 CER；gold 与 KWS
+之间的差距表明当前主要瓶颈仍是大词表检索质量。ST-CMDS 前 51 条 pilot 也从
+6.31% 降到 5.63%，绝对下降 0.68 个百分点。
 
 ### 导出 COVO evidence
 
