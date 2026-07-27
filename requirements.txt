@@ -12,11 +12,15 @@ pytorch_lightning>=2.2.0
 
 # NLP / Transformers
 transformers>=4.38.0
-openai-whisper>=20231117
+pypinyin>=0.50.0
+opencc-python-reimplemented>=0.1.7
+
+# SenseVoice
+funasr>=1.2.0
+modelscope>=1.15.0
 
 # Audio
 pydub>=0.25.1
-paddlespeech>=1.4.0  # 注意 paddlepaddle 要单独装（见下面）
 
 # Utils
 ninja>=1.11.0

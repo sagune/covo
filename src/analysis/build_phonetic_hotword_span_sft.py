@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Build phonetic hotword span SFT data for local ASR correction.
 
-This converts CB-Whisper/COVO evidence rows into Qwen-message SFT rows with
+This converts CB-SenseVoice/COVO evidence rows into Qwen-message SFT rows with
 explicit pinyin-based term localization:
 
 - protected/domain terms and their pinyin;
@@ -27,14 +27,14 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 
-COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if COVO_SRC not in sys.path:
     sys.path.insert(0, COVO_SRC)
 
 from covo.metrics import edit_distance  # type: ignore  # noqa: E402
 from covo.text import joined_pinyin, normalize_chinese_text, to_pinyin_units  # type: ignore  # noqa: E402
 
-from cbwhisper_covo_bridge import CONTENT_SELECTOR_SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
+from cbsensevoice_covo_bridge import CONTENT_SELECTOR_SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
 
 
 DEFAULT_DOMAIN_TERMS = [

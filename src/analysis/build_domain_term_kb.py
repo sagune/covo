@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build a deployable domain-term knowledge base from CB-Whisper evidence.
+"""Build a deployable domain-term knowledge base from CB-SenseVoice evidence.
 
 By default this script avoids label leakage: terms are collected only from
 KWS/prompt/candidate evidence fields, not from references.  References can be
@@ -21,7 +21,7 @@ from typing import Any, Dict, Iterable, List
 from pypinyin import Style, lazy_pinyin
 
 
-DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+DEFAULT_COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if DEFAULT_COVO_SRC not in sys.path:
     sys.path.insert(0, DEFAULT_COVO_SRC)
 

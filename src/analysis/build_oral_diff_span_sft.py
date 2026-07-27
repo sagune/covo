@@ -24,13 +24,13 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
-COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if COVO_SRC not in sys.path:
     sys.path.insert(0, COVO_SRC)
 
 from covo.text import normalize_chinese_text  # type: ignore  # noqa: E402
 
-from cbwhisper_covo_bridge import CONTENT_SELECTOR_SYSTEM_MESSAGE  # noqa: E402
+from cbsensevoice_covo_bridge import CONTENT_SELECTOR_SYSTEM_MESSAGE  # noqa: E402
 
 
 PUNCT_RE = re.compile(r"[\s,，。.!！？?；;：:“”\"'‘’、（）()\[\]【】《》<>-]+")

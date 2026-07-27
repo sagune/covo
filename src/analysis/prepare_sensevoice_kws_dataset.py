@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Prepare an AISHELL-style KWS dataset root for SenseVoice hidden states.
 
-The script preserves the original CB-Whisper dataset metadata and keyword
+The script preserves the original CB-SenseVoice dataset metadata and keyword
 audio assets through symlinks, while creating fresh ``hs`` and ``keywords-hs``
 directories for SenseVoice encoder states. Test-only datasets without a
 ``kws`` training directory are supported as well.

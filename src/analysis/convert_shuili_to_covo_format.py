@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Convert Shuili CB-Whisper candidate pools to COVO Qwen-message data."""
+"""Convert Shuili CB-SenseVoice candidate pools to COVO Qwen-message data."""
 
 from __future__ import annotations
 

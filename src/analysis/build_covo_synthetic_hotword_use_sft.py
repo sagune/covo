@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Create synthetic hotword-use SFT rows from CB-Whisper ASR/reference differences."""
+"""Create synthetic hotword-use SFT rows from CB-SenseVoice ASR/reference differences."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from cbwhisper_covo_bridge import SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
+from cbsensevoice_covo_bridge import SYSTEM_MESSAGE, build_user_prompt  # noqa: E402
 
 try:
     from opencc import OpenCC

@@ -10,7 +10,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
-from cbwhisper_covo_bridge import SYSTEM_MESSAGE, build_user_prompt
+from cbsensevoice_covo_bridge import SYSTEM_MESSAGE, build_user_prompt
 
 
 def norm_text(text: Any) -> str:

@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any, Dict, Iterable
 
 try:
-    from analysis.cbwhisper_covo_bridge import normalize_text
+    from analysis.cbsensevoice_covo_bridge import normalize_text
 except ModuleNotFoundError:
-    from cbwhisper_covo_bridge import normalize_text
+    from cbsensevoice_covo_bridge import normalize_text
 
 
 def read_jsonl(path: Path) -> Iterable[Dict[str, Any]]:

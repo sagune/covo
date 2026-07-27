@@ -50,7 +50,7 @@ def parse_args() -> argparse.Namespace:
         "--external-source",
         action="append",
         default=[],
-        help="External Qwen-message JSONL to mix in, e.g. hotword no-op or hotword-aware CB-Whisper SFT data.",
+        help="External Qwen-message JSONL to mix in, e.g. hotword no-op or hotword-aware CB-SenseVoice SFT data.",
     )
     parser.add_argument("--train-output", required=True)
     parser.add_argument("--dev-output", required=True)

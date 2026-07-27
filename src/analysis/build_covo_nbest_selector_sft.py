@@ -16,14 +16,14 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from cbwhisper_covo_bridge import (  # noqa: E402
+from cbsensevoice_covo_bridge import (  # noqa: E402
     CONTENT_SELECTOR_SYSTEM_MESSAGE,
     SELECTOR_SYSTEM_MESSAGE,
     SYSTEM_MESSAGE,
     build_user_prompt,
 )
 
-DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+DEFAULT_COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if DEFAULT_COVO_SRC not in sys.path:
     sys.path.insert(0, DEFAULT_COVO_SRC)
 

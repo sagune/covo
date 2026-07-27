@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build CB-Whisper evidence SFT splits with hotword-preservation oversampling."""
+"""Build CB-SenseVoice evidence SFT splits with hotword-preservation oversampling."""
 
 from __future__ import annotations
 

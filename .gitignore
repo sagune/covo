@@ -21,6 +21,13 @@ __pycache__
 # Training outputs and checkpoints
 /src/mlruns/
 /src/outputs/
+/src/logs/*
 /src/**/__pycache__/
 *.pyc
 *.ckpt
+
+# Local foundation models and COVO artifacts
+/models/
+/covo/data/processed/
+/covo/data/raw/
+/covo/outputs/

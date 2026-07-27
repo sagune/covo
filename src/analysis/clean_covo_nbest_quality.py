@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Clean low-quality COVO n-best candidates in exported CB-Whisper evidence."""
+"""Clean low-quality COVO n-best candidates in exported CB-SenseVoice evidence."""
 
 from __future__ import annotations
 

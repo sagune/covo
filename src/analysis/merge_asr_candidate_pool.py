@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Merge an auxiliary ASR view into a CB-Whisper candidate pool."""
+"""Merge an auxiliary ASR view into a CB-SenseVoice candidate pool."""
 
 from __future__ import annotations
 

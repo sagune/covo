@@ -117,7 +117,7 @@ def _safe_div(num: float, den: float) -> float:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Diagnose KWS top-k and CB-Whisper prompt/rescore hotword coverage.")
+    parser = argparse.ArgumentParser(description="Diagnose KWS top-k and CB-SenseVoice prompt/rescore hotword coverage.")
     parser.add_argument("--root", default="../datasets/aishell/data_aishell")
     parser.add_argument("--split", default="test")
     parser.add_argument("--kw-type", default="tts")

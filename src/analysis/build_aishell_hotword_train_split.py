@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-"""Materialize AISHELL train as a CB-Whisper hotword split.
+"""Materialize AISHELL train as a CB-SenseVoice hotword split.
 
-The CB-Whisper evaluator expects a hotword-style split with text, uttid,
+The CB-SenseVoice evaluator expects a hotword-style split with text, uttid,
 utterance hidden states, and keyword hidden states. AISHELL train already has
 the needed alignments and KWS hidden states, so this script only creates the
 small metadata files and symlinks the heavy feature folders.

@@ -55,7 +55,7 @@ ckpt_path: null
 verbose: true
 
 model:
-  class_path: model.cb_whisper.CBSenseVoice
+  class_path: model.cb_sensevoice.CBSenseVoice
   init_args:
     dataset: aishell
     split: test

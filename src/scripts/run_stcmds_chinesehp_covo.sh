@@ -5,7 +5,7 @@ workspace=/root/autodl-tmp
 python_bin=/root/autodl-tmp/great/bin/python
 split_dir="$workspace/datasets/stcmds/splits"
 log_dir="$workspace/src/logs"
-covo_dir="$workspace/cbwhisper_covo_migration_20260609_tar_extracted/covo"
+covo_dir="$workspace/covo"
 processed_dir="$covo_dir/data/processed/stcmds_chinesehp_sensevoice"
 output_dir="$covo_dir/outputs/qwen35_stcmds_chinesehp_text_1epoch_from_dpo60_20260719"
 
@@ -73,7 +73,7 @@ cd "$covo_dir"
   --train-file "$processed_dir/train.qwen.jsonl" \
   --eval-file "$processed_dir/dev.qwen.jsonl" \
   --output-dir "$output_dir" \
-  --model-name-or-path "$workspace/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B" \
+  --model-name-or-path "$workspace/models/Qwen3.5-4B" \
   --adapter-path outputs/qwen35_cb_sensevoice_oracle_correction_dpo60_20260715 \
   --input-format qwen-messages \
   --max-length 1024 \
@@ -98,7 +98,7 @@ cd "$covo_dir"
 "$python_bin" scripts/infer_lora_text.py \
   --input "$processed_dir/test.qwen.jsonl" \
   --output "$log_dir/stcmds_chinesehp_covo_from_dpo60_predictions_20260719.jsonl" \
-  --model-name-or-path "$workspace/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B" \
+  --model-name-or-path "$workspace/models/Qwen3.5-4B" \
   --adapter-path "$output_dir" \
   --device auto \
   --batch-size 4 \

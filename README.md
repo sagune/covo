@@ -1,9 +1,9 @@
 # CB-SenseVoice + COVO
 
-本仓库研究轻量、可解释的中文上下文偏置语音识别。项目从
-[CB-Whisper](https://aclanthology.org/2024.lrec-main.262/) 出发，将其
-KWS、上下文候选生成和重排思想迁移到 SenseVoice，并使用 COVO 对
-N-best、拼音和热词证据进行最终纠错。
+本仓库研究轻量、可解释的中文上下文偏置语音识别。当前代码只维护
+CB-SenseVoice + COVO 路线：使用 SenseVoice 完成声学编码和候选生成，
+再使用 COVO 融合 N-best、拼音和热词证据进行最终纠错。早期
+CB-Whisper 路线已停止维护，不再提供运行入口和配置。
 
 当前主流程：
 
@@ -342,14 +342,14 @@ Phrase context adapter:
   phrase_crossattn_aishell_full_20260722.pt
 
 COVO base:
-  cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B
+  models/Qwen3.5-4B
 
 COVO CER adapter:
-  cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/
+  covo/outputs/
   qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7
 
 COVO joint adapter:
-  cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/
+  covo/outputs/
   qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16
 ```
 
@@ -414,7 +414,7 @@ src/analysis/run_aishell_sensevoice_w14_train_evidence_shards.sh
 
 ```bash
 cd src
-/root/autodl-tmp/great/bin/python analysis/cbwhisper_covo_bridge.py prepare \
+/root/autodl-tmp/great/bin/python analysis/cbsensevoice_covo_bridge.py prepare \
   --input logs/cb_sensevoice_evidence.jsonl \
   --output logs/cb_sensevoice_covo_messages.jsonl \
   --max-nbest 6 \
@@ -427,8 +427,9 @@ cd src
   --protect-supported-hotwords
 ```
 
-COVO inference 使用
-`cbwhisper_covo_migration_20260609_tar_extracted/covo/scripts/infer_lora_text.py`。
+COVO inference 使用仓库内的
+`covo/scripts/infer_lora_text.py`。运行时把 `covo/src` 加入
+`PYTHONPATH`，模型和 adapter 分别放在 `models/` 与 `covo/outputs/`。
 训练数据中的 assistant target 必须是完整纠错句子：
 
 ```json
@@ -438,11 +439,11 @@ COVO inference 使用
 ## 重要文件
 
 ```text
-src/model/cb_whisper.py
+src/model/cb_sensevoice.py
 src/analysis/train_sensevoice_context_adapter.py
 src/analysis/extract_sensevoice_hidden_states.py
 src/analysis/prepare_sensevoice_kws_dataset.py
-src/analysis/cbwhisper_covo_bridge.py
+src/analysis/cbsensevoice_covo_bridge.py
 src/analysis/build_covo_mixed_dpo_pairs.py
 src/analysis/build_routed_aishell_predictions.py
 src/configs/cb-sensevoice-aishell.yaml
@@ -455,7 +456,7 @@ AISHELL_EXPERIMENTS.md
 
 - 每次代码修改后提交 Git，方便恢复。
 - 每轮实验记录数据范围、评价口径、checkpoint 和相对变化。
-- 小实验、全量实验、oracle 和 test-leak diagnostic 必须明确标注。
+- 小实验、全量实验和 oracle diagnostic 必须明确标注。
 - KWS checkpoint 不随意更换；只有明确的 KWS 实验才重新训练。
 - 主方法保持轻量和可解释，不把数据集特例补丁包装成论文贡献。
 - 实验失败时记录原因并回滚运行配置，不覆盖当前最好模型。
@@ -463,6 +464,7 @@ AISHELL_EXPERIMENTS.md
 
 ## 上游项目与许可
 
-本仓库基于 CB-Whisper / Enhance-CB-Whisper 和 COVO 实验代码继续开发。
-使用数据和模型时请同时遵守各上游项目、SenseVoice、Qwen 和数据集的许可。
+方法思想参考 CB-Whisper，后纠错代码基于 COVO 继续开发；当前可运行系统
+不依赖 Whisper。使用数据和模型时请同时遵守 COVO、SenseVoice、Qwen 和
+各数据集的许可。
 本仓库自身许可见 [`LICENSE.md`](LICENSE.md)。

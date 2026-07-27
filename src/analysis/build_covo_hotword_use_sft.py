@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build hotword-use-focused COVO SFT data by oversampling CB-Whisper train rows."""
+"""Build hotword-use-focused COVO SFT data by oversampling CB-SenseVoice train rows."""
 
 from __future__ import annotations
 

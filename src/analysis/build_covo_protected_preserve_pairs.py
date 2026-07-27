@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
 
-DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+DEFAULT_COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if DEFAULT_COVO_SRC not in sys.path:
     sys.path.insert(0, DEFAULT_COVO_SRC)
 

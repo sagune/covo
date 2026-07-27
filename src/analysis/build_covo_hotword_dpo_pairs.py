@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build DPO pairs that prefer preserving CB-Whisper hotword evidence."""
+"""Build DPO pairs that prefer preserving CB-SenseVoice hotword evidence."""
 
 from __future__ import annotations
 

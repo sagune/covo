@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build COVO SFT rows from actual model failures on CB-Whisper evidence."""
+"""Build COVO SFT rows from actual model failures on CB-SenseVoice evidence."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
 
-DEFAULT_COVO_SRC = "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/src"
+DEFAULT_COVO_SRC = str(Path(__file__).resolve().parents[2] / "covo" / "src")
 if DEFAULT_COVO_SRC not in sys.path:
     sys.path.insert(0, DEFAULT_COVO_SRC)
 
