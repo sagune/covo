@@ -18,7 +18,7 @@ audio
 The earlier CB-Whisper implementation is retired. Its dedicated entry points,
 configs and diagnostic patches are not part of the maintained branch. Historical
 results remain available in Git history and in the comparison tables in
-`README.md`.
+`RESULTS.md`.
 
 ## Research Constraints
 
