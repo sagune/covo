@@ -115,11 +115,34 @@ cd src
 
 ### CB-SenseVoice 评测
 
+原始 AISHELL-NE 808 条基准：
+
 ```bash
 cd /root/autodl-tmp/src
 /root/autodl-tmp/great/bin/python run_CLI.py test \
   --config configs/cb-sensevoice-aishell.yaml
 ```
+
+全量测试入口：
+
+```bash
+cd /root/autodl-tmp/src
+
+# AISHELL-1 全量 7,176 条
+./scripts/run_cb_sensevoice_full_test.sh aishell
+
+# ST-CMDS 固定 held-out 5,130 条
+./scripts/run_cb_sensevoice_full_test.sh stcmds
+```
+
+| 全量入口 | 语句 | 热词 | 正样本 | 热词来源 |
+|---|---:|---:|---:|---|
+| AISHELL-1 | 7,176 | 1,291 | 2,239 | 原 400 词 + AISHELL-NER test 实体 |
+| ST-CMDS held-out | 5,130 | 3,139 | 1,279 | HanLP 从 ST-CMDS test 参考文本抽取 |
+
+这两个入口用于测试 CB-SenseVoice 覆盖全量语句的能力，属于由测试参考文本构造
+词表的 `oracle-context` 协议。它们不能与开放词表 ASR 结果混写。运行脚本启用
+每组 top-32 声学预筛选，以限制大词表 KWS 的相似度矩阵开销。
 
 ### 导出 COVO evidence
 

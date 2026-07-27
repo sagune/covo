@@ -36,6 +36,8 @@ def main() -> int:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--split", default="test")
     parser.add_argument("--keyword-hs-source", type=Path)
+    parser.add_argument("--keyword-audio-source", type=Path)
+    parser.add_argument("--utterance-hs-source", type=Path)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
 
@@ -51,6 +53,8 @@ def main() -> int:
         directory.mkdir(parents=True, exist_ok=True)
 
     text_lines = []
+    reused_utterance_hs = 0
+    missing_utterance_hs = 0
     for row in rows:
         code = str(row["id"])
         reference = str(row["reference"]).strip()
@@ -59,10 +63,29 @@ def main() -> int:
             raise FileNotFoundError(wav)
         text_lines.append(f"{code} {reference}")
         relative_symlink(wav, wav_dir / f"{code}{wav.suffix.lower()}")
+        if args.utterance_hs_source is not None:
+            source = args.utterance_hs_source / f"{code}.bin"
+            if source.exists():
+                relative_symlink(source, utterance_hs / source.name)
+                reused_utterance_hs += 1
+            else:
+                missing_utterance_hs += 1
 
     (split_dir / "text").write_text("\n".join(text_lines) + "\n", encoding="utf-8")
     (split_dir / "uttid").write_text("\n".join(text_lines) + "\n", encoding="utf-8")
     (split_dir / "hotword.txt").write_text("\n".join(keywords) + "\n", encoding="utf-8")
+    (split_dir / "r1-hotword.txt").write_text("\n".join(keywords) + "\n", encoding="utf-8")
+    aligned = [
+        (keyword, str(row["id"]))
+        for row in rows
+        for keyword in keywords
+        if keyword in str(row["reference"])
+    ]
+    (split_dir / "aligned.txt").write_text(
+        "\n".join(f"{keyword}\t{utterance_id}" for keyword, utterance_id in aligned)
+        + ("\n" if aligned else ""),
+        encoding="utf-8",
+    )
 
     if args.keyword_hs_source is not None:
         width = len(str(len(keywords) - 1))
@@ -72,12 +95,33 @@ def main() -> int:
                 raise FileNotFoundError(source)
             relative_symlink(source, keyword_hs / source.name)
 
+    if args.keyword_audio_source is not None:
+        audio_target = split_dir / "keywords-audios" / "tts"
+        audio_target.mkdir(parents=True, exist_ok=True)
+        width = len(str(len(keywords) - 1))
+        for index in range(len(keywords)):
+            stem = f"{index:0{width}d}"
+            matches = [
+                args.keyword_audio_source / f"{stem}{extension}"
+                for extension in (".mp3", ".wav", ".opus")
+            ]
+            source = next((candidate for candidate in matches if candidate.exists()), None)
+            if source is None:
+                raise FileNotFoundError(matches[0])
+            relative_symlink(source, audio_target / source.name)
+
+    available_utterance_hs = sum((utterance_hs / f"{row['id']}.bin").exists() for row in rows)
     print(json.dumps({
         "manifest": str(args.manifest),
         "output_root": str(args.output_root),
         "split": args.split,
         "utterances": len(rows),
         "keywords": len(keywords),
+        "positive_utterances": len({utterance_id for _, utterance_id in aligned}),
+        "keyword_mentions": len(aligned),
+        "reused_utterance_hidden_states": reused_utterance_hs,
+        "missing_utterance_hidden_states": missing_utterance_hs,
+        "available_utterance_hidden_states": available_utterance_hs,
     }, ensure_ascii=False, indent=2))
     return 0
 
