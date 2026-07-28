@@ -163,6 +163,24 @@ AISHELL 中原阈值 targeted KWS 为 `3.196%`；提高精度后相对裸模型�
 `18.8%`。Gold 与实际 KWS 的差距说明上下文解码能够利用正确热词，下一瓶颈是
 大词表中高召回、低误检的候选检索。
 
+全量结果如下。CB-SenseVoice 表中的 CER 是 Lightning 现有的句均 bootstrap
+口径；COVO 表使用 `evaluate_correction_jsonl.py` 的 corpus CER，因此只比较
+COVO 行内的 baseline 与 output，不跨口径直接相减。
+
+| 数据/范围 | KWS 句均 CER | KWS Recall | Gold 句均 CER | Gold Recall |
+|---|---:|---:|---:|---:|
+| AISHELL-1 7,176 Full | 3.4067% | 88.44% | **1.4628%** | **95.61%** |
+| ST-CMDS 5,130 Full | 4.5447% | 80.86% | **1.8306%** | **92.53%** |
+
+| 数据/范围 | COVO 输入 corpus CER | COVO 输出 corpus CER | Improved | Worsened |
+|---|---:|---:|---:|---:|
+| AISHELL-1 7,176 Full | 2.6345% | **1.8336%** | 890 | 198 |
+| ST-CMDS 5,130 Full | **4.4834%** | 4.6917% | 403 | 495 |
+
+AISHELL 上 preserve2 COVO 相对输入降低 `0.8009` 个百分点（相对 `30.4%`）；
+ST-CMDS 上增加 `0.2083` 个百分点，说明 AISHELL 训练的 COVO 在跨域口语数据
+上会过度修改，不能直接作为 ST-CMDS 主结果。
+
 ### Phrase Cross-Attention
 
 当前上下文适配器约有 729k 个可训练参数，训练使用 AISHELL train 中完整的

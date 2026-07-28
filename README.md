@@ -166,6 +166,11 @@ pilot 中，裸 SenseVoice CER 为 3.30%，大词表 KWS 使用原阈值时为 3
 之间的差距表明当前主要瓶颈仍是大词表检索质量。ST-CMDS 前 51 条 pilot 也从
 6.31% 降到 5.63%，绝对下降 0.68 个百分点。
 
+全量泄漏诊断中，AISHELL KWS/Gold 句均 CER 分别为 `3.4067%/1.4628%`，
+ST-CMDS 分别为 `4.5447%/1.8306%`。按 COVO 的 corpus-CER 口径，AISHELL
+从 `2.6345%` 降到 `1.8336%`，ST-CMDS 则从 `4.4834%` 变差到 `4.6917%`。
+两个 CER 统计口径不可直接混算，完整说明见 [RESULTS.md](RESULTS.md)。
+
 ### 导出 COVO evidence
 
 ```bash
