@@ -15,6 +15,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--recoverable-copies", type=int, default=2)
     parser.add_argument(
+        "--top1-exact-copies",
+        type=int,
+        default=1,
+        help="Number of copies for each retained already-correct top-1 row.",
+    )
+    parser.add_argument(
         "--top1-exact-keep-rate",
         type=float,
         default=1.0,
@@ -52,7 +58,13 @@ def main() -> int:
     rng = random.Random(args.seed)
     rng.shuffle(exact_rows)
     exact_keep = round(len(exact_rows) * args.top1_exact_keep_rate)
-    rows = exact_rows[:exact_keep] + error_rows
+    exact_copies = max(1, int(args.top1_exact_copies))
+    retained_exact_rows = exact_rows[:exact_keep]
+    rows = [
+        row
+        for row in retained_exact_rows
+        for _ in range(exact_copies)
+    ] + error_rows
     rng.shuffle(rows)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as writer:
@@ -64,8 +76,10 @@ def main() -> int:
         "source_rows": sum(counts.values()),
         "output_rows": len(rows),
         "recoverable_copies": args.recoverable_copies,
+        "top1_exact_copies": exact_copies,
         "top1_exact_keep_rate": args.top1_exact_keep_rate,
-        "retained_top1_exact": exact_keep,
+        "retained_top1_exact": len(retained_exact_rows),
+        "written_top1_exact": len(retained_exact_rows) * exact_copies,
         "seed": args.seed,
         "counts": counts,
     }, ensure_ascii=False, indent=2))
