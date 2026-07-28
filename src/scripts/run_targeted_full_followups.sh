@@ -7,6 +7,7 @@ src_root="${repo_root}/src"
 python="${repo_root}/great/bin/python"
 covo_model="${repo_root}/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-4B"
 covo_adapter="${repo_root}/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7"
+sensevoice_model="/root/.cache/modelscope/models/iic--SenseVoiceSmall/snapshots/master"
 
 while kill -0 "${wait_pid}" 2>/dev/null; do
   sleep 60
@@ -21,20 +22,26 @@ stcmds_evidence="${src_root}/logs/cb_sensevoice_stcmds_error_targeted_full_20260
 cd "${src_root}"
 
 printf '[%s] AISHELL targeted gold full start\n' "$(date -Is)"
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
 PYTHONUNBUFFERED=1 CBW_DEBUG_LOG=off \
 CBW_EVIDENCE_OUT=logs/cb_sensevoice_aishell_error_targeted_gold_full_20260727.jsonl \
 CBW_METRICS_OUT=logs/test_metrics_cb_sensevoice_aishell_error_targeted_gold_full_20260727.csv \
 ./scripts/run_cb_sensevoice_full_test.sh aishell-targeted \
   --model.init_args.oracle=gold \
+  --model.init_args.sensevoice_ckpt="${sensevoice_model}" \
+  --model.init_args.oracle_nbest_diagnostic=false \
   --model.init_args.oracle_nbest_detail_path=logs/oracle_nbest_detail_cb_sensevoice_aishell_error_targeted_gold_full_20260727.csv \
   --model.init_args.oracle_nbest_summary_path=logs/oracle_nbest_summary_cb_sensevoice_aishell_error_targeted_gold_full_20260727.csv
 
 printf '[%s] ST-CMDS targeted gold full start\n' "$(date -Is)"
+env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy \
 PYTHONUNBUFFERED=1 CBW_DEBUG_LOG=off \
 CBW_EVIDENCE_OUT=logs/cb_sensevoice_stcmds_error_targeted_gold_full_20260727.jsonl \
 CBW_METRICS_OUT=logs/test_metrics_cb_sensevoice_stcmds_error_targeted_gold_full_20260727.csv \
 ./scripts/run_cb_sensevoice_full_test.sh stcmds-targeted \
   --model.init_args.oracle=gold \
+  --model.init_args.sensevoice_ckpt="${sensevoice_model}" \
+  --model.init_args.oracle_nbest_diagnostic=false \
   --model.init_args.oracle_nbest_detail_path=logs/oracle_nbest_detail_cb_sensevoice_stcmds_error_targeted_gold_full_20260727.csv \
   --model.init_args.oracle_nbest_summary_path=logs/oracle_nbest_summary_cb_sensevoice_stcmds_error_targeted_gold_full_20260727.csv
 
@@ -61,7 +68,8 @@ run_covo() {
     --trust-asr-top1 \
     --preserve-anchor-digits
 
-  PYTHONPATH="${repo_root}/covo/src" "${python}" "${repo_root}/covo/scripts/infer_lora_text.py" \
+  PYTHONPATH="${repo_root}/covo/src" TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 \
+  "${python}" "${repo_root}/covo/scripts/infer_lora_text.py" \
     --input "${messages}" \
     --output "${predictions}" \
     --model-name-or-path "${covo_model}" \
