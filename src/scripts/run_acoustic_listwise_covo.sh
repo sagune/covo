@@ -44,21 +44,24 @@ echo "[$(date -Is)] build acoustic-aware test prompts"
   --allow-reference-outside-nbest
 
 echo "[$(date -Is)] prompt-only baseline"
-TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 PYTHONPATH="${covo_root}/src" \
-"${python}" "${covo_root}/scripts/infer_lora_text.py" \
-  --input "${test_records}" \
-  --output "${prompt_predictions}" \
-  --model-name-or-path "${model}" \
-  --adapter-path "${base_adapter}" \
-  --device auto \
-  --batch-size 4 \
-  --max-new-tokens 128 \
-  --temperature 0 \
-  --top-p 1 \
-  --progress-every 100 \
-  --disable-thinking
-"${python}" "${covo_root}/scripts/evaluate_correction_jsonl.py" \
-  --input "${prompt_predictions}" > "${prompt_metrics}"
+if [[ ! -s "${prompt_metrics}" ]] || [[ ! -s "${prompt_predictions}" ]] || \
+   [[ "$(wc -l < "${prompt_predictions}")" -ne 5130 ]]; then
+  TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 PYTHONPATH="${covo_root}/src" \
+  "${python}" "${covo_root}/scripts/infer_lora_text.py" \
+    --input "${test_records}" \
+    --output "${prompt_predictions}" \
+    --model-name-or-path "${model}" \
+    --adapter-path "${base_adapter}" \
+    --device auto \
+    --batch-size 4 \
+    --max-new-tokens 128 \
+    --temperature 0 \
+    --top-p 1 \
+    --progress-every 100 \
+    --disable-thinking
+  "${python}" "${covo_root}/scripts/evaluate_correction_jsonl.py" \
+    --input "${prompt_predictions}" > "${prompt_metrics}"
+fi
 cat "${prompt_metrics}"
 
 if [[ ! -s "${train_evidence}" ]] || [[ "$(wc -l < "${train_evidence}")" -ne 17301 ]]; then
