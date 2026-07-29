@@ -188,8 +188,9 @@ candidate pool.
 encoder pass per utterance and evaluates each existing candidate with the CTC
 forward loss. `scripts/run_stcmds_acoustic_listwise_followup.sh` then:
 
-1. builds ST-CMDS acoustic-listwise records using training references only;
-2. continues from the AISHELL acoustic-listwise adapter for one full epoch;
+1. builds acoustic-aware records for all 95,418 ST-CMDS training utterances;
+2. continues from the AISHELL listwise adapter with one full epoch of
+   full-sentence SFT, including references outside the N-best pool;
 3. evaluates on the unchanged ST-CMDS standard-word-list test evidence.
 
 The ST-CMDS test references remain evaluation-only.

@@ -107,26 +107,30 @@ echo "[$(date -Is)] build ST-CMDS acoustic listwise records"
   --input "${merged_evidence}" \
   --output "${train_records}" \
   --max-nbest 10 \
-  --max-hotwords 0
+  --max-hotwords 0 \
+  --allow-reference-outside-nbest
 
-echo "[$(date -Is)] continue listwise training on ST-CMDS"
+echo "[$(date -Is)] continue acoustic-aware full-sentence SFT on ST-CMDS"
 PYTORCH_ALLOC_CONF=expandable_segments:True \
 TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 PYTHONPATH="${covo_root}/src" \
-"${python}" "${covo_root}/scripts/train_lora_listwise.py" \
+"${python}" "${covo_root}/scripts/train_lora_sft.py" \
   --train-file "${train_records}" \
   --output-dir "${output_dir}" \
   --model-name-or-path "${model}" \
   --adapter-path "${base_adapter}" \
+  --input-format qwen-messages \
   --max-length 768 \
-  --max-candidates 4 \
   --epochs 1 \
   --learning-rate 3e-7 \
-  --temperature 0.2 \
-  --sft-weight 0.2 \
-  --gradient-accumulation-steps 8 \
+  --lr-scheduler-type constant \
+  --per-device-train-batch-size 4 \
+  --gradient-accumulation-steps 4 \
   --warmup-ratio 0.03 \
   --logging-steps 20 \
   --save-steps 2000 \
+  --preprocessing-num-workers 4 \
+  --dataloader-num-workers 2 \
+  --dataloader-prefetch-factor 2 \
   --bf16 \
   --gradient-checkpointing \
   --disable-thinking
