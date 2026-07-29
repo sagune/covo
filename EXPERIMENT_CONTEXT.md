@@ -144,3 +144,28 @@ PYTHONPATH=covo/src /root/autodl-tmp/great/bin/python \
 
 Model weights, datasets, generated evidence, predictions and runtime logs are
 local artifacts and must not be committed.
+
+## Acoustic-Aware Listwise COVO (2026-07-29)
+
+The ST-CMDS audit found that COVO usually stays inside the N-best pool but
+cannot reliably distinguish homophonic candidates. The CB-SenseVoice evidence
+already contains neutral CTC acoustic scores, search scores, contextual
+hotword bonuses and candidate sources; the previous ChineseHP formatter
+discarded those fields.
+
+The new route keeps those fields and trains candidate discrimination directly:
+
+1. `analysis/build_acoustic_listwise_covo.py` aligns every N-best text with its
+   CB-SenseVoice candidate scores, length-normalizes the CTC score, and exposes
+   candidate disagreement spans.
+2. `covo/scripts/train_lora_listwise.py` computes the COVO likelihood of all
+   candidates in one utterance and applies listwise cross-entropy plus a small
+   chosen-candidate SFT loss.
+3. `scripts/run_acoustic_listwise_covo.sh` uses only AISHELL training evidence
+   for optimization and evaluates on the ST-CMDS standard 3,139-word context
+   list. It first evaluates a prompt-only ablation, then the trained adapter.
+
+This route does not use a rule gate and does not train on ST-CMDS test
+references. The main target is the 695 audited utterances where the correct
+text was already in N-best but the previous COVO failed to select it, while
+reducing corruption of correct top-1 hypotheses.
