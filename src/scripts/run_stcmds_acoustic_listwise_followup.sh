@@ -110,14 +110,15 @@ echo "[$(date -Is)] build ST-CMDS acoustic listwise records"
   --max-hotwords 0
 
 echo "[$(date -Is)] continue listwise training on ST-CMDS"
+PYTORCH_ALLOC_CONF=expandable_segments:True \
 TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 PYTHONPATH="${covo_root}/src" \
 "${python}" "${covo_root}/scripts/train_lora_listwise.py" \
   --train-file "${train_records}" \
   --output-dir "${output_dir}" \
   --model-name-or-path "${model}" \
   --adapter-path "${base_adapter}" \
-  --max-length 1024 \
-  --max-candidates 6 \
+  --max-length 768 \
+  --max-candidates 4 \
   --epochs 1 \
   --learning-rate 3e-7 \
   --temperature 0.2 \

@@ -165,6 +165,11 @@ The new route keeps those fields and trains candidate discrimination directly:
    for optimization and evaluates on the ST-CMDS standard 3,139-word context
    list. It first evaluates a prompt-only ablation, then the trained adapter.
 
+The RTX 5090 training profile uses at most four candidates per listwise batch
+and a 768-token sequence cap. A six-candidate, 1,024-token batch exceeded
+31 GB during the first backward pass; the reduced profile passed a real
+forward/backward smoke test while retaining the top four acoustic alternatives.
+
 This route does not use a rule gate and does not train on ST-CMDS test
 references. The main target is the 695 audited utterances where the correct
 text was already in N-best but the previous COVO failed to select it, while
