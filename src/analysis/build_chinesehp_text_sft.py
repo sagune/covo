@@ -30,10 +30,13 @@ def main() -> int:
                     if not line.strip():
                         continue
                     row = json.loads(line)
-                    nbest = [str(item).strip() for item in row.get("nbest", []) if str(item).strip()][: args.max_nbest]
+                    input_block = row.get("input", {}) or {}
+                    nbest_source = row.get("nbest", []) or input_block.get("nbest", [])
+                    nbest = [str(item).strip() for item in nbest_source if str(item).strip()][: args.max_nbest]
                     if not nbest:
                         continue
-                    pinyin = [str(item).strip() for item in row.get("nbest_pinyin", [])][: len(nbest)]
+                    pinyin_source = row.get("nbest_pinyin", []) or input_block.get("nbest_pinyin", [])
+                    pinyin = [str(item).strip() for item in pinyin_source][: len(nbest)]
                     user_lines = ["N-best文本："]
                     user_lines.extend(f"{idx}. {text}" for idx, text in enumerate(nbest, 1))
                     user_lines.append("N-best拼音：")
