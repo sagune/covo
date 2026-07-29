@@ -169,3 +169,22 @@ This route does not use a rule gate and does not train on ST-CMDS test
 references. The main target is the 695 audited utterances where the correct
 text was already in N-best but the previous COVO failed to select it, while
 reducing corruption of correct top-1 hypotheses.
+
+### ST-CMDS domain continuation
+
+AISHELL supplies contextual CB-SenseVoice evidence, but its language
+distribution does not cover ST-CMDS names, conversational expressions and
+homophone conventions. The queued domain continuation therefore reuses the
+95,418 previously generated ST-CMDS training N-best records and computes a
+forced CTC likelihood for every fixed candidate. This avoids regenerating the
+candidate pool.
+
+`analysis/score_sensevoice_candidate_evidence.py` performs one SenseVoice
+encoder pass per utterance and evaluates each existing candidate with the CTC
+forward loss. `scripts/run_stcmds_acoustic_listwise_followup.sh` then:
+
+1. builds ST-CMDS acoustic-listwise records using training references only;
+2. continues from the AISHELL acoustic-listwise adapter for one full epoch;
+3. evaluates on the unchanged ST-CMDS standard-word-list test evidence.
+
+The ST-CMDS test references remain evaluation-only.
