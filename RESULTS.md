@@ -245,6 +245,24 @@ COVO 只使用 AISHELL 训练的 preserve2 adapter，没有使用 THCHS-30 测�
 ChineseHP-style 模型在完整 95,418 条 train 上训练一轮，共 5,964 optimizer
 steps，dev loss 为 `0.2392`。
 
+#### 标准 3,139 词表的声学候选判别
+
+以下实验使用相同的 5,130 条 held-out test 和相同 CB-SenseVoice 输入。训练仅
+使用 AISHELL 或 ST-CMDS train，不使用 test 参考。
+
+| 实验 | 输入 CER | 输出 CER | Improved | Worsened | 结论 |
+|---|---:|---:|---:|---:|---|
+| CB-SenseVoice 输入 | 5.7921% | - | - | - | 共同输入 |
+| 原 hard-negative COVO | 5.7921% | 5.2757% | 541 | 316 | 文本 N-best |
+| **声学结构提示，不训练** | 5.7921% | **5.2650%** | 553 | 302 | 当前最好 |
+| AISHELL acoustic-listwise | 5.7921% | 5.6461% | 697 | 639 | 跨域训练失败 |
+| ST-CMDS 全量 acoustic-aware SFT | 5.7921% | 5.4342% | 683 | 515 | 较跨域模型恢复，但仍弱于零训练提示 |
+
+AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考位于前四
+候选。ST-CMDS 阶段对全部 95,418 条 train 的既有 N-best 重新计算 forced-CTC
+声学似然，并完成一轮完整句子 SFT。领域训练将 CER 从 5.6461% 拉回 5.4342%，
+但仍比声学结构提示基线高 0.1692 个百分点，因此不作为主模型。
+
 ### 水利课程录音
 
 共 1,152 条自然口语语音。COVO 未使用该测试集训练。
@@ -322,6 +340,8 @@ steps，dev loss 为 `0.2392`。
 | Neutral/context dual branch | Rerank 易选中弱候选 | 回滚 |
 | Mixed COVO DPO | 模型过度保守 | 回滚 |
 | Actual-evidence targeted DPO | CER 不变，召回下降 | 不扩大全量 |
+| AISHELL acoustic-listwise 跨域训练 | ST-CMDS CER 5.6461%，误改 639 条 | 仅保留跨域消融 |
+| ST-CMDS 全量 acoustic-aware SFT | CER 5.4342%，弱于零训练声学提示 5.2650% | 不替换当前最好 COVO |
 | 测试词典与测试标签训练 | 指标改善但发生数据泄漏 | 只作上限诊断 |
 
 ## 当前结论
@@ -344,6 +364,9 @@ steps，dev loss 为 `0.2392`。
 - `aishell_full_routed_sensevoice_cb_sensevoice_w14_covo_20260724_ner_eval.json`
 - `thchs30_full_sensevoice_summary.json`
 - `stcmds_chinesehp_covo_from_dpo60_metrics_20260719.json`
+- `stcmds_standard3139_acoustic_prompt_metrics_20260729.json`
+- `stcmds_standard3139_acoustic_listwise_metrics_20260729.json`
+- `stcmds_standard3139_acoustic_listwise_domain_metrics_20260730.json`
 
 历史逐轮记录见 [AISHELL_EXPERIMENTS.md](AISHELL_EXPERIMENTS.md)，当前复现
 上下文见 [EXPERIMENT_CONTEXT.md](EXPERIMENT_CONTEXT.md)。
