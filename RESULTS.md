@@ -44,10 +44,28 @@
 | AISHELL-NE | 808 Full | w14 + preserve2 COVO | **3.0268%** | Recall@400 89.25% |
 | AISHELL-1 | 7,176 Full | **Routed + DPO-30 COVO** | **3.2062%** | NE recall 91.453% |
 | THCHS-30 | 2,495 Full | SenseVoice 10-best + COVO | **4.217%** | Oracle 3.185% |
+| MAGICDATA-READ | 24,279 Full | SenseVoice 10-best + COVO | **5.958%** | Oracle 3.240% |
 | WeNetSpeech Test_Net | 24,774 Full | SenseVoice 10-best + COVO | **7.473%** | Oracle 4.467% |
 | WeNetSpeech Test_Meeting | 8,370 Full | SenseVoice 10-best top1 | **7.461%** | Oracle 4.587% |
 | ST-CMDS | 5,130 Held-out | ChineseHP-style COVO | **5.167%** | - |
 | 水利课程 | 1,152 Full | CB-SenseVoice + COVO | **3.887%** | Hotword recall 93.136% |
+
+## MAGICDATA-READ
+
+使用 OpenSLR SLR68 官方 `test` 划分，共 24,279 条。文本采用与其他中文
+数据集相同的 OpenCC、NFKC、去空格和标点归一化；不修改官方参考中的脱敏
+占位符。SenseVoice CTC prefix beam 生成最多 10 条唯一候选，COVO 使用
+AISHELL acoustic-listwise adapter，未在 MAGICDATA 上训练或调参。
+
+| 系统 | Corpus CER | Exact | 说明 |
+|---|---:|---:|---|
+| SenseVoice 10-best top1 | 6.0680% | 16,714 | Full，跨域零训练 |
+| 10-best oracle | **3.2397%** | 20,586 | Oracle，仅表示候选池上限 |
+| **AISHELL acoustic-listwise COVO** | **5.9579%** | - | Full，跨域零训练 |
+
+平均唯一候选数为 `7.1348`。COVO 改善 2,493 条、恶化 2,294 条、保持
+19,492 条，相对 top1 下降 `1.81%`。候选池具有较大 oracle 空间，但当前
+AISHELL 纠错器的跨域判别收益有限。
 
 ## AISHELL-NE 808
 
@@ -333,6 +351,7 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 | 2024 | CB-Whisper | AISHELL contextual | MER 8.6%，Recall 82.4% | 3.135%，90.50% | 原始思想基线 |
 | 2024 | Efficient Text Augmentation | AISHELL-NE | CER 4.50% | 3.135% | 需确认 normalization |
 | 2024 | Confidence Homophone Detector | AISHELL1-Middle | CER 6.46%，Recall 85.5% | 3.135%，90.50% | 名义子集相近 |
+| 2022 | PUCE RNN-T + LM rescoring | MAGICDATA-READ | CER 3.32% | Full 5.958% | 对方使用完整 755h 同域训练；本项目零训练跨域 |
 | 2025 | Adaptive Context Biasing | AISHELL contextual | CER 5.56%/6.01% | 3.135% | Informative |
 | 2025 | Generative Annotation NEC | AISHELL NEC | CER 9.85%，NE-CER 7.41% | 3.213%，NE-CER 3.955% | 上游与协议不同 |
 | 2025 | PARCO | AISHELL-1 + 1000 distractors | CER 4.22% | Full 3.765% | Informative |
@@ -348,6 +367,7 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 - [CB-Whisper, LREC-COLING 2024](https://aclanthology.org/2024.lrec-main.262/)
 - [Efficient Text Augmentation, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/zheng24_interspeech.pdf)
 - [Confidence-based Homophone Detector, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf)
+- [PUCE RNN-T, IEEE SLT 2022](https://arxiv.org/abs/2207.14578)
 - [PARCO, ASRU 2025](https://arxiv.org/abs/2509.04357)
 - [ASR-EC Benchmark, EMNLP 2025 Industry Track](https://aclanthology.org/2025.emnlp-industry.110/)
 - [WeNetSpeech, ICASSP 2022](https://arxiv.org/abs/2110.03370)
@@ -390,6 +410,8 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 - `aishell_full_routed_sensevoice_cb_sensevoice_w14_covo_20260724_ner_eval.json`
 - `thchs30_full_sensevoice_summary.json`
 - `thchs30_acoustic_aishell_adapter_summary_20260730.json`
+- `magicdata_read_sensevoice_nbest10_summary_20260730.json`
+- `magicdata_read_acoustic_aishell_summary_20260730.json`
 - `wenetspeech_test_net_acoustic_aishell_summary_20260730.json`
 - `wenetspeech_test_meeting_acoustic_aishell_summary_20260730.json`
 - `wenetspeech_test_meeting_acoustic_preserve2_summary_20260730.json`
