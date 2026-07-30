@@ -43,7 +43,9 @@
 | AISHELL-NE | 808 Full | **CB-SenseVoice w14 + DPO-30 COVO** | **3.1354%** | Recall@400 **90.50%** |
 | AISHELL-NE | 808 Full | w14 + preserve2 COVO | **3.0268%** | Recall@400 89.25% |
 | AISHELL-1 | 7,176 Full | **Routed + DPO-30 COVO** | **3.2062%** | NE recall 91.453% |
-| THCHS-30 | 2,495 Full | SenseVoice + COVO | **5.601%** | - |
+| THCHS-30 | 2,495 Full | SenseVoice 10-best + COVO | **4.217%** | Oracle 3.185% |
+| WeNetSpeech Test_Net | 24,774 Full | SenseVoice 10-best + COVO | **7.473%** | Oracle 4.467% |
+| WeNetSpeech Test_Meeting | 8,370 Full | SenseVoice 10-best top1 | **7.461%** | Oracle 4.587% |
 | ST-CMDS | 5,130 Held-out | ChineseHP-style COVO | **5.167%** | - |
 | 水利课程 | 1,152 Full | CB-SenseVoice + COVO | **3.887%** | Hotword recall 93.136% |
 
@@ -229,8 +231,28 @@ COVO 输入包含 CB-SenseVoice top1、六条带来源和分数的 N-best、三�
 |---|---:|---:|---:|---:|---:|
 | 国内镜像 Pilot | 1,339 | 6.698% | **4.733%** | 331 | 14 |
 | **完整 test** | **2,495** | **7.959%** | **5.601%** | **676** | **17** |
+| **声学 10-best 完整 test** | **2,495** | **5.166%** | **4.217%** | **792** | **316** |
 
-COVO 只使用 AISHELL 训练的 preserve2 adapter，没有使用 THCHS-30 测试标注。
+新路线直接从 SenseVoice CTC 分布生成 10 个去重候选，平均 unique n-best 为
+`9.986`，oracle CER 为 `3.185%`，参考文本出现在候选池中的比例为 `54.35%`。
+COVO 使用 AISHELL acoustic-listwise adapter，没有使用 THCHS-30 测试标注。
+旧 preserve2 路线的 `5.601%` 保留作历史基线。
+
+### WeNetSpeech
+
+使用官方人工标注的 `TEST_NET` 与 `TEST_MEETING` 全量测试范围。音频来自公开
+同源镜像，分别为 24,774 和 8,370 条；评价仍采用本文档统一的简体中文 CER
+归一化。候选由 SenseVoice CTC 声学分布生成，不使用测试参考或测试词典。
+
+| Split | Samples | 10-best top1 CER | Oracle CER | Avg unique | COVO CER | Improved | Worsened |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **TEST_NET** | **24,774** | 7.6306% | 4.4674% | 9.930 | **7.4728%** | 3,706 | 3,152 |
+| **TEST_MEETING** | **8,370** | **7.4610%** | 4.5870% | 9.982 | 7.6412% | 1,461 | 1,770 |
+
+`TEST_NET` 上 AISHELL acoustic-listwise COVO 带来 0.1578 个百分点、2.07% 相对
+CER 降低。`TEST_MEETING` 的远场自发会议口语存在明显分布偏移，COVO 发生
+负迁移；preserve2 复核更差，为 `8.2624%`，因此该 split 的最终结果采用
+10-best top1，不使用结果门控。
 
 ### ST-CMDS
 
@@ -314,6 +336,8 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 | 2025 | Adaptive Context Biasing | AISHELL contextual | CER 5.56%/6.01% | 3.135% | Informative |
 | 2025 | Generative Annotation NEC | AISHELL NEC | CER 9.85%，NE-CER 7.41% | 3.213%，NE-CER 3.955% | 上游与协议不同 |
 | 2025 | PARCO | AISHELL-1 + 1000 distractors | CER 4.22% | Full 3.765% | Informative |
+| 2025 | PARCO | THCHS-30 2,495 OOD | CER 21.53% | 10-best + COVO 4.217% | 骨干与上下文协议不同 |
+| 2025 | ASR-EC Benchmark | THCHS/AISHELL/WeNetSpeech 混合 1,024 | 最佳 5.12%/5.96% | 非同一测试切分 | 不作直接数值比较 |
 | 2026 | DBA-wav2vec 2.0 | AISHELL-1 ASR | CER 6.97% | Full 3.765% | 普通 ASR 比较 |
 | 2026 | Streaming decoder-only LLM ASR | AISHELL-1 ASR | CER 5.10% | Full 3.765% | 模型设置不同 |
 | 2026 | RASTAR-8B | AISHELL-1 NEC | CER 4.21%，NE-CER 6.21%，Recall 89.33% | 3.213%，3.955%，91.45% | 协议相近，仍需统一复核 |
@@ -325,6 +349,8 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 - [Efficient Text Augmentation, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/zheng24_interspeech.pdf)
 - [Confidence-based Homophone Detector, Interspeech 2024](https://www.isca-archive.org/interspeech_2024/yang24j_interspeech.pdf)
 - [PARCO, ASRU 2025](https://arxiv.org/abs/2509.04357)
+- [ASR-EC Benchmark, EMNLP 2025 Industry Track](https://aclanthology.org/2025.emnlp-industry.110/)
+- [WeNetSpeech, ICASSP 2022](https://arxiv.org/abs/2110.03370)
 - [Generative Annotation for ASR Named Entity Correction, EMNLP 2025](https://aclanthology.org/2025.emnlp-main.1052/)
 - [RASTAR](https://arxiv.org/abs/2602.12287)
 
@@ -363,6 +389,10 @@ AISHELL listwise 使用 17,301 条真实 CB evidence，其中 11,739 条参考�
 - `aishell_full_routed_sensevoice_cb_sensevoice_w14_covo_20260724_summary.json`
 - `aishell_full_routed_sensevoice_cb_sensevoice_w14_covo_20260724_ner_eval.json`
 - `thchs30_full_sensevoice_summary.json`
+- `thchs30_acoustic_aishell_adapter_summary_20260730.json`
+- `wenetspeech_test_net_acoustic_aishell_summary_20260730.json`
+- `wenetspeech_test_meeting_acoustic_aishell_summary_20260730.json`
+- `wenetspeech_test_meeting_acoustic_preserve2_summary_20260730.json`
 - `stcmds_chinesehp_covo_from_dpo60_metrics_20260719.json`
 - `stcmds_standard3139_acoustic_prompt_metrics_20260729.json`
 - `stcmds_standard3139_acoustic_listwise_metrics_20260729.json`
