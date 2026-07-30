@@ -15,7 +15,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from covo.io import read_jsonl, write_jsonl
+from covo.io import read_jsonl
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--progress-every", type=int, default=100)
     parser.add_argument("--disable-thinking", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
 
 
@@ -123,6 +124,11 @@ def main() -> int:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
+    output_path = Path(args.output)
+    completed = set()
+    if args.resume and output_path.exists():
+        completed = {str(record.get("id", "")) for record in read_jsonl(output_path)}
+
     device = _resolve_device(args.device)
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
     if tokenizer.pad_token is None:
@@ -146,6 +152,8 @@ def main() -> int:
     def input_records():
         count = 0
         for record in read_jsonl(args.input):
+            if str(record.get("id", "")) in completed:
+                continue
             yield record
             count += 1
             if args.limit and count >= int(args.limit):
@@ -192,7 +200,14 @@ def main() -> int:
             if args.progress_every and count % int(args.progress_every) == 0:
                 print(json.dumps({"written": count}, ensure_ascii=False), flush=True)
 
-    written = write_jsonl(args.output, records())
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    mode = "a" if args.resume and output_path.exists() else "w"
+    written = 0
+    with output_path.open(mode, encoding="utf-8", newline="\n") as handle:
+        for record in records():
+            handle.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            written += 1
     print(json.dumps({"input": args.input, "output": args.output, "written": written}, ensure_ascii=False, indent=2))
     return 0
 
