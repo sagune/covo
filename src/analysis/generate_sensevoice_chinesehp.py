@@ -21,14 +21,19 @@ from model.sensevoice_ctc import ctc_prefix_beam_search
 
 
 TAG_RE = re.compile(r"<\|[^|]+\|>")
+_OPENCC = None
 
 
 def normalize_text(text: str) -> str:
+    global _OPENCC
+
     text = TAG_RE.sub("", str(text or "")).replace("▁", " ").strip()
     try:
         from opencc import OpenCC
 
-        text = OpenCC("t2s").convert(text)
+        if _OPENCC is None:
+            _OPENCC = OpenCC("t2s")
+        text = _OPENCC.convert(text)
     except Exception:
         pass
     text = re.sub(r"\s+", "", text)
