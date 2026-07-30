@@ -92,6 +92,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--dataset", default="")
     parser.add_argument("--model", default="iic/SenseVoiceSmall")
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--beam-size", type=int, default=10)
@@ -153,7 +154,7 @@ def main() -> int:
                 if len(candidates) >= args.max_nbest:
                     break
             output = {
-                "dataset": "stcmds/sensevoice",
+                "dataset": args.dataset or str(row.get("source", row.get("dataset", "sensevoice"))),
                 "split": str(row.get("split", "")),
                 "id": str(row.get("id", "")),
                 "reference": normalize_text(str(row.get("reference", ""))),
