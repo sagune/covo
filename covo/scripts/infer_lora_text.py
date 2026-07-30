@@ -161,6 +161,7 @@ def main() -> int:
 
     def records():
         count = 0
+        next_progress = int(args.progress_every)
         for batch in _batched(input_records(), max(1, int(args.batch_size))):
             prompts = []
             for record in batch:
@@ -197,8 +198,9 @@ def main() -> int:
                     "parse_warnings": parse_warnings,
                 }
                 count += 1
-            if args.progress_every and count % int(args.progress_every) == 0:
+            if next_progress and count >= next_progress:
                 print(json.dumps({"written": count}, ensure_ascii=False), flush=True)
+                next_progress = (count // int(args.progress_every) + 1) * int(args.progress_every)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     mode = "a" if args.resume and output_path.exists() else "w"
