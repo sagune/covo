@@ -9,6 +9,18 @@ import json
 from pathlib import Path
 
 
+def normalize_transcript(text: str) -> str:
+    """Remove non-lexical annotation tags used by the official recipes."""
+    return (
+        str(text)
+        .replace("[", "")
+        .replace("]", "")
+        .replace("FIL", "")
+        .replace("SPK", "")
+        .strip()
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--test-root", type=Path, required=True)
@@ -29,7 +41,7 @@ def main() -> None:
         with args.output.open("w", encoding="utf-8", newline="\n") as target:
             for row in reader:
                 filename = str(row.get("UtteranceID", "")).strip()
-                reference = str(row.get("Transcription", "")).strip()
+                reference = normalize_transcript(row.get("Transcription", ""))
                 wav_path = audio_by_name.get(filename)
                 if not filename or not reference or wav_path is None:
                     if filename and wav_path is None:

@@ -28,7 +28,7 @@ SenseVoice，并使用 COVO 对 ASR 候选、拼音和热词证据进行保守�
 | AISHELL-NE 808 | **w14 + DPO-30 COVO** | **3.1354%** | **90.50%** |
 | AISHELL-1 全量 7,176 条 | **Routed + DPO-30 COVO** | **3.2062%** | 91.453% 实体召回 |
 | THCHS-30 全量 test | SenseVoice 10-best + COVO | **4.217%** | - |
-| MAGICDATA-READ 全量 test | SenseVoice 10-best + COVO | **5.958%** | Oracle 3.240% |
+| MAGICDATA-READ 全量 test | SenseVoice 10-best + COVO | **4.999%** | Oracle 2.248% |
 | WeNetSpeech TEST_NET 全量 | SenseVoice 10-best + COVO | **7.473%** | - |
 | WeNetSpeech TEST_MEETING 全量 | SenseVoice 10-best top1 | **7.461%** | - |
 

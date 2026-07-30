@@ -1,0 +1,52 @@
+{
+  "samples": 24279,
+  "reference_chars": 239091,
+  "base_cer": 0.05108515167864955,
+  "covo_cer": 0.04998933460481574,
+  "oracle_cer": 0.022480980045254735,
+  "edits": {
+    "rows": 24279,
+    "chars": 239091,
+    "base_edits": 12214,
+    "pred_edits": 11952,
+    "oracle_edits": 5375
+  },
+  "exact": {
+    "base": 17168,
+    "pred": 17128,
+    "oracle": 21225
+  },
+  "categories": {
+    "base_correct_kept": 15519,
+    "unchanged_error": 3087,
+    "changed_same_error": 876,
+    "base_correct_broken": 1649,
+    "fixed_to_exact": 1609,
+    "improved_partial": 887,
+    "worsened_error": 652
+  },
+  "exact_candidate_rank": {
+    "1": 17168,
+    "2": 2267,
+    "3": 675,
+    "4": 441,
+    "5": 240,
+    "6": 143,
+    "7": 93,
+    "8": 94,
+    "9": 63,
+    "10": 41
+  },
+  "exact_selected_by_rank": {
+    "1": 15519,
+    "2": 933,
+    "3": 195,
+    "4": 127,
+    "5": 62,
+    "6": 39,
+    "7": 24,
+    "8": 27,
+    "9": 15,
+    "10": 10
+  }
+}
