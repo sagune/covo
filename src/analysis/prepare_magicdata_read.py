@@ -23,14 +23,20 @@ def normalize_transcript(text: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--test-root", type=Path, required=True)
+    parser.add_argument("--data-root", type=Path)
+    parser.add_argument("--test-root", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--split", default="test")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    transcript_path = args.test_root / "TRANS.txt"
+    data_root = args.data_root or args.test_root
+    if data_root is None:
+        parser.error("--data-root is required")
+
+    transcript_path = data_root / "TRANS.txt"
     audio_by_name = {
         path.name: path
-        for path in args.test_root.rglob("*.wav")
+        for path in data_root.rglob("*.wav")
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
 
@@ -52,7 +58,7 @@ def main() -> None:
                     "reference": reference,
                     "wav": str(wav_path),
                     "source": "MAGICDATA-READ",
-                    "split": "test",
+                    "split": args.split,
                 }, ensure_ascii=False, separators=(",", ":")) + "\n")
                 written += 1
 
