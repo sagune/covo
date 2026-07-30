@@ -33,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--progress-every", type=int, default=100)
     parser.add_argument("--disable-thinking", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--sort-by-prompt-length", action="store_true")
     return parser.parse_args()
 
 
@@ -150,14 +151,18 @@ def main() -> int:
     model.eval()
 
     def input_records():
-        count = 0
-        for record in read_jsonl(args.input):
-            if str(record.get("id", "")) in completed:
-                continue
-            yield record
-            count += 1
-            if args.limit and count >= int(args.limit):
-                break
+        records = [
+            record for record in read_jsonl(args.input)
+            if str(record.get("id", "")) not in completed
+        ]
+        if args.sort_by_prompt_length:
+            records.sort(key=lambda record: sum(
+                len(str(message.get("content", "")))
+                for message in _prompt_messages(record)
+            ))
+        if args.limit:
+            records = records[: int(args.limit)]
+        yield from records
 
     def records():
         count = 0
