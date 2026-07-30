@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a JSONL evaluation manifest for the MAGICDATA read-speech test set."""
+"""Build a JSONL manifest for a MAGICDATA read-speech dataset split."""
 
 from __future__ import annotations
 
@@ -26,6 +26,11 @@ def main() -> None:
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--test-root", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--split", default="test")
+    parser.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="Skip transcript rows without audio and report their count.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -62,13 +67,14 @@ def main() -> None:
                 }, ensure_ascii=False, separators=(",", ":")) + "\n")
                 written += 1
 
-    if missing:
+    if missing and not args.allow_missing:
         raise FileNotFoundError(
             f"{len(missing)} transcript entries have no audio, first: {missing[:5]}"
         )
     print(json.dumps({
         "rows": written,
         "audio_files": len(audio_by_name),
+        "missing_transcripts": len(missing),
         "output": str(args.output),
     }, ensure_ascii=False))
 
