@@ -44,7 +44,7 @@
 | AISHELL-NE | 808 Full | w14 + preserve2 COVO | **3.0268%** | Recall@400 89.25% |
 | AISHELL-1 | 7,176 Full | **Routed + DPO-30 COVO** | **3.2062%** | NE recall 91.453% |
 | THCHS-30 | 2,495 Full | SenseVoice 10-best + COVO | **4.217%** | Oracle 3.185% |
-| MAGICDATA-READ | 24,279 Full | SenseVoice 10-best + COVO | **4.999%** | Oracle 2.248% |
+| MAGICDATA-READ | 24,279 Full | **SenseVoice 10-best + domain COVO** | **3.4673%** | Ref in 10-best 22,328 |
 | WeNetSpeech Test_Net | 24,774 Full | SenseVoice 10-best + COVO | **7.473%** | Oracle 4.467% |
 | WeNetSpeech Test_Meeting | 8,370 Full | SenseVoice 10-best top1 | **7.461%** | Oracle 4.587% |
 | ST-CMDS | 5,130 Held-out | ChineseHP-style COVO | **5.167%** | - |
@@ -52,17 +52,21 @@
 
 ## MAGICDATA-READ
 
-使用 OpenSLR SLR68 官方 `test` 划分，共 24,279 条。文本采用与其他中文
-数据集相同的 OpenCC、NFKC、去空格和标点归一化；并按公开 WeNet/Lhotse
-数据准备 recipe 删除非词汇标注 `[FIL]` 和 `[SPK]`。SenseVoice CTC prefix
-beam 生成最多 10 条唯一候选，COVO 使用 AISHELL acoustic-listwise adapter，
-未在 MAGICDATA 上训练或调参。
+使用 OpenSLR SLR68 官方划分：`train` 573,480 条用于训练，`dev` 11,793 条
+只用于 checkpoint 选择，`test` 24,279 条只用于最终报告。文本统一删除非词汇
+标注 `[FIL]` 和 `[SPK]`，并采用 NFKC、去空格和标点归一化。SenseVoice 采用
+`woitn` CTC prefix beam 生成最多 10 条唯一候选。COVO 从 AISHELL
+acoustic-listwise adapter 出发，在 train 的真实候选和参考全文上进行一轮 SFT，
+不构造合成错误，也不使用 test 参考进行调参。
 
 | 系统 | Corpus CER | Exact | 说明 |
 |---|---:|---:|---|
 | SenseVoice 10-best top1 | 5.1085% | 17,168 | Full，跨域零训练 |
 | 10-best oracle | **2.2481%** | 21,225 | Oracle，仅表示候选池上限 |
-| **AISHELL acoustic-listwise COVO** | **4.9989%** | 17,128 | Full，跨域零训练 |
+| AISHELL acoustic-listwise COVO | 4.9989% | 17,128 | Full，跨域零训练 |
+| **WOITN SenseVoice top1** | 3.7245% | 18,535 | Full，新训练协议的 test 输入 |
+| WOITN 10-best oracle | **1.3029%** | 22,328 | Oracle，仅表示候选池上限 |
+| **MAGICDATA domain COVO** | **3.4673%** | 18,986 | **Full，dev 选择 checkpoint-18000** |
 
 平均唯一候选数为 `7.1348`。COVO 相对 top1 下降 `2.15%`；它修正到完全
 正确 1,609 条，却破坏 1,649 条原本正确的结果。候选池具有较大 oracle 空间，
@@ -72,6 +76,20 @@ beam 生成最多 10 条唯一候选，COVO 使用 AISHELL acoustic-listwise ada
 为 `4.0651%`，COVO 为 `4.2916%`。这表明标准 CER 中的微小收益主要包含
 `9 → 九`、`20 → 二十` 等格式转换；排除数字格式后，COVO 的候选判别实际
 发生退化。
+
+新训练协议的 dev checkpoint 消融如下；选择只依据 dev CER，未查看 test：
+
+| Checkpoint | Dev CER | Improved | Worsened |
+|---|---:|---:|---:|
+| 9,000 | 4.2175% | 879 | 696 |
+| **18,000** | **4.1858%** | 891 | **677** |
+| 27,000 | 4.2080% | 911 | 711 |
+| 35,843 / final | 4.2072% | **938** | 734 |
+
+在 test 上，选定模型将 CER 从 `3.7245%` 降至 `3.4673%`，绝对下降
+`0.2572` 个百分点、相对下降 `6.91%`；改善 1,755 条、恶化 1,264 条。
+参考文本出现在 10-best 中的样本为 22,328/24,279，模型仍未选对其中 3,404
+条，说明后续空间主要仍在候选判别，而不是继续扩大候选池。
 
 ## AISHELL-NE 808
 
