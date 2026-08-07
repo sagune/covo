@@ -6,7 +6,7 @@ src_dir="$workspace/src"
 python_bin="$workspace/great/bin/python"
 hanlp_python="$workspace/hanlp_env/bin/python"
 dataset_root="$workspace/datasets/magicdata_read"
-cb_root="$dataset_root/cb_sensevoice_oraclelex600"
+cb_root="$dataset_root/cb_sensevoice_oraclelex6000"
 log_dir="$src_dir/logs"
 
 mkdir -p "$log_dir" "$cb_root"
@@ -18,7 +18,7 @@ while pgrep -f "finalize_magicdata_original_covo_eval.sh" >/dev/null || \
 done
 
 for split in dev test; do
-  keyword_file="$dataset_root/magicdata_${split}_hanlp_entities_top600.txt"
+  keyword_file="$dataset_root/magicdata_${split}_oracle_hotwords_top6000.txt"
   keyword_audio_dir="$cb_root/hotword/$split/keywords-audios/tts"
   keyword_hs_dir="$cb_root/hotword/$split/keywords-hs/tts"
   mkdir -p "$keyword_audio_dir" "$keyword_hs_dir"
@@ -28,7 +28,9 @@ for split in dev test; do
     --output "$keyword_file" \
     --batch-size 64 \
     --min-count 1 \
-    --max-keywords 600 \
+    --include-jieba-terms \
+    --min-keywords 6000 \
+    --max-keywords 6000 \
     > "$log_dir/magicdata_cb_sensevoice_${split}_oracle_lexicon_20260807.json"
 
   "$python_bin" "$src_dir/analysis/prepare_stcmds_cb_sensevoice.py" \
@@ -75,6 +77,7 @@ cd "$src_dir"
   --root "$cb_root" \
   --split dev \
   --features-size 150 750 \
+  --hotwords-per-group 500 \
   --kws-ckpt outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt \
   --kws-positive-threshold 0.787 \
   --output-csv logs/kws_topk_recall_magicdata_dev_20260807.csv \

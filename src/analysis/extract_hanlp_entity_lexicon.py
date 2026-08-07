@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -24,6 +25,8 @@ def main() -> int:
     parser.add_argument("--min-chars", type=int, default=2)
     parser.add_argument("--min-count", type=int, default=1)
     parser.add_argument("--max-keywords", type=int)
+    parser.add_argument("--min-keywords", type=int, default=0)
+    parser.add_argument("--include-jieba-terms", action="store_true")
     parser.add_argument("--model", default="CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH")
     args = parser.parse_args()
 
@@ -58,12 +61,51 @@ def main() -> int:
                     counts[mention] += 1
                     labels[label] += 1
 
-    keywords = sorted(
+    entity_keywords = sorted(
         (item for item in counts if counts[item] >= max(1, args.min_count)),
         key=lambda item: (-counts[item], item),
     )
+    lexical_counts: Counter[str] = Counter()
+    fallback_counts: Counter[str] = Counter()
+    if args.include_jieba_terms:
+        import jieba.posseg as pseg
+
+        accepted_pos = {"n", "nr", "nrfg", "nrt", "ns", "nt", "nz", "vn", "eng"}
+        chinese_term = re.compile(r"^[\u3400-\u9fff]{2,10}$")
+        for text in tqdm(texts, desc="lexical terms"):
+            for token in pseg.cut(text):
+                word = str(token.word).strip()
+                if token.flag in accepted_pos and chinese_term.fullmatch(word):
+                    lexical_counts[word] += 1
+
+        # Only used when segmentation cannot supply the requested vocabulary
+        # size. Restricting this fallback to repeated 2-4 character spans keeps
+        # the resulting contextual phrases compact and acoustically plausible.
+        available = set(entity_keywords) | set(lexical_counts)
+        if len(available) < max(0, args.min_keywords):
+            for text in texts:
+                chinese = "".join(re.findall(r"[\u3400-\u9fff]", text))
+                for width in (2, 3, 4):
+                    for start in range(max(0, len(chinese) - width + 1)):
+                        fallback_counts[chinese[start:start + width]] += 1
+
+    entity_set = set(entity_keywords)
+    lexical_keywords = sorted(
+        (item for item in lexical_counts if item not in entity_set),
+        key=lambda item: (-lexical_counts[item], item),
+    )
+    known = entity_set | set(lexical_keywords)
+    fallback_keywords = sorted(
+        (item for item in fallback_counts if item not in known and fallback_counts[item] >= 2),
+        key=lambda item: (-fallback_counts[item], item),
+    )
+    keywords = entity_keywords + lexical_keywords + fallback_keywords
     if args.max_keywords is not None:
         keywords = keywords[:max(0, args.max_keywords)]
+    if len(keywords) < max(0, args.min_keywords):
+        raise RuntimeError(
+            f"only {len(keywords)} contextual terms were found; requested at least {args.min_keywords}"
+        )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(keywords) + "\n", encoding="utf-8")
     summary = {
@@ -72,6 +114,10 @@ def main() -> int:
         "entities": len(keywords),
         "min_count": max(1, args.min_count),
         "max_keywords": args.max_keywords,
+        "min_keywords": max(0, args.min_keywords),
+        "entity_terms": len(entity_keywords),
+        "lexical_terms": len(lexical_keywords),
+        "fallback_terms": len(fallback_keywords),
         "mentions": sum(counts.values()),
         "labels": dict(labels),
         "model": args.model,

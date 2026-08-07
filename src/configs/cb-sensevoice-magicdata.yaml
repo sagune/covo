@@ -40,14 +40,14 @@ data:
         kw_type: tts
     test_info:
       name: magicdata
-      root: ../datasets/magicdata_read/cb_sensevoice_oraclelex600
+      root: ../datasets/magicdata_read/cb_sensevoice_oraclelex6000
       kw_type: tts
     test_split: dev
     features_size: [150, 750]
     batch_size: 1
     sampling: random
     num_workers: 0
-    hotwords_per_group: 100
+    hotwords_per_group: 500
     asr_backend: sensevoice
     whisper_ckpt: ""
 
@@ -59,7 +59,7 @@ model:
   init_args:
     dataset: magicdata
     split: dev
-    root: ../datasets/magicdata_read/cb_sensevoice_oraclelex600/hotword
+    root: ../datasets/magicdata_read/cb_sensevoice_oraclelex6000/hotword
     kw_type: tts
     encoder_ckpt: ""
     whisper_ckpt: ""
@@ -80,7 +80,7 @@ model:
     prompt: true
     oracle: kws
     kws_features_size: [150, 750]
-    keywords_per_group: 100
+    keywords_per_group: 500
     kws_positive_threshold: 0.787
     kws_topk_per_group: 6
     kws_max_prompt_keywords: 28
