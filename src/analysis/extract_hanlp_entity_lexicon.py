@@ -22,6 +22,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--min-chars", type=int, default=2)
+    parser.add_argument("--min-count", type=int, default=1)
+    parser.add_argument("--max-keywords", type=int)
     parser.add_argument("--model", default="CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH")
     args = parser.parse_args()
 
@@ -56,13 +58,20 @@ def main() -> int:
                     counts[mention] += 1
                     labels[label] += 1
 
-    keywords = sorted(counts, key=lambda item: (-counts[item], item))
+    keywords = sorted(
+        (item for item in counts if counts[item] >= max(1, args.min_count)),
+        key=lambda item: (-counts[item], item),
+    )
+    if args.max_keywords is not None:
+        keywords = keywords[:max(0, args.max_keywords)]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(keywords) + "\n", encoding="utf-8")
     summary = {
         "inputs": [str(path) for path in args.input],
         "utterances": len(texts),
         "entities": len(keywords),
+        "min_count": max(1, args.min_count),
+        "max_keywords": args.max_keywords,
         "mentions": sum(counts.values()),
         "labels": dict(labels),
         "model": args.model,
