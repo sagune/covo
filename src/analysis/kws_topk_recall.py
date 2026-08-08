@@ -131,6 +131,7 @@ def parse_args():
     parser.add_argument("--chunk-size", type=int, default=64)
     parser.add_argument("--topk", nargs="+", type=int, default=[1, 3, 6, 12])
     parser.add_argument("--output-csv", default="logs/kws_topk_recall_aishell.csv")
+    parser.add_argument("--limit", type=int)
 
     parser.add_argument("--kws-positive-threshold", type=float, default=0.30)
     parser.add_argument("--kws-topk-per-group", type=int, default=6)
@@ -174,7 +175,8 @@ def main():
     rows = []
 
     with torch.inference_mode():
-        for idx in tqdm(range(len(dataset)), desc="KWS top-k"):
+        sample_count = len(dataset) if args.limit is None else min(len(dataset), max(0, args.limit))
+        for idx in tqdm(range(sample_count), desc="KWS top-k"):
             item = dataset[idx]
             all_records = []
             true_keywords = []

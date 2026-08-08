@@ -91,6 +91,7 @@ cd "$src_dir"
   --split dev \
   --features-size 150 750 \
   --hotwords-per-group 500 \
+  --limit 2000 \
   --kws-ckpt outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt \
   --kws-positive-threshold 0.787 \
   --output-csv logs/kws_topk_recall_magicdata_dev_20260807.csv \
