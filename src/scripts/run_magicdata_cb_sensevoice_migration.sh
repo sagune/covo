@@ -40,15 +40,28 @@ for split in dev test; do
     --split "$split" \
     > "$log_dir/prepare_magicdata_cb_sensevoice_${split}_20260807.json"
 
-  "$python_bin" "$src_dir/analysis/synthesize_edge_tts_keywords.py" \
-    --output-dir "$keyword_audio_dir" \
-    --keywords "$keyword_file" \
-    --concurrency 4 \
-    --retries 3 \
-    --timeout-seconds 45 \
-    --log-every 100 \
-    --fail-on-error \
-    > "$log_dir/magicdata_cb_sensevoice_${split}_tts_20260807.log" 2>&1
+  for attempt in 1 2 3 4 5; do
+    "$python_bin" "$src_dir/analysis/synthesize_edge_tts_keywords.py" \
+      --output-dir "$keyword_audio_dir" \
+      --keywords "$keyword_file" \
+      --concurrency 3 \
+      --retries 5 \
+      --timeout-seconds 60 \
+      --log-every 100 \
+      >> "$log_dir/magicdata_cb_sensevoice_${split}_tts_20260807.log" 2>&1
+    audio_count=$(find "$keyword_audio_dir" -maxdepth 1 -type f -name '*.mp3' | wc -l)
+    if [[ "$audio_count" -eq 6000 ]]; then
+      break
+    fi
+    echo "[tts-retry] split=$split attempt=$attempt complete=$audio_count/6000" \
+      >> "$log_dir/magicdata_cb_sensevoice_${split}_tts_20260807.log"
+    sleep 30
+  done
+  audio_count=$(find "$keyword_audio_dir" -maxdepth 1 -type f -name '*.mp3' | wc -l)
+  if [[ "$audio_count" -ne 6000 ]]; then
+    echo "incomplete TTS set for $split: $audio_count/6000" >&2
+    exit 1
+  fi
 
   "$python_bin" "$src_dir/analysis/extract_sensevoice_hidden_states.py" \
     --audios "$keyword_audio_dir" \
