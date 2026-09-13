@@ -32,6 +32,7 @@ class KWSDataMod(LightningDataModule):
         asr_backend: str = 'whisper',
         max_duration: Optional[float] = None,
         resample_every_epoch: bool = True,
+        languages: Optional[List[str]] = None,
         **kwargs
     ):
         super().__init__()
@@ -48,6 +49,7 @@ class KWSDataMod(LightningDataModule):
         self.sampling = sampling
         self.num_workers = num_workers
         self.resample_every_epoch = resample_every_epoch
+        self.languages = languages or ['English', 'German', 'French', 'Spanish', 'Polish', 'Portuguese']
 
         # evaluation parameters
         self.hotwords_per_group = hotwords_per_group
@@ -76,7 +78,7 @@ class KWSDataMod(LightningDataModule):
         assert not set([ds.name for ds in self.val_info]) - set(['aishell', 'acl']), f'at least one of the validation datasets you asked for is not supported' 
         assert all(os.path.isdir(ds.root) for ds in self.val_info), f'at least one of the validation dataset directories could not be found'
         # and testing data
-        assert self.test_info.name in ['aishell', 'acl', 'shuili', 'stcmds'], f'at least one of the test datasets you asked for is not supported'
+        assert self.test_info.name in ['aishell', 'acl', 'shuili', 'stcmds', 'magicdata', 'thchs30'], f'at least one of the test datasets you asked for is not supported'
         assert os.path.isdir(self.test_info.root), f'at least one of the test dataset directories could not be found'
 
         # instantiate a KWSDataCollator object
@@ -139,7 +141,7 @@ class KWSDataMod(LightningDataModule):
                 if self.train_info[0].kw_type != 'all':
                     self.fit_dataset = MLSKWSDataset(
                         root = self.train_info[0].root,
-                        languages = ['English', 'German', 'French', 'Spanish', 'Polish', 'Portuguese'],
+                        languages = self.languages,
                         kw_type = self.train_info[0].kw_type
                     )
                     self.sampler = MLSKWSSampler(
@@ -152,7 +154,7 @@ class KWSDataMod(LightningDataModule):
                     self.fit_dataset = ConcatDataset([
                         MLSKWSDataset(
                             root = self.train_info[0].root,
-                            languages = ['English', 'German', 'French', 'Spanish', 'Polish', 'Portuguese'],
+                            languages = self.languages,
                             kw_type = kw_type
                         )
                     for kw_type in ['tts', 'natural']])
@@ -207,7 +209,7 @@ class KWSDataMod(LightningDataModule):
                     load_audio = True,
                     feature_extractor = WhisperFeatureExtractor.from_pretrained(self.whisper_ckpt) if self.asr_backend == 'whisper' else None
                 )
-            elif self.test_info.name in {'shuili', 'stcmds'}:
+            elif self.test_info.name in {'shuili', 'stcmds', 'magicdata', 'thchs30'}:
                 hotword_root = os.path.join(self.test_info.root, 'hotword') if os.path.isdir(os.path.join(self.test_info.root, 'hotword')) else self.test_info.root
                 wav_root = os.path.join(self.test_info.root, 'wav') if os.path.isdir(os.path.join(self.test_info.root, 'wav')) else self.test_info.root
                 self.test_dataset = AishellHotwordDataset(

@@ -45,6 +45,8 @@ class _ContextBiasASR(pl.LightningModule):
             state_dict = ckpt.get("state_dict", {}) or {}
 
             # Prefer explicit hyperparameters if present.
+            if "backbone" in hparams:
+                kwargs["backbone"] = str(hparams["backbone"])
             if "tcresnet_channels" in hparams:
                 kwargs["tcresnet_channels"] = int(hparams["tcresnet_channels"])
             if "tcresnet_blocks" in hparams:
@@ -88,7 +90,7 @@ class _ContextBiasASR(pl.LightningModule):
         model = KWSModel(**kws_kwargs)
         print("DEBUG kws_kwargs =", kws_kwargs)
         print("DEBUG kws backbone =", getattr(model.hparams, "backbone", None), getattr(model.model, "backbone", None))
-        assert getattr(model.model, "backbone", None) in {"tcresnet", "tc-resnet"}, getattr(model.model, "backbone", None)
+        assert getattr(model.model, "backbone", None) in {"resnet", "tcresnet", "tc-resnet"}, getattr(model.model, "backbone", None)
         model.on_load_checkpoint(ckpt)
         model.load_state_dict(ckpt["state_dict"], strict=True)
         return model
@@ -2335,20 +2337,41 @@ class _ContextBiasASR(pl.LightningModule):
                 self._post_test_progress_bar.update(1)
                 self._post_test_progress_bar.refresh()
 
+        def _evaluate_metric(samples_, metric_fn, labels_=None):
+            if num_bootstraps <= 0:
+                center = metric_fn(labels_, samples_) if labels_ is not None else metric_fn(samples_)
+                center = float(center)
+                return center, (center, center)
+            return evaluate_with_conf_int(
+                samples_,
+                metric_fn,
+                labels_,
+                conditions,
+                num_bootstraps=num_bootstraps,
+                alpha=5,
+            )
+
         samples = Flexlist(preds)
         labels = Flexlist(zip(refs, keywords))
         refs_samples = Flexlist(refs)
         metrics = {}
-        num_bootstraps = max(1, int(os.getenv("CBW_EVAL_BOOTSTRAPS", "1000")))
-        metrics["recall"] = evaluate_with_conf_int(samples, f_entity_recall, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
+        num_bootstraps = max(0, int(os.getenv("CBW_EVAL_BOOTSTRAPS", "1000")))
+        if self._debug_enabled():
+            self._debug_log(
+                "metrics_eval_start",
+                num_samples=int(len(preds)),
+                num_bootstraps=int(num_bootstraps),
+                conditions=bool(conditions is not None),
+            )
+        metrics["recall"] = _evaluate_metric(samples, f_entity_recall, labels)
         _update_progress("Post-test eval recall")
-        metrics["cer"] = evaluate_with_conf_int(samples, f_cer, refs_samples, conditions, num_bootstraps=num_bootstraps, alpha=5)
+        metrics["cer"] = _evaluate_metric(samples, f_cer, refs_samples)
         _update_progress("Post-test eval cer")
-        metrics["hotword_sentence_cer"] = evaluate_with_conf_int(samples, f_hotword_sentence_cer, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
+        metrics["hotword_sentence_cer"] = _evaluate_metric(samples, f_hotword_sentence_cer, labels)
         _update_progress("Post-test eval hotword-sent")
-        metrics["hotword_only_cer"] = evaluate_with_conf_int(samples, f_hotword_only_cer, labels, conditions, num_bootstraps=num_bootstraps, alpha=5)
+        metrics["hotword_only_cer"] = _evaluate_metric(samples, f_hotword_only_cer, labels)
         _update_progress("Post-test eval hotword-only")
-        metrics["wer"] = evaluate_with_conf_int(samples, f_wer, refs_samples, conditions, num_bootstraps=num_bootstraps, alpha=5)
+        metrics["wer"] = _evaluate_metric(samples, f_wer, refs_samples)
         _update_progress("Post-test eval wer")
         return metrics
 
@@ -3569,6 +3592,7 @@ class _ContextBiasASR(pl.LightningModule):
                 } for i in preview_indices],
             )
 
+        self._write_covo_evidence_jsonl()
         conditions = self._evaluation_conditions()
         metrics = self._evaluate_test_metrics(preds, refs, keywords, conditions)
         results = self._build_results_dataframe(metrics)
@@ -3617,7 +3641,6 @@ class _ContextBiasASR(pl.LightningModule):
                     columns=list(oracle_summary_df.columns),
                     aggregate=oracle_summary_df.tail(1).to_dict(orient="records")[0] if len(oracle_summary_df) > 0 else {},
                 )
-        self._write_covo_evidence_jsonl()
         if self._post_test_progress_bar is not None:
             self._post_test_progress_bar.set_description("Post-test eval write")
             self._post_test_progress_bar.update(1)
@@ -3647,7 +3670,7 @@ class DatabaseLite:
         keywords_per_group: int = 100
     ):
         # check dataset
-        assert dataset in ['aishell', 'acl', 'shuili', 'stcmds'], f'DatabaseLite: the dataset is not supported, got {dataset}'
+        assert dataset in ['aishell', 'acl', 'shuili', 'stcmds', 'magicdata', 'thchs30'], f'DatabaseLite: the dataset is not supported, got {dataset}'
         # check split
         if dataset == 'acl':
             assert split in ['dev', 'test'], f'DatabaseLite: the split is not supported, got {split} for {dataset}'
@@ -3655,7 +3678,7 @@ class DatabaseLite:
         assert kw_type in ['tts', 'natural'], f'DatabaseLite: the keyword type is not supported, got {kw_type} for {dataset}'
 
         # get database
-        if dataset in ['aishell', 'shuili', 'stcmds']:
+        if dataset in ['aishell', 'shuili', 'stcmds', 'magicdata', 'thchs30']:
             self.database = AishellHotwordDataset(
                 root = root,
                 split = split,

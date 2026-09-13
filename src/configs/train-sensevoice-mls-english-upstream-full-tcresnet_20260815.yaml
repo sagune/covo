@@ -1,4 +1,4 @@
-# pytorch_lightning==1.9.5
+# MLS-English route migrated from Enhance-CB-Whisper for SenseVoice states.
 seed_everything: 123
 trainer:
   accelerator: gpu
@@ -6,36 +6,36 @@ trainer:
   devices: 1
   num_nodes: 1
   precision: 32-true
-  logger: 
+  logger:
     class_path: pytorch_lightning.loggers.MLFlowLogger
     init_args:
-      run_name: aishell_tcresnet_mid
+      run_name: mls_english_upstream_full_sensevoice_tcresnet_all
       experiment_name: keyword-spotting
       tracking_uri: file:./outputs/mlruns
       log_model: true
   callbacks: null
   fast_dev_run: false
-  max_epochs: 30
+  max_epochs: 20
   min_epochs: null
   max_steps: -1
   min_steps: null
   max_time: null
   limit_train_batches: null
-  limit_val_batches: null
+  limit_val_batches: 0.03
   limit_test_batches: null
   limit_predict_batches: null
   overfit_batches: 0.0
   val_check_interval: null
   check_val_every_n_epoch: 1
   num_sanity_val_steps: 0
-  log_every_n_steps: 50
+  log_every_n_steps: 25
   enable_checkpointing: true
-  enable_progress_bar: null
-  enable_model_summary: null
-  gradient_clip_val: null
-  gradient_clip_algorithm: null
+  enable_progress_bar: true
+  enable_model_summary: true
+  gradient_clip_val: 2.0
+  gradient_clip_algorithm: norm
   deterministic: true
-  benchmark: null
+  benchmark: false
   inference_mode: true
   use_distributed_sampler: true
   profiler: null
@@ -44,12 +44,12 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
-  default_root_dir: ./outputs/aishell_tcresnet_mid
+  default_root_dir: ./outputs/mls_english_upstream_full_sensevoice_tcresnet_all_20260815
 f1_checkpoint:
-  dirpath: ./outputs/aishell_tcresnet_mid/checkpoints/f1
+  dirpath: ./outputs/mls_english_upstream_full_sensevoice_tcresnet_all_20260815/checkpoints/f1
   filename: f1-{epoch}-{step}
   monitor: metrics/f1
-  verbose: false
+  verbose: true
   save_last: false
   save_top_k: 1
   save_weights_only: false
@@ -60,9 +60,9 @@ f1_checkpoint:
   every_n_epochs: 1
   save_on_train_epoch_end: null
 f1_generalization_checkpoint:
-  dirpath: ./outputs/aishell_tcresnet_mid/checkpoints/f1G
+  dirpath: ./outputs/mls_english_upstream_full_sensevoice_tcresnet_all_20260815/checkpoints/f1G
   filename: f1G-{epoch}-{step}
-  monitor: metrics/f1_zh
+  monitor: metrics/f1_0
   verbose: false
   save_last: false
   save_top_k: 1
@@ -74,10 +74,10 @@ f1_generalization_checkpoint:
   every_n_epochs: 1
   save_on_train_epoch_end: null
 checkpoint_final:
-  dirpath: ./outputs/aishell_tcresnet_mid/checkpoints/final
+  dirpath: ./outputs/mls_english_upstream_full_sensevoice_tcresnet_all_20260815/checkpoints/final
   filename: final-{epoch}-{step}
   monitor: null
-  verbose: true
+  verbose: false
   save_last: false
   save_top_k: 1
   save_weights_only: false
@@ -88,10 +88,10 @@ checkpoint_final:
   every_n_epochs: 1
   save_on_train_epoch_end: true
 early_stopping:
-  monitor: metrics/f1_zh
-  min_delta: 0.0
-  patience: 5
-  verbose: false
+  monitor: metrics/f1
+  min_delta: 0.0001
+  patience: 4
+  verbose: true
   mode: max
   strict: true
   check_finite: true
@@ -102,63 +102,61 @@ early_stopping:
 data:
   class_path: data.data_module.KWSDataMod
   init_args:
-    train_info: 
-      - name: aishell
-        root: ../datasets/aishell/data_aishell
+    train_info:
+      - name: mls
+        root: /root/autodl-tmp/datasets/mls_official_cbwhisper_selected
         kw_type: all
     val_info:
       - name: aishell
-        root: ../datasets/aishell/data_aishell
+        root: /root/autodl-tmp/datasets/mls_sensevoice_english_10h_20260814
         kw_type: tts
-      - name: aishell
-        root: ../datasets/aishell/data_aishell
-        kw_type: natural
     test_info:
       name: aishell
-      root: ../datasets/aishell/data_aishell
+      root: /root/autodl-tmp/datasets/mls_sensevoice_english_10h_20260814
       kw_type: tts
+    languages:
+      - English
     test_split: test
-    features_size: 
+    features_size:
       - 150
       - 750
-    num_workers: 8
+    num_workers: 0
     hotwords_per_group: 100
-    whisper_ckpt: openai/whisper-large-v2
-ckpt_path: null
+    asr_backend: sensevoice
+    whisper_ckpt: openai/whisper-large-v3
 model:
   class_path: model.model.KWSModel
   init_args:
     backbone: tcresnet
     tcresnet_channels: 96
     tcresnet_blocks: 8
-    tcresnet_dropout: 0.12
+    tcresnet_dropout: 0.15
     subsequence_aux: true
-    subsequence_aux_weight: 0.05
+    subsequence_aux_weight: 0.02
     subsequence_aux_temperature: 0.5
-    large_heads: true
+    decision_threshold_mode: max_fbeta
+    decision_threshold_fixed: 0.5
+    decision_threshold_fbeta: 1.0
+    decision_threshold_min_recall: 0.0
+    decision_threshold_min_precision: 0.0
+    decision_threshold_grid_size: 501
+    large_heads: false
     adversarial_training: false
     dannce: false
-    adversarial_examples_ratio: 0.5
-    adversarial_examples_lr: 1.0e-6
-    adversarial_train_steps: 5
-    adv_kl_weight: 1.0
     entropy: false
-    domain_adversary_weight: 0.1
-    entropy_weight: 0.1
-    supression_decay: 0.1
-    early_adversary_supression: true
-    num_domains: 2
+    num_domains: 1
     sampling: random
     resample_every_epoch: true
     kw_type: all
     kw_p: 0.5
-    batch_size: 8
+    batch_size: 20
     accumulate_grad_batches: 8
-    learning_rate: 3.0e-05
+    learning_rate: 5.0e-05
     features_lr: 5.0e-05
     classifier_lr: 5.0e-05
     discriminator_lr: 5.0e-05
-    lr_step: 7
+    lr_step: 8
     weight_decay: 0.0
     beta_1: 0.9
     beta_2: 0.99
+ckpt_path: null
