@@ -1,0 +1,18 @@
+{
+  "deadline_utc": "2026-09-09T04:05:00Z",
+  "base": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B",
+  "starting_adapter": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_9b_aishell_hardneg_dropout_2epoch_20260815/checkpoint-30022",
+  "phases": [
+    "finish active 5000-row training",
+    "format baseline comparisons",
+    "lower learning rate",
+    "independent seed",
+    "two epochs if time permits",
+    "higher learning rate / third seed if time permits",
+    "context-omission robustness"
+  ],
+  "data_frozen": true,
+  "training_seed_default": 20260908,
+  "test_for_selection": false,
+  "scheduling": "serial GPU use; conservative time estimate before each new training; active stage may finish after deadline; no server shutdown"
+}

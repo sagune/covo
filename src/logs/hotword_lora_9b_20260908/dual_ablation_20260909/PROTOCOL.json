@@ -1,0 +1,9 @@
+{
+  "classification": "Exploratory full-dev; not held-out",
+  "samples": 1334,
+  "adapter": "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/scheduled/high_lr3e-5/adapter/checkpoint-625",
+  "neutral": "Independent unadapted SenseVoice, no hotwords; not a pure decoding-only causal ablation",
+  "objective": "Recall increase with no corpus CER increase vs existing high_lr3e-5 full_625 output",
+  "stop": "Missing audio/ID mismatch, subprocess failure, or incomplete output stops the queue",
+  "workload": "One 1334-audio neutral decode plus three 1334-sample 9B inference passes; no training"
+}

@@ -998,24 +998,15 @@ def supplement_missing_kws_hotwords(
     if missing:
         added_lines = [
             "CB-SenseVoice additional hotword evidence (predicted, not gold):",
-            "- retrieved_hotwords_without_candidate_match=" + ",".join(missing),
-            "候选外热词使用规则：以上热词由前端检索得到，但未出现在展示的证据中。"
-            "候选缺失不代表该词错误，检索命中也不代表必须使用。"
-            "请检查已有转写中是否存在与热词读音接近、且上下文支持的局部片段；"
-            "若存在，可在该片段进行最小范围替换，不必要求 N-best 已包含该热词。"
-            "若没有合理对应片段，不要为了使用热词而新增内容，也不要仅凭词义相关就替换。"
-            "前文的 unsupported 或 do not force 表示不能强制插入，不表示禁止有依据的局部替换。"
-            "对于 top-1 已包含的热词，不要仅因另一个同音词更常见或更顺口就替换；"
-            "应结合候选、可用拼音和上下文判断。"
-            "你没有获得原始音频或局部声学证据，不要假定听到了某个词。"
-            "证据不足时保留原转写。最终只按要求输出完整转写的 JSON，不输出分析过程。",
+            "- unsupported_kws_hotwords=" + ",".join(missing)
+            + " (not found in displayed evidence; do not force)",
         ]
     final_visible = visible + [normalize_text(line) for line in added_lines]
     omitted = [text for key, text in unique.items() if not any(key in line for line in final_visible)]
     if omitted:
         raise ValueError("B hotword transmission failed: " + repr(omitted))
     return added_lines, {
-        "mode": "B_missing_kws_prompt_v2", "recorded_unique": len(unique),
+        "mode": "B_missing_kws_v1", "recorded_unique": len(unique),
         "visible_before": len(unique) - len(missing), "added": missing,
         "visible_after": len(unique) - len(omitted), "missing_after": omitted,
         "coverage_scope": "rendered_user_message_before_tokenization",

@@ -1,0 +1,20 @@
+{
+  "samples": 334,
+  "cer": 0.0346146490724804,
+  "baseline_cer": 0.03805698986421878,
+  "edits": 181,
+  "reference_chars": 5229,
+  "improved": 64,
+  "worsened": 51,
+  "unchanged": 219,
+  "exact": 234,
+  "parse_warning_samples": 0,
+  "designated_hits": 115,
+  "designated_total": 144,
+  "recall": 0.7986111111111112,
+  "baseline_recall": 0.9444444444444444,
+  "hotwords_lost": 25,
+  "hotwords_gained": 4,
+  "nonreference_retrieved_new_insertions": 1,
+  "normalization": "OpenCC t2s + NFKC + punctuation/space removal"
+}

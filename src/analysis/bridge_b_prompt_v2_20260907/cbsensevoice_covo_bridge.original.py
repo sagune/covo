@@ -976,56 +976,7 @@ def format_candidates(candidates: List[Dict[str, Any]], max_items: int) -> List[
     return output
 
 
-def supplement_missing_kws_hotwords(
-    input_block: Dict[str, Any], lines: List[str]
-) -> Tuple[List[str], Dict[str, Any]]:
-    """B ablation: append omitted recorded KWS words, without changing old evidence.
-
-    Read only inference-time hotwords. Inspect individual lines to avoid false
-    matches across candidate boundaries. Deliberately bypass the legacy source
-    filter/count cap; this opt-in ablation transmits the complete recorded list.
-    Scores, candidate support, protection rules and candidate text are unchanged.
-    """
-    visible = [normalize_text(line) for line in lines]
-    unique: Dict[str, str] = {}
-    for item in input_block.get("hotwords", []) or []:
-        text = simplify_text(item.get("text", "") if isinstance(item, dict) else item)
-        key = normalize_text(text)
-        if key:
-            unique.setdefault(key, text)
-    missing = [text for key, text in unique.items() if not any(key in line for line in visible)]
-    added_lines = []
-    if missing:
-        added_lines = [
-            "CB-SenseVoice additional hotword evidence (predicted, not gold):",
-            "- retrieved_hotwords_without_candidate_match=" + ",".join(missing),
-            "候选外热词使用规则：以上热词由前端检索得到，但未出现在展示的证据中。"
-            "候选缺失不代表该词错误，检索命中也不代表必须使用。"
-            "请检查已有转写中是否存在与热词读音接近、且上下文支持的局部片段；"
-            "若存在，可在该片段进行最小范围替换，不必要求 N-best 已包含该热词。"
-            "若没有合理对应片段，不要为了使用热词而新增内容，也不要仅凭词义相关就替换。"
-            "前文的 unsupported 或 do not force 表示不能强制插入，不表示禁止有依据的局部替换。"
-            "对于 top-1 已包含的热词，不要仅因另一个同音词更常见或更顺口就替换；"
-            "应结合候选、可用拼音和上下文判断。"
-            "你没有获得原始音频或局部声学证据，不要假定听到了某个词。"
-            "证据不足时保留原转写。最终只按要求输出完整转写的 JSON，不输出分析过程。",
-        ]
-    final_visible = visible + [normalize_text(line) for line in added_lines]
-    omitted = [text for key, text in unique.items() if not any(key in line for line in final_visible)]
-    if omitted:
-        raise ValueError("B hotword transmission failed: " + repr(omitted))
-    return added_lines, {
-        "mode": "B_missing_kws_prompt_v2", "recorded_unique": len(unique),
-        "visible_before": len(unique) - len(missing), "added": missing,
-        "visible_after": len(unique) - len(omitted), "missing_after": omitted,
-        "coverage_scope": "rendered_user_message_before_tokenization",
-    }
-
-
-def build_user_prompt(
-    record: Dict[str, Any], args: argparse.Namespace,
-    transmission_audit: Dict[str, Any] | None = None,
-) -> str:
+def build_user_prompt(record: Dict[str, Any], args: argparse.Namespace) -> str:
     input_block = record.get("input", {}) or {}
     compact = bool(getattr(args, "compact_evidence", True))
     prompt_mode = str(getattr(args, "prompt_mode", "correction")).strip().lower()
@@ -1145,11 +1096,6 @@ def build_user_prompt(
             lines.append("CB-SenseVoice candidate scores:")
             lines.extend(candidate_lines)
 
-    if bool(getattr(args, "include_missing_kws_hotwords", False)):
-        added_lines, audit = supplement_missing_kws_hotwords(input_block, lines)
-        lines.extend(added_lines)
-        if transmission_audit is not None:
-            transmission_audit.update(audit)
     lines.append('请输出 JSON：{"text":"纠错后的完整句子"}')
     return "\n".join(lines)
 
@@ -1305,8 +1251,6 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
                 ),
                 max_items=max(1, int(args.max_nbest)),
             )
-        transmission_audit: Dict[str, Any] = {}
-        user_prompt = build_user_prompt({**record, "input": input_block}, args, transmission_audit)
         output = {
             "id": str(record.get("id", "")),
             "source": record.get("source", "cbwhisper"),
@@ -1316,11 +1260,9 @@ def prepare_records(args: argparse.Namespace) -> Iterable[Dict[str, Any]]:
             "input": input_block,
             "messages": [
                 {"role": "system", "content": build_system_message(args)},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": build_user_prompt({**record, "input": input_block}, args)},
             ],
         }
-        if bool(getattr(args, "include_missing_kws_hotwords", False)):
-            output["hotword_transmission"] = transmission_audit
         if reference:
             output["messages"].append(
                 {
@@ -1508,12 +1450,6 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
         help="Which CB-SenseVoice hotwords to inject into covo prompts.",
     )
     parser.add_argument("--include-pinyin", action="store_true")
-    parser.add_argument(
-        "--include-missing-kws-hotwords", action="store_true",
-        help="B ablation: append all recorded KWS hotwords absent from the rendered prompt; "
-             "bypasses legacy hotword source/count limits only for this supplement. "
-             "Does not alter candidates or scores; writes transmission audit metadata.",
-    )
     parser.add_argument(
         "--prompt-mode",
         choices=["correction", "selector", "selector_content", "selector_spoken"],

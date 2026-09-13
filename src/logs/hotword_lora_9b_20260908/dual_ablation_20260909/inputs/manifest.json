@@ -1,0 +1,15 @@
+{
+  "samples": 1334,
+  "changed_samples": 737,
+  "classification": "Exploratory dev ablation: dev already used in earlier model selection; not held-out",
+  "input_sha256": "16a727dbf4efb75b33ef687dc0edb8ab1f7d3839f180dd835309560858e8605c",
+  "neutral_sha256": "bc864b38ca265dfad5be66a8facd886a49f2fdae34ae0363e877d6b9aecc8bc2",
+  "output_sha256": {
+    "cb_only.jsonl": "1f8b23be9461b7b57af54cd1872a3f29bfb6afd33568c1b11daec2173874ca95",
+    "dual.jsonl": "1d7d0582e7fa3a2f7748e03b4507933191754e38ac245c7d4352c2acee7e9713",
+    "delta.jsonl": "4e06ac459fa21df816a36d5e5a46aa48d901415e1bf455b5261a068bca2065a5"
+  },
+  "score_policy": "No acoustic or biased search scores exposed in this initial ablation",
+  "baseline": "Frozen high_lr3e-5/checkpoint-625; compare against its existing predictions AND cb_only prompt control",
+  "objective": "Increase designated recall without increasing corpus CER relative to frozen checkpoint output"
+}

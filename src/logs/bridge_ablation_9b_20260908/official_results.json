@@ -1,0 +1,1711 @@
+{
+  "CB": {
+    "cer": 0.03795110593713621,
+    "edits": 489,
+    "reference_chars": 12885,
+    "recall400_hits": 366,
+    "recall400": 0.915,
+    "r1_hits": 192,
+    "r1_recall": 0.8495575221238938,
+    "misses": [
+      {
+        "id": "BAC009S0913W0357",
+        "hotword": "付敬懿",
+        "prediction": "中新网成都九月十五日垫付敬意十五日"
+      },
+      {
+        "id": "BAC009S0770W0359",
+        "hotword": "佟健",
+        "prediction": "找到了退役年龄的庞清和董健克服了伤病困难"
+      },
+      {
+        "id": "BAC009S0768W0391",
+        "hotword": "克里斯托弗哈特灵",
+        "prediction": "铁兵可利斯托夫哈特灵"
+      },
+      {
+        "id": "BAC009S0768W0393",
+        "hotword": "全能里科费雷姆斯",
+        "prediction": "潜能力科弗来姆斯"
+      },
+      {
+        "id": "BAC009S0912W0400",
+        "hotword": "刘庆红",
+        "prediction": "而十公里女子组由刘秀红以三十四分十秒夺得冠军"
+      },
+      {
+        "id": "BAC009S0769W0352",
+        "hotword": "吉娜",
+        "prediction": "济南卢克肯科姆普尔"
+      },
+      {
+        "id": "BAC009S0766W0416",
+        "hotword": "崔栽诚",
+        "prediction": "许茹芸与韩国丈夫崔才成迎来结婚一周年纪念日"
+      },
+      {
+        "id": "BAC009S0907W0187",
+        "hotword": "工促农以城带乡",
+        "prediction": "建立健全以工促农以诚代乡的长效机制"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "布赫雷尔",
+        "prediction": "一百一十米兰马特里斯波斯雷尔"
+      },
+      {
+        "id": "BAC009S0768W0469",
+        "hotword": "张绵跃",
+        "prediction": "张金月当选村委会主任"
+      },
+      {
+        "id": "BAC009S0768W0366",
+        "hotword": "德郭队",
+        "prediction": "近日德国队公布了参加此次世锦赛的六六人大名单"
+      },
+      {
+        "id": "BAC009S0908W0480",
+        "hotword": "日第一大客源国",
+        "prediction": "港媒中国乘访日第一大课援国还会持续增加"
+      },
+      {
+        "id": "BAC009S0906W0384",
+        "hotword": "昆仑决雄霸山城",
+        "prediction": "昆仑绝雄坝山城在重庆江南体育馆重装上阵"
+      },
+      {
+        "id": "BAC009S0764W0461",
+        "hotword": "朱圣祎",
+        "prediction": "朱胜伟报王思聪女友被诉法官送达起诉书欲诉"
+      },
+      {
+        "id": "BAC009S0912W0414",
+        "hotword": "朱祖儿",
+        "prediction": "朱锁儿操刀灰色调封面"
+      },
+      {
+        "id": "BAC009S0914W0460",
+        "hotword": "林斐然",
+        "prediction": "新京报讯记者林文健然近日"
+      },
+      {
+        "id": "BAC009S0914W0291",
+        "hotword": "柯振东",
+        "prediction": "柯震东入狱期间的球服都能在淘宝上热卖"
+      },
+      {
+        "id": "BAC009S0766W0176",
+        "hotword": "沈阳新维一半股份",
+        "prediction": "收购了房地产互联网营销公司沈阳新威医办股份"
+      },
+      {
+        "id": "BAC009S0769W0475",
+        "hotword": "淅川县",
+        "prediction": "贞川县上集镇一名村支书被指将年龄改小一零岁"
+      },
+      {
+        "id": "BAC009S0902W0442",
+        "hotword": "渝武",
+        "prediction": "豫武高速武胜段发生追尾事故已造成六死九伤"
+      },
+      {
+        "id": "BAC009S0768W0459",
+        "hotword": "狼垡三村",
+        "prediction": "明者是大兴区黄村镇廊伐三村的医师"
+      },
+      {
+        "id": "BAC009S0901W0465",
+        "hotword": "王亦菲",
+        "prediction": "智图黄欣晨报记者佟继萍王叶飞实习生张诗欢"
+      },
+      {
+        "id": "BAC009S0914W0494",
+        "hotword": "玛卡磨成粉景区",
+        "prediction": "一捧玛卡麻城分景区商家要四零零零元"
+      },
+      {
+        "id": "BAC009S0913W0490",
+        "hotword": "胡琦",
+        "prediction": "武汉网友胡起的一条短微博引起众人关注"
+      },
+      {
+        "id": "BAC009S0769W0341",
+        "hotword": "萨莱兹奇",
+        "prediction": "称干挑丽萨来自骑"
+      },
+      {
+        "id": "BAC009S0765W0446",
+        "hotword": "蒲东峰",
+        "prediction": "金华时报记者浦东分社二零零七年"
+      },
+      {
+        "id": "BAC009S0906W0492",
+        "hotword": "谢某女",
+        "prediction": "用家贤任血蒙女"
+      },
+      {
+        "id": "BAC009S0766W0404",
+        "hotword": "谢琳伍德蕾",
+        "prediction": "曾以分起者心运里的错蹿红的谢林武德雷"
+      },
+      {
+        "id": "BAC009S0915W0462",
+        "hotword": "贵港",
+        "prediction": "贵州民警追凶魏延其嫌犯一五年后落法网"
+      },
+      {
+        "id": "BAC009S0768W0435",
+        "hotword": "迟名常鑫",
+        "prediction": "金华时报讯记者驰名常新前天中午近一一点半"
+      },
+      {
+        "id": "BAC009S0916W0464",
+        "hotword": "陈观鑫",
+        "prediction": "此次事故调查组组长荆州市安监局局长陈冠新通报称"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "马特里亚斯",
+        "prediction": "一百一十米兰马特里斯波斯雷尔"
+      },
+      {
+        "id": "BAC009S0907W0441",
+        "hotword": "黄煜坤",
+        "prediction": "黄立坤被警方送到附近医院接受检查"
+      },
+      {
+        "id": "BAC009S0915W0458",
+        "hotword": "龟趺",
+        "prediction": "游客骑着名孝陵驮碑归贴拍照市民大厦风景"
+      }
+    ]
+  },
+  "A": {
+    "cer": 0.03919285991462942,
+    "edits": 505,
+    "reference_chars": 12885,
+    "recall400_hits": 306,
+    "recall400": 0.765,
+    "r1_hits": 136,
+    "r1_recall": 0.6017699115044248,
+    "misses": [
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "上海迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0905W0438",
+        "hotword": "东越花苑",
+        "prediction": "东岳花苑不少商铺都关门转租记者谢国林摄"
+      },
+      {
+        "id": "BAC009S0916W0308",
+        "hotword": "乌守保",
+        "prediction": "美的家用空调事业部制造副总裁吴守宝对记者"
+      },
+      {
+        "id": "BAC009S0913W0441",
+        "hotword": "京汇佳律师事务所",
+        "prediction": "金惠嘉律师事务所律师邱宝昌表示"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久上海分公司",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0182",
+        "hotword": "今久整合营销集团",
+        "prediction": "转型后的金九整合营销集团"
+      },
+      {
+        "id": "BAC009S0913W0357",
+        "hotword": "付敬懿",
+        "prediction": "中新网成都九月十五日点付敬义十五日"
+      },
+      {
+        "id": "BAC009S0770W0359",
+        "hotword": "佟健",
+        "prediction": "找到了退役年龄的庞清和董剑克服了伤病困难"
+      },
+      {
+        "id": "BAC009S0769W0347",
+        "hotword": "克里斯丁胡宋",
+        "prediction": "标枪克里斯丁胡松"
+      },
+      {
+        "id": "BAC009S0768W0391",
+        "hotword": "克里斯托弗哈特灵",
+        "prediction": "铁人科利斯托夫哈特林"
+      },
+      {
+        "id": "BAC009S0768W0393",
+        "hotword": "全能里科费雷姆斯",
+        "prediction": "全能里科弗雷姆斯"
+      },
+      {
+        "id": "BAC009S0912W0400",
+        "hotword": "刘庆红",
+        "prediction": "而十公里女子组由刘修红以三十四分十秒夺得冠军"
+      },
+      {
+        "id": "BAC009S0765W0194",
+        "hotword": "刘澄",
+        "prediction": "北京科技大学教授刘成表示"
+      },
+      {
+        "id": "BAC009S0766W0483",
+        "hotword": "刘玮",
+        "prediction": "新京报快讯记者刘伟近日"
+      },
+      {
+        "id": "BAC009S0769W0292",
+        "hotword": "印度本加卢鲁",
+        "prediction": "改由设在印度班加罗尔的一家美印合资公司生产"
+      },
+      {
+        "id": "BAC009S0769W0352",
+        "hotword": "吉娜",
+        "prediction": "济南卢克肯科姆普尔"
+      },
+      {
+        "id": "BAC009S0915W0211",
+        "hotword": "吴显亭",
+        "prediction": "吴险庭称将加强和证监会等相关部门的配合和协作"
+      },
+      {
+        "id": "BAC009S0768W0403",
+        "hotword": "哈灵",
+        "prediction": "八百米克里斯蒂娜哈林"
+      },
+      {
+        "id": "BAC009S0768W0372",
+        "hotword": "哈特灵",
+        "prediction": "哈特林今年饱受十字韧带伤势困扰"
+      },
+      {
+        "id": "BAC009S0906W0375",
+        "hotword": "哈立",
+        "prediction": "哈利以争议性的点数优势宣告获胜"
+      },
+      {
+        "id": "BAC009S0913W0488",
+        "hotword": "喻莉",
+        "prediction": "图片由胡先生提供本报讯记者郁莉出门旅游"
+      },
+      {
+        "id": "BAC009S0902W0434",
+        "hotword": "大分港",
+        "prediction": "目前正在根据海事部门的要求开往盐城大丰港"
+      },
+      {
+        "id": "BAC009S0769W0442",
+        "hotword": "大禹村",
+        "prediction": "从金坛县城驱车一个半小时至土桥镇的大榆村"
+      },
+      {
+        "id": "BAC009S0769W0463",
+        "hotword": "奇冰",
+        "prediction": "这块天降奇兵究竟是何物"
+      },
+      {
+        "id": "BAC009S0764W0410",
+        "hotword": "姊弟恋",
+        "prediction": "对于姐弟恋也不排斥"
+      },
+      {
+        "id": "BAC009S0904W0478",
+        "hotword": "富林愚",
+        "prediction": "这是富林与老人发自内心的一句话"
+      },
+      {
+        "id": "BAC009S0766W0416",
+        "hotword": "崔栽诚",
+        "prediction": "许茹芸与韩国丈夫崔财成迎来结婚一周年纪念日"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "布赫雷尔",
+        "prediction": "一百一十米兰马特里斯波斯莱尔"
+      },
+      {
+        "id": "BAC009S0914W0417",
+        "hotword": "希饭",
+        "prediction": "稀饭快来接住我"
+      },
+      {
+        "id": "BAC009S0903W0338",
+        "hotword": "弗菜戈",
+        "prediction": "意大利选手弗莱戈也说我们在来里约之前"
+      },
+      {
+        "id": "BAC009S0770W0458",
+        "hotword": "张林",
+        "prediction": "华商报讯记者张琳实习生邓泽惠一夜之间"
+      },
+      {
+        "id": "BAC009S0904W0489",
+        "hotword": "张淑侠",
+        "prediction": "继陕西富平妇产科医生张淑霞因贩卖婴儿被判刑之后"
+      },
+      {
+        "id": "BAC009S0768W0469",
+        "hotword": "张绵跃",
+        "prediction": "张金月当选村委会主任"
+      },
+      {
+        "id": "BAC009S0770W0473",
+        "hotword": "张贵林",
+        "prediction": "门头沟区长张桂林出庭应诉"
+      },
+      {
+        "id": "BAC009S0770W0346",
+        "hotword": "张锦麟",
+        "prediction": "张继麟将做自己成为鸟巢新一代志愿者"
+      },
+      {
+        "id": "BAC009S0901W0284",
+        "hotword": "张驰",
+        "prediction": "原创张弛乔布斯逝世已久"
+      },
+      {
+        "id": "BAC009S0768W0357",
+        "hotword": "徐永昊",
+        "prediction": "对于代表中国队率先出战的徐咏昊来讲"
+      },
+      {
+        "id": "BAC009S0768W0366",
+        "hotword": "德郭队",
+        "prediction": "近日德国队公布了参加此次世锦赛的六六人大名单"
+      },
+      {
+        "id": "BAC009S0901W0450",
+        "hotword": "成志教育",
+        "prediction": "清华附小着意百年校庆校长权是成治教育理念"
+      },
+      {
+        "id": "BAC009S0768W0356",
+        "hotword": "昆罗决中俄",
+        "prediction": "此次昆仑决中俄对抗赛上"
+      },
+      {
+        "id": "BAC009S0914W0450",
+        "hotword": "晋吉岛",
+        "prediction": "崔先生带家人随团前往泰国普吉岛游玩"
+      },
+      {
+        "id": "BAC009S0767W0240",
+        "hotword": "曹志",
+        "prediction": "本报记者曹智魏王婷王颖春来源中国证券报"
+      },
+      {
+        "id": "BAC009S0764W0461",
+        "hotword": "朱圣祎",
+        "prediction": "朱圣玮曝王思聪女友被诉法官送达起诉书应诉"
+      },
+      {
+        "id": "BAC009S0912W0414",
+        "hotword": "朱祖儿",
+        "prediction": "朱索儿操刀灰色调封面"
+      },
+      {
+        "id": "BAC009S0767W0460",
+        "hotword": "权义",
+        "prediction": "权益澎湃资料李银河在现实中是柔软的"
+      },
+      {
+        "id": "BAC009S0901W0455",
+        "hotword": "李焜染",
+        "prediction": "记者李坤冉摄十三日早晨"
+      },
+      {
+        "id": "BAC009S0902W0495",
+        "hotword": "杨幼萍",
+        "prediction": "该院党委书记杨幼平向晚报记者表示"
+      },
+      {
+        "id": "BAC009S0914W0460",
+        "hotword": "林斐然",
+        "prediction": "新京报讯记者林伟健然近日"
+      },
+      {
+        "id": "BAC009S0914W0291",
+        "hotword": "柯振东",
+        "prediction": "柯震东入狱期间的囚服都能在淘宝上热卖"
+      },
+      {
+        "id": "BAC009S0768W0385",
+        "hotword": "格里格尔特拉贝尔",
+        "prediction": "格里戈尔特拉费尔"
+      },
+      {
+        "id": "BAC009S0769W0339",
+        "hotword": "欣塔斯卡鲁塞",
+        "prediction": "三千米障碍基萨费里辛塔斯卡鲁塞"
+      },
+      {
+        "id": "BAC009S0766W0176",
+        "hotword": "沈阳新维一半股份",
+        "prediction": "收购了房地产互联网营销公司沈阳新威一办股份"
+      },
+      {
+        "id": "BAC009S0902W0494",
+        "hotword": "滕灵方",
+        "prediction": "此关于滕凌方此后即升为副院长一事"
+      },
+      {
+        "id": "BAC009S0768W0459",
+        "hotword": "狼垡三村",
+        "prediction": "前者是大兴区黄村镇狼垌三村的医师"
+      },
+      {
+        "id": "BAC009S0901W0465",
+        "hotword": "王亦菲",
+        "prediction": "制图黄欣晨报记者佟继萍王艳飞实习生张诗欢"
+      },
+      {
+        "id": "BAC009S0764W0303",
+        "hotword": "王晔君",
+        "prediction": "北京商报讯记者王业军日前"
+      },
+      {
+        "id": "BAC009S0912W0444",
+        "hotword": "王睦广发",
+        "prediction": "南都讯记者王牧广发自香港今年四月初"
+      },
+      {
+        "id": "BAC009S0906W0431",
+        "hotword": "王靖苏",
+        "prediction": "执法人员将王静苏押解回温州"
+      },
+      {
+        "id": "BAC009S0914W0494",
+        "hotword": "玛卡磨成粉景区",
+        "prediction": "一捧玛卡蒙尘风景区商家要四零零零元"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0904W0457",
+        "hotword": "瓯文",
+        "prediction": "本报讯记者范跃红通讯员欧雯为了卖相好"
+      },
+      {
+        "id": "BAC009S0903W0417",
+        "hotword": "田心妮",
+        "prediction": "陈凯琳田昕妮等出席新剧开机仪式"
+      },
+      {
+        "id": "BAC009S0906W0470",
+        "hotword": "章某",
+        "prediction": "二九岁的张某被控洗钱一二二万元"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄村",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0397",
+        "hotword": "罗伯特哈特灵",
+        "prediction": "四乘一百米接力罗伯特哈特林"
+      },
+      {
+        "id": "BAC009S0913W0307",
+        "hotword": "美芝",
+        "prediction": "美的压缩机已是全球最大的空调压缩机企业"
+      },
+      {
+        "id": "BAC009S0905W0285",
+        "hotword": "苹果晋身道指",
+        "prediction": "苹果晋升道指股数众望所归"
+      },
+      {
+        "id": "BAC009S0908W0373",
+        "hotword": "莎宾娜",
+        "prediction": "现年十八岁的沙琳娜身高达一百八十二厘米"
+      },
+      {
+        "id": "BAC009S0905W0461",
+        "hotword": "莒溪大峡谷",
+        "prediction": "温州一四岁少年小温迷失瓯溪大峡谷"
+      },
+      {
+        "id": "BAC009S0765W0446",
+        "hotword": "蒲东峰",
+        "prediction": "京华时报记者蒲东分社二零零七年"
+      },
+      {
+        "id": "BAC009S0904W0464",
+        "hotword": "虞一杰",
+        "prediction": "浙江温州乐清七五岁的企业家郁一杰退休之后"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "许玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0905W0400",
+        "hotword": "许胚",
+        "prediction": "广州日报社记者许沛日前"
+      },
+      {
+        "id": "BAC009S0906W0492",
+        "hotword": "谢某女",
+        "prediction": "用家闲人血盟女"
+      },
+      {
+        "id": "BAC009S0915W0462",
+        "hotword": "贵港",
+        "prediction": "贵州民警追凶未延期嫌犯一五年后落法网"
+      },
+      {
+        "id": "BAC009S0903W0412",
+        "hotword": "赖慰玲",
+        "prediction": "除了看见陈嘉宝及赖伟玲外"
+      },
+      {
+        "id": "BAC009S0770W0405",
+        "hotword": "赛文耷子",
+        "prediction": "搜狐娱乐赛文打子备受关注重拍版乌鸦"
+      },
+      {
+        "id": "BAC009S0912W0489",
+        "hotword": "赵书伶",
+        "prediction": "现代快报记者赵书玲"
+      },
+      {
+        "id": "BAC009S0769W0338",
+        "hotword": "辛迪罗勒德尔",
+        "prediction": "一百米栏辛迪罗乐德"
+      },
+      {
+        "id": "BAC009S0907W0310",
+        "hotword": "邬迪",
+        "prediction": "乌云网合伙人吴笛接受第一财经日报记者采访时称"
+      },
+      {
+        "id": "BAC009S0765W0286",
+        "hotword": "陈昊芝",
+        "prediction": "根据陈浩芝在二零一四年八月提供的数据"
+      },
+      {
+        "id": "BAC009S0916W0464",
+        "hotword": "陈观鑫",
+        "prediction": "此次事故调查组组长荆州市安监局局长陈冠新通报称"
+      },
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "香港迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "马特里亚斯",
+        "prediction": "一百一十米兰马特里斯波斯莱尔"
+      },
+      {
+        "id": "BAC009S0906W0448",
+        "hotword": "麻丽贤",
+        "prediction": "麻立贤等一七位志愿者将远赴非洲支教"
+      },
+      {
+        "id": "BAC009S0907W0441",
+        "hotword": "黄煜坤",
+        "prediction": "黄立坤被警方送到附近医院接受检查"
+      },
+      {
+        "id": "BAC009S0766W0490",
+        "hotword": "黄琦雯",
+        "prediction": "李玉刚张学友黄绮雯入选一零大岁唱四世歌曲"
+      },
+      {
+        "id": "BAC009S0915W0458",
+        "hotword": "龟趺",
+        "prediction": "游客骑着明孝陵驮碑规帖拍照市民大煞风景"
+      },
+      {
+        "id": "BAC009S0912W0434",
+        "hotword": "黄立坤",
+        "prediction": "二十七日深夜终于在云林县一家废弃空屋中救出了黄立昆"
+      },
+      {
+        "id": "BAC009S0905W0407",
+        "hotword": "波维顿坦克博物馆",
+        "prediction": "在英格兰多塞特郡的博维顿坦克博物馆"
+      },
+      {
+        "id": "BAC009S0767W0471",
+        "hotword": "渭镇",
+        "prediction": "高新区调卫镇葛大沟村村民称"
+      },
+      {
+        "id": "BAC009S0768W0322",
+        "hotword": "麦德公司",
+        "prediction": "三百六十软件识别出了迈德公司的插件"
+      }
+    ]
+  },
+  "B": {
+    "cer": 0.04027939464493597,
+    "edits": 519,
+    "reference_chars": 12885,
+    "recall400_hits": 297,
+    "recall400": 0.7425,
+    "r1_hits": 130,
+    "r1_recall": 0.5752212389380531,
+    "misses": [
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "上海迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0905W0438",
+        "hotword": "东越花苑",
+        "prediction": "东岳花苑不少商铺都关门转租记者谢国林摄"
+      },
+      {
+        "id": "BAC009S0916W0308",
+        "hotword": "乌守保",
+        "prediction": "美的家用空调事业部制造副总裁邬守宝对记者"
+      },
+      {
+        "id": "BAC009S0913W0441",
+        "hotword": "京汇佳律师事务所",
+        "prediction": "金惠嘉律师事务所律师邱宝昌表示"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久上海分公司",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0182",
+        "hotword": "今久整合营销集团",
+        "prediction": "转型后的金九整合营销集团"
+      },
+      {
+        "id": "BAC009S0913W0357",
+        "hotword": "付敬懿",
+        "prediction": "中新网成都九月十五日点付敬义十五日"
+      },
+      {
+        "id": "BAC009S0770W0359",
+        "hotword": "佟健",
+        "prediction": "找到了退役年龄的庞清和董剑克服了伤病困难"
+      },
+      {
+        "id": "BAC009S0769W0347",
+        "hotword": "克里斯丁胡宋",
+        "prediction": "标枪克里斯丁胡松"
+      },
+      {
+        "id": "BAC009S0768W0391",
+        "hotword": "克里斯托弗哈特灵",
+        "prediction": "铁人科利斯托夫哈特林"
+      },
+      {
+        "id": "BAC009S0768W0393",
+        "hotword": "全能里科费雷姆斯",
+        "prediction": "全能里科弗雷姆斯"
+      },
+      {
+        "id": "BAC009S0912W0400",
+        "hotword": "刘庆红",
+        "prediction": "而十公里女子组由刘秀红以三十四分十秒夺得冠军"
+      },
+      {
+        "id": "BAC009S0765W0194",
+        "hotword": "刘澄",
+        "prediction": "北京科技大学教授刘成表示"
+      },
+      {
+        "id": "BAC009S0766W0483",
+        "hotword": "刘玮",
+        "prediction": "新京报快讯记者刘伟近日"
+      },
+      {
+        "id": "BAC009S0769W0292",
+        "hotword": "印度本加卢鲁",
+        "prediction": "改由设在印度班加罗尔的一家美印合资公司生产"
+      },
+      {
+        "id": "BAC009S0915W0211",
+        "hotword": "吴显亭",
+        "prediction": "吴险庭称将加强和证监会等相关部门的配合和协作"
+      },
+      {
+        "id": "BAC009S0768W0403",
+        "hotword": "哈灵",
+        "prediction": "八百米克里斯蒂娜哈林"
+      },
+      {
+        "id": "BAC009S0768W0372",
+        "hotword": "哈特灵",
+        "prediction": "哈特林今年饱受十字韧带伤势困扰"
+      },
+      {
+        "id": "BAC009S0906W0375",
+        "hotword": "哈立",
+        "prediction": "哈利以争议性的点数优势宣告获胜"
+      },
+      {
+        "id": "BAC009S0902W0434",
+        "hotword": "大分港",
+        "prediction": "目前正在根据海事部门的要求开往盐城大丰港"
+      },
+      {
+        "id": "BAC009S0907W0343",
+        "hotword": "大滨芳美",
+        "prediction": "三三岁的大阪芳美在面对强大的火力下"
+      },
+      {
+        "id": "BAC009S0769W0442",
+        "hotword": "大禹村",
+        "prediction": "从金坛县城驱车一个半小时至土桥镇的大榆村"
+      },
+      {
+        "id": "BAC009S0764W0410",
+        "hotword": "姊弟恋",
+        "prediction": "对于姐弟恋也不排斥"
+      },
+      {
+        "id": "BAC009S0908W0406",
+        "hotword": "宾虚",
+        "prediction": "因此不得不放弃本次演出"
+      },
+      {
+        "id": "BAC009S0904W0478",
+        "hotword": "富林愚",
+        "prediction": "这是富林与老人发自内心的一句话"
+      },
+      {
+        "id": "BAC009S0766W0416",
+        "hotword": "崔栽诚",
+        "prediction": "许茹芸与韩国丈夫崔财成迎来结婚一周年纪念日"
+      },
+      {
+        "id": "BAC009S0764W0280",
+        "hotword": "布赖恩克尔扎尼奇",
+        "prediction": "英特尔首席执行官布赖恩科勒扎尼奇在一份声明中说"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "布赫雷尔",
+        "prediction": "一百一十米兰马特里斯波什莱尔"
+      },
+      {
+        "id": "BAC009S0914W0417",
+        "hotword": "希饭",
+        "prediction": "希瓦快来接住我"
+      },
+      {
+        "id": "BAC009S0903W0338",
+        "hotword": "弗菜戈",
+        "prediction": "意大利选手弗莱戈也说我们在来里约之前"
+      },
+      {
+        "id": "BAC009S0770W0458",
+        "hotword": "张林",
+        "prediction": "华商报讯记者张琳实习生邓泽惠一夜之间"
+      },
+      {
+        "id": "BAC009S0904W0489",
+        "hotword": "张淑侠",
+        "prediction": "继陕西富平妇产科医生张淑霞因贩卖婴儿被判刑之后"
+      },
+      {
+        "id": "BAC009S0768W0469",
+        "hotword": "张绵跃",
+        "prediction": "张金月当选村委会主任"
+      },
+      {
+        "id": "BAC009S0770W0473",
+        "hotword": "张贵林",
+        "prediction": "门头沟区长张桂林出庭应诉"
+      },
+      {
+        "id": "BAC009S0770W0346",
+        "hotword": "张锦麟",
+        "prediction": "张继麟将做自己成为鸟巢新一代志愿者"
+      },
+      {
+        "id": "BAC009S0901W0284",
+        "hotword": "张驰",
+        "prediction": "原创张弛乔布斯逝世已久"
+      },
+      {
+        "id": "BAC009S0768W0357",
+        "hotword": "徐永昊",
+        "prediction": "对于代表中国队率先出战的徐咏昊来讲"
+      },
+      {
+        "id": "BAC009S0768W0366",
+        "hotword": "德郭队",
+        "prediction": "近日德国队公布了参加此次世锦赛的六六人大名单"
+      },
+      {
+        "id": "BAC009S0901W0450",
+        "hotword": "成志教育",
+        "prediction": "清华附小着意百年校庆校长权是成治教育理念"
+      },
+      {
+        "id": "BAC009S0768W0356",
+        "hotword": "昆罗决中俄",
+        "prediction": "此次昆仑决中俄对抗赛上"
+      },
+      {
+        "id": "BAC009S0914W0450",
+        "hotword": "晋吉岛",
+        "prediction": "崔先生带家人随团前往泰国普吉岛游玩"
+      },
+      {
+        "id": "BAC009S0767W0240",
+        "hotword": "曹志",
+        "prediction": "本报记者曹智魏王婷王颖春来源中国证券报"
+      },
+      {
+        "id": "BAC009S0764W0461",
+        "hotword": "朱圣祎",
+        "prediction": "朱圣玮曝王思聪女友被诉法官送达起诉书应诉"
+      },
+      {
+        "id": "BAC009S0912W0414",
+        "hotword": "朱祖儿",
+        "prediction": "朱索儿操刀灰色调封面"
+      },
+      {
+        "id": "BAC009S0767W0460",
+        "hotword": "权义",
+        "prediction": "权益澎湃资料李银河在现实中是柔软的"
+      },
+      {
+        "id": "BAC009S0913W0396",
+        "hotword": "李晖",
+        "prediction": "本报讯记者李辉经过两天转场"
+      },
+      {
+        "id": "BAC009S0901W0455",
+        "hotword": "李焜染",
+        "prediction": "记者李坤冉摄十三日早晨"
+      },
+      {
+        "id": "BAC009S0902W0495",
+        "hotword": "杨幼萍",
+        "prediction": "该院党委书记杨幼平向晚报记者表示"
+      },
+      {
+        "id": "BAC009S0765W0330",
+        "hotword": "杨建江南嘉捷",
+        "prediction": "每日经济新闻记者杨健江南嘉捷六一千一百三十一三"
+      },
+      {
+        "id": "BAC009S0914W0460",
+        "hotword": "林斐然",
+        "prediction": "新京报讯记者林文健然近日"
+      },
+      {
+        "id": "BAC009S0914W0291",
+        "hotword": "柯振东",
+        "prediction": "柯震东入狱期间的囚服都能在淘宝上热卖"
+      },
+      {
+        "id": "BAC009S0768W0385",
+        "hotword": "格里格尔特拉贝尔",
+        "prediction": "格里戈尔特拉费尔"
+      },
+      {
+        "id": "BAC009S0769W0339",
+        "hotword": "欣塔斯卡鲁塞",
+        "prediction": "三千米障碍基萨费里辛塔斯卡鲁塞"
+      },
+      {
+        "id": "BAC009S0766W0176",
+        "hotword": "沈阳新维一半股份",
+        "prediction": "收购了房地产互联网营销公司沈阳新威一半股份"
+      },
+      {
+        "id": "BAC009S0902W0494",
+        "hotword": "滕灵方",
+        "prediction": "此关于滕凌方此后即升为副院长一事"
+      },
+      {
+        "id": "BAC009S0768W0459",
+        "hotword": "狼垡三村",
+        "prediction": "前者是大兴区黄村镇狼垌三村的医师"
+      },
+      {
+        "id": "BAC009S0901W0465",
+        "hotword": "王亦菲",
+        "prediction": "制图黄欣晨报记者佟继萍王艳飞实习生张诗欢"
+      },
+      {
+        "id": "BAC009S0764W0303",
+        "hotword": "王晔君",
+        "prediction": "北京商报讯记者王业军日前"
+      },
+      {
+        "id": "BAC009S0912W0444",
+        "hotword": "王睦广发",
+        "prediction": "南都讯记者王牧广发自香港今年四月初"
+      },
+      {
+        "id": "BAC009S0906W0431",
+        "hotword": "王靖苏",
+        "prediction": "执法人员将王静苏押解回温州"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0904W0457",
+        "hotword": "瓯文",
+        "prediction": "本报讯记者范跃红通讯员欧雯为了卖相好"
+      },
+      {
+        "id": "BAC009S0903W0417",
+        "hotword": "田心妮",
+        "prediction": "陈凯琳田昕妮等出席新剧开机仪式"
+      },
+      {
+        "id": "BAC009S0906W0470",
+        "hotword": "章某",
+        "prediction": "二九岁的张某被控洗钱一二二万元"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄村",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0397",
+        "hotword": "罗伯特哈特灵",
+        "prediction": "四乘一百米接力罗伯特哈特林"
+      },
+      {
+        "id": "BAC009S0913W0307",
+        "hotword": "美芝",
+        "prediction": "美的压缩机已是全球最大的空调压缩机企业"
+      },
+      {
+        "id": "BAC009S0905W0285",
+        "hotword": "苹果晋身道指",
+        "prediction": "苹果晋升道指股数众望所归"
+      },
+      {
+        "id": "BAC009S0908W0373",
+        "hotword": "莎宾娜",
+        "prediction": "现年十八岁的沙琳娜身高达一百八十二厘米"
+      },
+      {
+        "id": "BAC009S0905W0461",
+        "hotword": "莒溪大峡谷",
+        "prediction": "温州一四岁少年小温迷失缙溪大峡谷"
+      },
+      {
+        "id": "BAC009S0765W0446",
+        "hotword": "蒲东峰",
+        "prediction": "京华时报记者蒲东分社二零零七年"
+      },
+      {
+        "id": "BAC009S0904W0464",
+        "hotword": "虞一杰",
+        "prediction": "浙江温州乐清七五岁的企业家郁一杰退休之后"
+      },
+      {
+        "id": "BAC009S0902W0455",
+        "hotword": "蚌飞市",
+        "prediction": "蚌浮市发生一起惨剧"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "许玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0905W0400",
+        "hotword": "许胚",
+        "prediction": "广州日报社记者许沛日前"
+      },
+      {
+        "id": "BAC009S0906W0492",
+        "hotword": "谢某女",
+        "prediction": "用家闲人血盟女"
+      },
+      {
+        "id": "BAC009S0915W0462",
+        "hotword": "贵港",
+        "prediction": "贵州民警追凶未擒其嫌犯一五年后落法网"
+      },
+      {
+        "id": "BAC009S0903W0412",
+        "hotword": "赖慰玲",
+        "prediction": "除了看见陈嘉宝及赖伟玲外"
+      },
+      {
+        "id": "BAC009S0770W0405",
+        "hotword": "赛文耷子",
+        "prediction": "搜狐娱乐赛文打子备受关注重拍版乌鸦"
+      },
+      {
+        "id": "BAC009S0912W0489",
+        "hotword": "赵书伶",
+        "prediction": "现代快报记者赵书玲"
+      },
+      {
+        "id": "BAC009S0769W0338",
+        "hotword": "辛迪罗勒德尔",
+        "prediction": "一百米栏辛迪罗乐德尔"
+      },
+      {
+        "id": "BAC009S0768W0435",
+        "hotword": "迟名常鑫",
+        "prediction": "京华时报讯记者迟名长鑫前天中午近一一点半"
+      },
+      {
+        "id": "BAC009S0907W0310",
+        "hotword": "邬迪",
+        "prediction": "乌云网合伙人吴笛接受第一财经日报记者采访时称"
+      },
+      {
+        "id": "BAC009S0915W0483",
+        "hotword": "钟欣",
+        "prediction": "凶手被抓捕归案中新网"
+      },
+      {
+        "id": "BAC009S0765W0286",
+        "hotword": "陈昊芝",
+        "prediction": "根据陈浩志在二零一四年八月提供的数据"
+      },
+      {
+        "id": "BAC009S0916W0464",
+        "hotword": "陈观鑫",
+        "prediction": "此次事故调查组组长荆州市安监局局长陈冠新通报称"
+      },
+      {
+        "id": "BAC009S0916W0361",
+        "hotword": "颜妮",
+        "prediction": "闫妮坦言今天俄罗斯表现很好"
+      },
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "香港迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "马特里亚斯",
+        "prediction": "一百一十米兰马特里斯波什莱尔"
+      },
+      {
+        "id": "BAC009S0906W0448",
+        "hotword": "麻丽贤",
+        "prediction": "麻立贤等一七位志愿者将远赴非洲支教"
+      },
+      {
+        "id": "BAC009S0907W0441",
+        "hotword": "黄煜坤",
+        "prediction": "黄立坤被警方送到附近医院接受检查"
+      },
+      {
+        "id": "BAC009S0766W0490",
+        "hotword": "黄琦雯",
+        "prediction": "李玉刚张学友黄绮雯入选一零大岁唱四十十歌曲"
+      },
+      {
+        "id": "BAC009S0769W0468",
+        "hotword": "黎胜明",
+        "prediction": "该村村民李胜明向楚天快报求助"
+      },
+      {
+        "id": "BAC009S0915W0458",
+        "hotword": "龟趺",
+        "prediction": "游客骑着明孝陵驮碑规帖拍照市民大赞风景"
+      },
+      {
+        "id": "BAC009S0769W0352",
+        "hotword": "卢克肯科姆普尔",
+        "prediction": "吉娜卢克肯特姆普尔"
+      },
+      {
+        "id": "BAC009S0768W0370",
+        "hotword": "维斯多尔",
+        "prediction": "包括铅球运动员维舍多尔"
+      },
+      {
+        "id": "BAC009S0912W0434",
+        "hotword": "黄立坤",
+        "prediction": "二十七日深夜终于在云林县一家废弃空屋中救出了黄立昆"
+      },
+      {
+        "id": "BAC009S0905W0407",
+        "hotword": "波维顿坦克博物馆",
+        "prediction": "在英格兰多塞特郡的博维顿坦克博物馆"
+      },
+      {
+        "id": "BAC009S0769W0343",
+        "hotword": "克里斯丁吉尔奇",
+        "prediction": "三级跳克里斯汀吉尔奇"
+      },
+      {
+        "id": "BAC009S0768W0322",
+        "hotword": "麦德公司",
+        "prediction": "三百六十软件识别出了迈德公司的插件"
+      },
+      {
+        "id": "BAC009S0915W0356",
+        "hotword": "徐建德",
+        "prediction": "徐剑德统领的中国青年队八战全胜夺得冠军"
+      }
+    ]
+  },
+  "Bplus": {
+    "cer": 0.039813736903376015,
+    "edits": 513,
+    "reference_chars": 12885,
+    "recall400_hits": 298,
+    "recall400": 0.745,
+    "r1_hits": 130,
+    "r1_recall": 0.5752212389380531,
+    "misses": [
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "上海迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0905W0438",
+        "hotword": "东越花苑",
+        "prediction": "东岳花苑不少商铺都关门转租记者谢国林摄"
+      },
+      {
+        "id": "BAC009S0768W0152",
+        "hotword": "丰台区域潘家村",
+        "prediction": "丰台区潘家村危改三号地成为今年的收官地块"
+      },
+      {
+        "id": "BAC009S0916W0308",
+        "hotword": "乌守保",
+        "prediction": "美的家用空调事业部制造副总裁邬守宝对记者"
+      },
+      {
+        "id": "BAC009S0913W0441",
+        "hotword": "京汇佳律师事务所",
+        "prediction": "金惠嘉律师事务所律师邱宝昌表示"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0169",
+        "hotword": "今久上海分公司",
+        "prediction": "金九上海分公司又悄无声息地开张了"
+      },
+      {
+        "id": "BAC009S0766W0182",
+        "hotword": "今久整合营销集团",
+        "prediction": "转型后的金九整合营销集团"
+      },
+      {
+        "id": "BAC009S0913W0357",
+        "hotword": "付敬懿",
+        "prediction": "中新网成都九月十五日点付敬义十五日"
+      },
+      {
+        "id": "BAC009S0770W0359",
+        "hotword": "佟健",
+        "prediction": "找到了退役年龄的庞清和董剑克服了伤病困难"
+      },
+      {
+        "id": "BAC009S0769W0347",
+        "hotword": "克里斯丁胡宋",
+        "prediction": "标枪克里斯丁胡松"
+      },
+      {
+        "id": "BAC009S0768W0391",
+        "hotword": "克里斯托弗哈特灵",
+        "prediction": "铁人科利斯托夫哈特林"
+      },
+      {
+        "id": "BAC009S0768W0393",
+        "hotword": "全能里科费雷姆斯",
+        "prediction": "全能里科弗雷姆斯"
+      },
+      {
+        "id": "BAC009S0912W0400",
+        "hotword": "刘庆红",
+        "prediction": "而十公里女子组由刘秀红以三十四分十秒夺得冠军"
+      },
+      {
+        "id": "BAC009S0765W0194",
+        "hotword": "刘澄",
+        "prediction": "北京科技大学教授刘成表示"
+      },
+      {
+        "id": "BAC009S0766W0483",
+        "hotword": "刘玮",
+        "prediction": "新京报快讯记者刘伟近日"
+      },
+      {
+        "id": "BAC009S0769W0292",
+        "hotword": "印度本加卢鲁",
+        "prediction": "改由设在印度班加罗尔的一家美印合资公司生产"
+      },
+      {
+        "id": "BAC009S0769W0352",
+        "hotword": "吉娜",
+        "prediction": "吉纳卢克肯特姆普尔"
+      },
+      {
+        "id": "BAC009S0915W0211",
+        "hotword": "吴显亭",
+        "prediction": "吴险庭称将加强和证监会等相关部门的配合和协作"
+      },
+      {
+        "id": "BAC009S0768W0403",
+        "hotword": "哈灵",
+        "prediction": "八百米克里斯蒂娜哈林"
+      },
+      {
+        "id": "BAC009S0768W0372",
+        "hotword": "哈特灵",
+        "prediction": "哈特林今年饱受十字韧带伤势困扰"
+      },
+      {
+        "id": "BAC009S0906W0375",
+        "hotword": "哈立",
+        "prediction": "哈利以争议性的点数优势宣告获胜"
+      },
+      {
+        "id": "BAC009S0902W0434",
+        "hotword": "大分港",
+        "prediction": "目前正在根据海事部门的要求开往盐城大丰港"
+      },
+      {
+        "id": "BAC009S0907W0343",
+        "hotword": "大滨芳美",
+        "prediction": "三三岁的大阪芳美在面对强大的火力下"
+      },
+      {
+        "id": "BAC009S0769W0442",
+        "hotword": "大禹村",
+        "prediction": "从金坛县城驱车一个半小时至土桥镇的大榆村"
+      },
+      {
+        "id": "BAC009S0764W0410",
+        "hotword": "姊弟恋",
+        "prediction": "对于姐弟恋也不排斥"
+      },
+      {
+        "id": "BAC009S0908W0406",
+        "hotword": "宾虚",
+        "prediction": "因此不得不放弃本次演出"
+      },
+      {
+        "id": "BAC009S0904W0478",
+        "hotword": "富林愚",
+        "prediction": "这是富林与老人发自内心的一句话"
+      },
+      {
+        "id": "BAC009S0766W0416",
+        "hotword": "崔栽诚",
+        "prediction": "许茹芸与韩国丈夫崔财成迎来结婚一周年纪念日"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "布赫雷尔",
+        "prediction": "一百一十米兰马特里斯波什莱尔"
+      },
+      {
+        "id": "BAC009S0914W0417",
+        "hotword": "希饭",
+        "prediction": "希瓦快来接住我"
+      },
+      {
+        "id": "BAC009S0903W0338",
+        "hotword": "弗菜戈",
+        "prediction": "意大利选手弗莱戈也说我们在来里约之前"
+      },
+      {
+        "id": "BAC009S0770W0458",
+        "hotword": "张林",
+        "prediction": "华商报讯记者张琳实习生邓泽惠一夜之间"
+      },
+      {
+        "id": "BAC009S0904W0489",
+        "hotword": "张淑侠",
+        "prediction": "继陕西富平妇产科医生张淑霞因贩卖婴儿被判刑之后"
+      },
+      {
+        "id": "BAC009S0768W0469",
+        "hotword": "张绵跃",
+        "prediction": "张金月当选村委会主任"
+      },
+      {
+        "id": "BAC009S0770W0473",
+        "hotword": "张贵林",
+        "prediction": "门头沟区长张桂林出庭应诉"
+      },
+      {
+        "id": "BAC009S0770W0346",
+        "hotword": "张锦麟",
+        "prediction": "张继麟将为自己成为鸟巢新一代志愿者"
+      },
+      {
+        "id": "BAC009S0901W0284",
+        "hotword": "张驰",
+        "prediction": "原创张弛乔布斯逝世已久"
+      },
+      {
+        "id": "BAC009S0768W0357",
+        "hotword": "徐永昊",
+        "prediction": "对于代表中国队率先出战的徐咏昊来讲"
+      },
+      {
+        "id": "BAC009S0768W0366",
+        "hotword": "德郭队",
+        "prediction": "近日德国队公布了参加此次世锦赛的六六人大名单"
+      },
+      {
+        "id": "BAC009S0901W0450",
+        "hotword": "成志教育",
+        "prediction": "清华附小着意百年校庆校长权是成治教育理念"
+      },
+      {
+        "id": "BAC009S0768W0356",
+        "hotword": "昆罗决中俄",
+        "prediction": "此次昆仑决中俄对抗赛上"
+      },
+      {
+        "id": "BAC009S0914W0450",
+        "hotword": "晋吉岛",
+        "prediction": "崔先生带家人随团前往泰国普吉岛游玩"
+      },
+      {
+        "id": "BAC009S0767W0240",
+        "hotword": "曹志",
+        "prediction": "本报记者曹智魏王婷王颖春来源中国证券报"
+      },
+      {
+        "id": "BAC009S0764W0461",
+        "hotword": "朱圣祎",
+        "prediction": "朱圣玮曝王思聪女友被诉法官送达起诉书应诉"
+      },
+      {
+        "id": "BAC009S0912W0414",
+        "hotword": "朱祖儿",
+        "prediction": "朱索儿操刀灰色调封面"
+      },
+      {
+        "id": "BAC009S0767W0460",
+        "hotword": "权义",
+        "prediction": "权益澎湃资料李银河在现实中是柔软的"
+      },
+      {
+        "id": "BAC009S0901W0455",
+        "hotword": "李焜染",
+        "prediction": "记者李坤冉摄十三日早晨"
+      },
+      {
+        "id": "BAC009S0902W0495",
+        "hotword": "杨幼萍",
+        "prediction": "该院党委书记杨幼平向晚报记者表示"
+      },
+      {
+        "id": "BAC009S0765W0330",
+        "hotword": "杨建江南嘉捷",
+        "prediction": "每日经济新闻记者杨健江南嘉捷六一千一百三十一三"
+      },
+      {
+        "id": "BAC009S0914W0460",
+        "hotword": "林斐然",
+        "prediction": "新京报讯记者林文健然近日"
+      },
+      {
+        "id": "BAC009S0914W0291",
+        "hotword": "柯振东",
+        "prediction": "柯震东入狱期间的囚服都能在淘宝上热卖"
+      },
+      {
+        "id": "BAC009S0768W0385",
+        "hotword": "格里格尔特拉贝尔",
+        "prediction": "格里戈尔特拉费尔"
+      },
+      {
+        "id": "BAC009S0769W0339",
+        "hotword": "欣塔斯卡鲁塞",
+        "prediction": "三千米障碍吉萨费里辛塔斯卡鲁塞"
+      },
+      {
+        "id": "BAC009S0766W0176",
+        "hotword": "沈阳新维一半股份",
+        "prediction": "收购了房地产互联网营销公司沈阳新威一半股份"
+      },
+      {
+        "id": "BAC009S0902W0494",
+        "hotword": "滕灵方",
+        "prediction": "此关于滕凌方此后即升为副院长一事"
+      },
+      {
+        "id": "BAC009S0768W0459",
+        "hotword": "狼垡三村",
+        "prediction": "前者是大兴区黄村镇郎坊三村的医师"
+      },
+      {
+        "id": "BAC009S0901W0465",
+        "hotword": "王亦菲",
+        "prediction": "制图黄欣晨报记者佟继萍王艳飞实习生张诗欢"
+      },
+      {
+        "id": "BAC009S0764W0303",
+        "hotword": "王晔君",
+        "prediction": "北京商报讯记者王业军日前"
+      },
+      {
+        "id": "BAC009S0912W0444",
+        "hotword": "王睦广发",
+        "prediction": "南都讯记者王牧广发自香港今年四月初"
+      },
+      {
+        "id": "BAC009S0906W0431",
+        "hotword": "王靖苏",
+        "prediction": "执法人员将王静苏押解回温州"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0904W0457",
+        "hotword": "瓯文",
+        "prediction": "本报讯记者范跃红通讯员欧雯为了卖相好"
+      },
+      {
+        "id": "BAC009S0903W0417",
+        "hotword": "田心妮",
+        "prediction": "陈凯琳田昕妮等出席新剧开机仪式"
+      },
+      {
+        "id": "BAC009S0906W0470",
+        "hotword": "章某",
+        "prediction": "二九岁的张某被控洗钱一二二万元"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0436",
+        "hotword": "紫各庄村",
+        "prediction": "大兴区礼贤镇紫葛庄村"
+      },
+      {
+        "id": "BAC009S0768W0397",
+        "hotword": "罗伯特哈特灵",
+        "prediction": "四乘一百米接力罗伯特哈特林"
+      },
+      {
+        "id": "BAC009S0913W0307",
+        "hotword": "美芝",
+        "prediction": "美的压缩机已是全球最大的空调压缩机企业"
+      },
+      {
+        "id": "BAC009S0905W0285",
+        "hotword": "苹果晋身道指",
+        "prediction": "苹果晋升道指股数众望所归"
+      },
+      {
+        "id": "BAC009S0908W0373",
+        "hotword": "莎宾娜",
+        "prediction": "现年十八岁的沙琳娜身高达一百八十二厘米"
+      },
+      {
+        "id": "BAC009S0905W0461",
+        "hotword": "莒溪大峡谷",
+        "prediction": "温州一四岁少年小温迷失缙溪大峡谷"
+      },
+      {
+        "id": "BAC009S0765W0446",
+        "hotword": "蒲东峰",
+        "prediction": "金华时报记者蒲东分社二零零七年"
+      },
+      {
+        "id": "BAC009S0904W0464",
+        "hotword": "虞一杰",
+        "prediction": "浙江温州乐清七五岁的企业家郁一杰退休之后"
+      },
+      {
+        "id": "BAC009S0902W0455",
+        "hotword": "蚌飞市",
+        "prediction": "蚌浮市发生一起惨剧"
+      },
+      {
+        "id": "BAC009S0764W0413",
+        "hotword": "许玮宁",
+        "prediction": "徐若瑄最近到法国工作"
+      },
+      {
+        "id": "BAC009S0905W0400",
+        "hotword": "许胚",
+        "prediction": "广州日报社记者许沛日前"
+      },
+      {
+        "id": "BAC009S0906W0492",
+        "hotword": "谢某女",
+        "prediction": "用家闲人血盟女"
+      },
+      {
+        "id": "BAC009S0915W0462",
+        "hotword": "贵港",
+        "prediction": "贵州民警追凶未延期嫌犯一五年后落法网"
+      },
+      {
+        "id": "BAC009S0903W0412",
+        "hotword": "赖慰玲",
+        "prediction": "除了看见陈嘉宝及赖伟玲外"
+      },
+      {
+        "id": "BAC009S0770W0405",
+        "hotword": "赛文耷子",
+        "prediction": "搜狐娱乐赛文打子备受关注重拍版乌鸦"
+      },
+      {
+        "id": "BAC009S0912W0489",
+        "hotword": "赵书伶",
+        "prediction": "现代快报记者赵书玲"
+      },
+      {
+        "id": "BAC009S0769W0338",
+        "hotword": "辛迪罗勒德尔",
+        "prediction": "一百米栏辛迪罗乐德尔"
+      },
+      {
+        "id": "BAC009S0768W0435",
+        "hotword": "迟名常鑫",
+        "prediction": "京华时报讯记者迟名长新前天中午近一一点半"
+      },
+      {
+        "id": "BAC009S0907W0310",
+        "hotword": "邬迪",
+        "prediction": "乌云网合伙人吴笛接受第一财经日报记者采访时称"
+      },
+      {
+        "id": "BAC009S0915W0483",
+        "hotword": "钟欣",
+        "prediction": "凶手被抓捕归案中新网"
+      },
+      {
+        "id": "BAC009S0765W0286",
+        "hotword": "陈昊芝",
+        "prediction": "根据陈浩芝在二零一四年八月提供的数据"
+      },
+      {
+        "id": "BAC009S0916W0464",
+        "hotword": "陈观鑫",
+        "prediction": "此次事故调查组组长荆州市安监局局长陈冠新通报称"
+      },
+      {
+        "id": "BAC009S0916W0361",
+        "hotword": "颜妮",
+        "prediction": "闫妮坦言今天俄罗斯表现很好"
+      },
+      {
+        "id": "BAC009S0912W0436",
+        "hotword": "香港迪尼士",
+        "prediction": "港报评上海迪士尼不意味着香港迪士尼的没落"
+      },
+      {
+        "id": "BAC009S0768W0384",
+        "hotword": "马特里亚斯",
+        "prediction": "一百一十米兰马特里斯波什莱尔"
+      },
+      {
+        "id": "BAC009S0906W0448",
+        "hotword": "麻丽贤",
+        "prediction": "麻立贤等一七位志愿者将远赴非洲支教"
+      },
+      {
+        "id": "BAC009S0907W0441",
+        "hotword": "黄煜坤",
+        "prediction": "黄立坤被警方送到附近医院接受检查"
+      },
+      {
+        "id": "BAC009S0766W0490",
+        "hotword": "黄琦雯",
+        "prediction": "李玉刚张学友黄绮雯入选一零大岁唱四十十歌曲"
+      },
+      {
+        "id": "BAC009S0769W0468",
+        "hotword": "黎胜明",
+        "prediction": "该村村民李胜明向楚天快报求助"
+      },
+      {
+        "id": "BAC009S0915W0458",
+        "hotword": "龟趺",
+        "prediction": "游客骑着明孝陵驮碑龟贴拍照市民大赞风景"
+      },
+      {
+        "id": "BAC009S0769W0352",
+        "hotword": "卢克肯科姆普尔",
+        "prediction": "吉纳卢克肯特姆普尔"
+      },
+      {
+        "id": "BAC009S0768W0370",
+        "hotword": "维斯多尔",
+        "prediction": "包括铅球运动员维舍多尔"
+      },
+      {
+        "id": "BAC009S0912W0434",
+        "hotword": "黄立坤",
+        "prediction": "二十七日深夜终于在云林县一家废弃空屋中救出了黄立昆"
+      },
+      {
+        "id": "BAC009S0905W0407",
+        "hotword": "波维顿坦克博物馆",
+        "prediction": "在英格兰多塞特郡的博维顿坦克博物馆"
+      },
+      {
+        "id": "BAC009S0769W0343",
+        "hotword": "克里斯丁吉尔奇",
+        "prediction": "三级跳克里斯汀吉尔奇"
+      },
+      {
+        "id": "BAC009S0768W0322",
+        "hotword": "麦德公司",
+        "prediction": "三百六十软件识别出了迈德公司的插件"
+      }
+    ]
+  }
+}

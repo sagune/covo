@@ -1,0 +1,16 @@
+[
+  "/root/autodl-tmp/great/bin/python",
+  "/root/autodl-tmp/src/analysis/generate_sensevoice_chinesehp.py",
+  "--input",
+  "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/dual_ablation_20260909/audio_manifest.jsonl",
+  "--output",
+  "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/dual_ablation_20260909/neutral_raw.jsonl",
+  "--dataset",
+  "aishell",
+  "--beam-size",
+  "24",
+  "--token-topk",
+  "32",
+  "--max-nbest",
+  "1"
+]

@@ -1,0 +1,8 @@
+{
+  "classification": "post-hoc dev diagnostic; reference used only to identify missed better candidates",
+  "source_sha256": "9bb580045da547aba847acf741eaa84a38f93ffbc051c34f83c57a0e8ada20f3",
+  "pairs": 283,
+  "forwards": 566,
+  "elapsed_seconds": 115.99870157241821,
+  "note": "Regions are token-aligned common prefix/middle/suffix; middle often includes JSON boundary effects and must not be called entity-only without text alignment"
+}

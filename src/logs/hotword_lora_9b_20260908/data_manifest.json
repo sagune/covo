@@ -1,0 +1,35 @@
+{
+  "train_rows": 5000,
+  "dev_rows": 1334,
+  "screen_rows": 334,
+  "categories": {
+    "repair": 652,
+    "preserve": 2500,
+    "distractor": 1000,
+    "fill": 848
+  },
+  "excluded": {
+    "duplicate_reference": 67,
+    "dev_test_overlap": 8
+  },
+  "max_train_tokens": 1626,
+  "mean_train_tokens": 1145.565,
+  "source_sha256": "d0063aab7e16cbb36fe57baa2e0cb42711d972e738bfc7499d75522d4dc0caeb",
+  "dev_evidence_sha256": "eb0bd5ebc0d4bff9d9c82fdd6398e7602ac3c7ebc0304cdd8ceb9a3959deec2e",
+  "bridge_sha256": "a0310b3922f09b6dad18767c24c528928739ffdd69bc7fab9d6d0e90b0aa79a1",
+  "model": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B",
+  "starting_adapter": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_9b_aishell_hardneg_dropout_2epoch_20260815/checkpoint-30022",
+  "starting_adapter_sha256": "c4af990fce4136999db2711f6762f86c9985de6d2bb9a7195b1b866bf5fd5f52",
+  "split_audit": "utterance IDs and normalized references checked against official dev/test; deduplicated train references",
+  "scope": "small continued-LoRA pilot; contextual vocabulary follows existing upstream dataset protocol; not open-vocabulary claim",
+  "formatting": "fixed original bridge vs same bridge with B v2 supplement; no gold prompt injection",
+  "selection": "two saved checkpoints on fixed quarter-dev screen, both on full contextual dev; prefer designated recall>=0.90 then lowest CER, otherwise highest recall then lowest CER; failure to reach 0.90 explicitly reported",
+  "input_hashes": {
+    "dev.evidence.jsonl": "eb0bd5ebc0d4bff9d9c82fdd6398e7602ac3c7ebc0304cdd8ceb9a3959deec2e",
+    "train.unified.jsonl": "cc90082cfe2907242cc57b4484e508e7b39551dad9daa1913278e2b6eaa2a534",
+    "dev.old.jsonl": "2ebb964fbd8868e2973b5d548ca517f2c32a5c13ab3bef6d7e56ffafa56ebffe",
+    "dev.screen.old.jsonl": "9896a5f2c07809f65e859bf53cd9fd73ae06ee2c2d4d17bfb6d1f2a0a1a3691e",
+    "dev.unified.jsonl": "16a727dbf4efb75b33ef687dc0edb8ab1f7d3839f180dd835309560858e8605c",
+    "dev.screen.unified.jsonl": "6a6fe6868a89486278ff503f18ee48924427b9c1b904d6895e6d5e72c929163b"
+  }
+}

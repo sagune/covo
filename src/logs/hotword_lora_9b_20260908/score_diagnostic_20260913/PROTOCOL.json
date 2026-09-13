@@ -1,0 +1,14 @@
+{
+  "classification": "full dev diagnostic, already used for checkpoint selection",
+  "source": "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/scheduled/high_lr3e-5/full_625.predictions.jsonl",
+  "source_sha256": "b02c8f73a6ff3ae53f0ac6d18cf2148c961d9561fbaddc76bae7737e49b041d0",
+  "model": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B",
+  "adapter": "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/scheduled/high_lr3e-5/adapter/checkpoint-625",
+  "samples": 1334,
+  "candidates": "cached prediction, CB top1, each individual char-aligned edit reverted to CB; no gold",
+  "selection": "Maximum sum log probability of canonical JSON completion plus EOS; ties retain original",
+  "caveat": "Canonical JSON serialization may differ from cached raw generation; not proof of cognitive ability",
+  "normalization": "workflow.evaluate: OpenCC t2s, NFKC, punctuation/space removal",
+  "objectives": "CER nonincrease AND designated hotword recall increase versus cached best",
+  "total_candidates": 2294
+}

@@ -1,0 +1,29 @@
+{
+  "classification": "post-hoc test diagnostic; fixed existing dev-selected checkpoint; no selection on this run",
+  "started_utc": "2026-09-08T10:56:07Z",
+  "model": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B",
+  "adapter": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_9b_aishell_hardneg_dropout_2epoch_20260815/checkpoint-30022",
+  "adapter_sha256": "c4af990fce4136999db2711f6762f86c9985de6d2bb9a7195b1b866bf5fd5f52",
+  "source": "/root/autodl-tmp/src/logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl",
+  "source_sha256": "6cc7df0165a2f427312fdaf28a8642b4cdb1087ed019a4ec0fd7323c75d62732",
+  "samples": 808,
+  "splits": {
+    "test": 808
+  },
+  "variants": {
+    "A": "exact cached system/user prompt",
+    "B": "B v1 omission supplement",
+    "Bplus": "B v2 supplement + usage instructions"
+  },
+  "batch_size": 8,
+  "max_new_tokens": 128,
+  "temperature": 0,
+  "disable_thinking": true,
+  "bridge_v1_sha256": "0e9a223a9b2a716fb3f90c165da2550c8cb356dd8ecd3609ea0b43efe951b534",
+  "bridge_v2_sha256": "a0310b3922f09b6dad18767c24c528928739ffdd69bc7fab9d6d0e90b0aa79a1",
+  "inference_script_sha256": "7d56f4c7d7b670d08c43a5ace5c92c12b93c5865b658679fedb719fe2684f35a",
+  "stop_conditions": "missing/corrupt input, inference nonzero exit/OOM, incomplete output; no automatic parameter changes",
+  "A_input_sha256": "ecf7ca3a7862069e5929eed92c7dc15aefe0750ac12404a04a312c82653b0542",
+  "B_input_sha256": "3ce5b77c09c20af0766665863fb5bb7874b301298b6cd0c9c4f1a365d966f720",
+  "Bplus_input_sha256": "0c551a7e50591a34351541d960b2e39cc1e5bb272b7dc9b1db9114191afb713e"
+}

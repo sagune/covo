@@ -1,0 +1,12 @@
+[
+  "/root/autodl-tmp/great/bin/python",
+  "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/train.py",
+  "--run-dir",
+  "/root/autodl-tmp/src/logs/hotword_lora_9b_20260908/scheduled/high_lr3e-5",
+  "--learning-rate",
+  "3e-05",
+  "--epochs",
+  "1",
+  "--seed",
+  "20260908"
+]

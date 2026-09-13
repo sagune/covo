@@ -1,0 +1,15 @@
+{
+  "epochs": 1,
+  "rows": 5000,
+  "effective_batch": 8,
+  "optimizer_steps": 625,
+  "learning_rate": 2e-05,
+  "seed": 20260909,
+  "checkpoints": [
+    313,
+    625
+  ],
+  "completion_only": true,
+  "base_frozen": true,
+  "starting_adapter": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/covo/outputs/qwen35_9b_aishell_hardneg_dropout_2epoch_20260815/checkpoint-30022"
+}
