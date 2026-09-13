@@ -31,3 +31,17 @@ __pycache__
 /covo/data/processed/
 /covo/data/raw/
 /covo/outputs/
+
+# Extracted COVO/model tarball: ~62G of adapters, base models and processed data.
+# Lives outside Git; scripts reference it by absolute path only.
+/cbwhisper_covo_migration_20260609_tar_extracted/
+
+# Local-only datasets, environments, scratch data and run logs
+/datasets/aishell_ner/
+/external/
+/hanlp_env/
+/newdata/
+/logs/
+
+# Unrelated working copy that happens to sit under the repo root
+/Enhance-CB-Whisper/
