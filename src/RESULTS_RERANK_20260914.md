@@ -104,8 +104,22 @@ sequencer 现在用 **`flock -w 120`** 做单实例保护（`sequencer.lock`）�
 **完整版**（含对照臂/VD/接口臂/选点）在全部臂跑完后**覆盖**同一个文件（可能到下午）。
 这样早上无论几点看，都有那份关键数字，而不是要等到对照臂跑完。
 
-**这个保护不是多余的**：09-15 01:55 我连续重启时忘了先停旧进程，一度有**两个 sequencer 同时在等 `TRAIN_PLAN2_DONE`**——
-训练一结束它们会**同时抢 GPU** 并**写同一个 `<pred>.inprogress`**，那不是变慢而是**产出被写坏**。
+**看门狗（必须同时跑）**：`watch_sequencer.sh` 每 5 分钟检查一次 `sequencer.lock` 是否空闲；
+空闲即说明**没有 sequencer 在跑**，它会自动重启一个（上限 24 h，见到 `SEQUENCER_DONE` 即退出）。
+理由：sequencer 要在无人看管下活过 ~5.5 h 训练 + 最多 ~5 h 的臂，而**没有任何东西会重启它**——
+一次 OOM kill 或误 pkill 就会让整夜没有结果。5 分钟的轮询间隔恰好大于"陈旧锁"窗口（被 kill 的
+sequencer 留下的 `sleep 60` 会持续持锁最多 1 分钟），所以看门狗不会被它骗到而重复启动；
+即便时序巧合，sequencer 自己的 `flock -w 120` 也保证不会出现两个 GPU 所有者。
+
+```bash
+cd /root/autodl-tmp && setsid nohup bash .dsh_checks/watch_sequencer.sh < /dev/null > /dev/null 2>&1 & disown
+```
+
+**一个测试污染的真实教训**：`test_morning_report.sh` 用 `awk` 从"6. morning report"一直截到**文件末尾**，
+于是把最后的 `touch "$R/SEQUENCER_DONE"` 也一起执行了——**跑一次集成测试就会写下真实的完成标记**，
+看门狗因此立刻退出、失去保护。已把 `MORNING_REPORT.txt` 与 `SEQUENCER_DONE` **两个**副作用都重定向到 `/tmp/mrtest/`，
+并复测确认真实路径不再被触碰。教训：**集成测试只要截取脚本片段，就会继承片段的全部副作用**，
+必须逐个显式隔离，而不是只隔离看得见的那个。
 **注意**：`run_controls.sh` / `run_vd_arm.sh` / `run_oldiface_arm.sh` / `post_train_watch.sh`
 **不要**再单独启动——它们已被 sequencer 按顺序接管，单独启动会抢 GPU。
 `run_train_next.sh dpo` 也由 sequencer 调用（并会用 `DPO_PAIRS` 选标准/keep-it 加权数据）。

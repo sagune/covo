@@ -33,8 +33,13 @@ ln -sf "$R/e2eTHCHS.predictions.jsonl"     "$TMP/thchs_final.predictions.jsonl"
 ln -sf "$R/e2eTHCHS.predictions.jsonl"     "$TMP/thchs_OLD.predictions.jsonl"
 echo "temp OUT tree:"; ls -l "$TMP" | tail -6
 
-# lift the REAL report block out of the sequencer, overriding only $OUT and the redirect
-awk '/6\. morning report/{f=1} f' "$SEQ" | sed "s|\"\$R/MORNING_REPORT.txt\"|\"/tmp/mrtest/MORNING_REPORT.txt\"|" > /tmp/mrtest/body.sh
+# lift the REAL report block out of the sequencer, overriding only $OUT and the two
+# filesystem side effects: the block runs to END OF FILE, so it also contains
+# `touch $R/SEQUENCER_DONE` - and running this test once created the real completion
+# marker, which made the watchdog exit immediately.  Both redirects are required.
+awk '/6\. morning report/{f=1} f' "$SEQ" \
+  | sed "s|\"\$R/MORNING_REPORT.txt\"|\"/tmp/mrtest/MORNING_REPORT.txt\"|" \
+  | sed "s|\"\$R/SEQUENCER_DONE\"|\"/tmp/mrtest/SEQUENCER_DONE\"|" > /tmp/mrtest/body.sh
 cat > "$BLOCK" <<EOF
 #!/usr/bin/env bash
 set -uo pipefail
