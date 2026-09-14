@@ -503,6 +503,13 @@ best  = argmax_{c ∈ sub} ( exact_weighted_score , ctc_loglik(c) / n_tokens(c) 
 | THCHS-30 / 放宽 | **−0.0789pp** | +0.50pp | 289 (11.6%) | 986 |
 | ST-CMDS / 原 | **−0.0053pp** | +0.17pp | 293 (5.7%) | 2086 |
 
+> **两套前端口径的 1 个 edit 差异（已审计）**：本节表格由策略扫描 / `apply_rerank_v2.py` 在
+> **evidence 池**上算出（reference 取 evidence 的 `reference`，走 `covo.text.normalize_chinese_text`）；
+> 第 6 节与 §7.8 的 `restore_eval.py` 走 **bridge 记录**。已逐行核对：1334 行的 top-1 文本完全一致，
+> 参考字符数也一致（21102），但总 edit 数差 1（804 vs 803），故 AISHELL 前端 CER 有
+> 3.8101%（本节）与 3.8053%（§6）两个写法，差 0.0048pp。THCHS-30（81139 字符）与
+> ST-CMDS（56163 字符）两套口径**逐位一致**，无此问题。引用时不要混用两套数字。
+
 **选择误差**（前端 top-1 CER − 该池 oracle CER；池 oracle 由选择层决定不了）：
 
 | 池 | 池 oracle CER | 基线选择误差 | 修复后 top-1 CER | 修复后选择误差 |
