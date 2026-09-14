@@ -354,7 +354,7 @@ AISHELL 39.1% / THCHS 42.6%）**全部低于这个先验**，因为出厂 adapte
 | 训练 | 从现有 AISHELL adapter 续训 1 epoch（LoRA r=16/α=32/dropout=0.05/7 投影、LR 2e-5、`max_length` 2048、bf16+grad ckpt，实测 12.2–12.9 s/step ≈ 7.5 h） |
 | 选点 | 只用 AISHELL dev（唯一调优集），ST-CMDS/THCHS-30 各只做一次迁移 |
 | 备用 | ①**似然打分臂**（同一 adapter 当 scorer，零训练，~1 h）②**DPO 偏好对**（17,301 对，需 `--max-prompt-length 2048`：默认 896 会截断 98.2% 的提示词）③candidate-selector SFT 消融 |
-| 须守住的判据 | `beyond-N-best` 分区的 imp/wor（现 98/22，占收益 57%）做配对 bootstrap；`destroyed` 保持 0；JSON 解析失败率保持 0.000% |
+| 须守住的判据 | ①**编辑精确率 ≥ 70%**（现 75.3%；跌破 ~54% 必净亏，见 §2.6.2）②`beyond-N-best` 分区的 imp/wor（现 98/22，占收益 57%）做配对 bootstrap ③`destroyed` 保持 0 ④召回不降 ⑤JSON 解析失败率保持 0.000% |
 
 **这一步回答了本文最重要的问题**：选择误差能不能被一个 9B+LoRA 的文本后纠错吃掉。
 无论结果是正是负，§2.6.1 的分解都已经把"前端到顶"这件事量化到了子系统层面。
