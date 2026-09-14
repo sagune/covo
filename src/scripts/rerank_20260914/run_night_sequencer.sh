@@ -217,7 +217,9 @@ fi
   if [ -s "$R/next_dpo/stcmds.predictions.jsonl" ]; then
     echo
     echo "== DPO arm vs trained arm =="
-    "$PY" "$WS/.dsh_checks/get_cer.py" --log "$R/next_dpo_train.log" --label-substr "ST-CMDS, dpo adapter" 2>&1
+    # run_train_next.sh appends its restore_eval blocks to compare_old_vs_new.txt,
+    # NOT to next_dpo_train.log (which holds only the training output)
+    "$PY" "$WS/.dsh_checks/get_cer.py" --log "$CMP" --label-substr "ST-CMDS, dpo adapter" 2>&1
     "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/stcmds_final.predictions.jsonl" \
       --b "$R/next_dpo/stcmds.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
       --label-a "trained adapter" --label-b "DPO adapter" --draws 2000 2>&1
