@@ -245,13 +245,17 @@ fi
   VERDICT=$("$PY" "$WS/.dsh_checks/get_cer.py" --log "$TRLOG" --label-substr "ST-CMDS, trained adapter" 2>&1)
   echo "  $VERDICT"
   C2=$(echo "$VERDICT" | tr ' ' '\n' | grep '^CER=' | cut -d= -f2)
-  if [ -n "${C2:-}" ]; then
+  # get_cer.py prints CER=none (rc=1) when the block is absent, and "none" is a non-empty
+  # string - without the second test this prints a bogus delta like -4.9356 pp and a
+  # "TARGET MISSED" verdict when the truth is that the evaluation never ran.
+  if [ -n "${C2:-}" ] && [ "$C2" != "none" ]; then
     awk -v c="$C2" -v t="$TARGET" -v b="$BASELINE" 'BEGIN{
       printf "  delta vs baseline %+.4f pp   need %+.4f pp more to reach %.2f%%\n", c-b, c-t, t;
       print (c<=t) ? "  VERDICT: TARGET MET" : "  VERDICT: TARGET MISSED";
     }'
   else
-    echo "  VERDICT: unknown (evaluation missing)"
+    echo "  VERDICT: unknown - the trained-adapter evaluation is MISSING, not failed."
+    echo "           check PHASE4 / train_out.log before drawing any conclusion."
   fi
   echo
   echo "== every scored arm recorded in train_run_v2.log =="
