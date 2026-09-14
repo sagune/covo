@@ -45,24 +45,39 @@ CTC 按 token 数归一化 + 候选不得短于前端 top-1」，修复后跨三
 所有脚本在 `src/scripts/rerank_20260914/`（32 个已入库，全部通过 `py_compile` / `bash -n`，
 无任何产物入库），一键汇总入口 `final_tables.sh`。
 
-### 0.1 如何恢复（按此顺序即可，脚本幂等）
+### 0.1 如何恢复（权威版本，2026-09-14 13:2x 核验）
+
+**当前机器状态（已核验）**：无任何实验进程，GPU 空闲；队列脚本已被手动终止（不是崩溃）。
+已落地的标记：`POLICY_SWEEP6_DONE`、`BOOTSTRAP_DONE`、`V2_CONFIRM_DONE`、`STCMDS_SAFE_DONE`、
+`BRIDGE_DRYRUN_DONE`、`BRIDGE_DRYRUN_STCMDS_DONE`。
+**未落地**：`SAMECODE_DONE`、`FIXED_RERANK_E2E_DONE`、`STCMDS_ORIG_FIXED_E2E_DONE`、`STCMDS_BREADTH_DONE`。
+
+**已经替你省掉的一步**：修复重排的桥接输入已全部渲染好并校验行数——
+`armG1.messages.jsonl`（1334）、`e2eTHCHSFIX.messages.jsonl`（2495）、
+`e2eSTCMDSORIGFIX.messages.jsonl`（5130）。恢复后直接从**模型步**开始，桥接不会重跑。
 
 ```bash
-# 1) 恢复被暂停的四个后台队列（每个都会自己等 GPU，串行不冲突）
-nohup bash .dsh_checks/run_samecode_baselines.sh        > /dev/null 2>&1 &   # 同代码基线解码 ~2 h
-nohup bash .dsh_checks/run_fixed_rerank_e2e.sh          > /dev/null 2>&1 &   # 修复重排 e2e ~2.5 h
-nohup bash .dsh_checks/run_stcmds_orig_fixed_e2e.sh     > /dev/null 2>&1 &   # 原准入+修复 e2e ~1.7 h
-nohup bash .dsh_checks/run_stcmds_breadth.sh            > /dev/null 2>&1 &   # 广度-only 拆分 ~4 h
+# 1) 恢复四个后台队列（顺序：同代码基线 → 修复重排 e2e → 原准入+修复 e2e → 广度拆分）
+nohup bash .dsh_checks/run_samecode_baselines.sh        > /dev/null 2>&1 &   # ~2 h   （必须重跑解码）
+nohup bash .dsh_checks/run_fixed_rerank_e2e.sh          > /dev/null 2>&1 &   # ~2.5 h （桥接已完成）
+nohup bash .dsh_checks/run_stcmds_orig_fixed_e2e.sh     > /dev/null 2>&1 &   # ~1.7 h （桥接已完成）
+nohup bash .dsh_checks/run_stcmds_breadth.sh            > /dev/null 2>&1 &   # ~4 h   （带自门控）
 
 # 2) 全部完成后汇总（纯 CPU）
 bash .dsh_checks/final_tables.sh
 ```
 
-幂等性：四个脚本都用 `[[ ! -s <产物> ]]` 守卫，已完成的步骤会跳过。**唯一必须重跑的是
-`stcmds_base.jsonl`（同代码基线解码）**——它在 48% 处被人工终止，没有留下可用产物；
-其余已完成项（ST-CMDS 安全子集 e2e、策略扫描、bootstrap、前端指标）都已在库里。
-恢复后需要回填的位置：§7.8 的端到端表格、§0 状态表的"未完成"部分、
-以及 §7.5 表里 ST-CMDS 放宽 + 修复重排那一格（目前写"见 §7.8"）。
+幂等性：四个脚本都用 `[[ ! -s <产物> ]]` 守卫，已完成步骤跳过。**唯一必须从头重跑的是
+`stcmds_base.jsonl`**（同代码 ST-CMDS 基线解码，在 48% 处被人工终止，无可用产物）。
+另需重跑 `stcmds_relax_ctc_scores.jsonl`（中断在 1247/5130；`run_fixed_rerank_e2e.sh` 会
+自动检测行数并重打分，约 6 min）。
+
+**恢复后要回填的位置**：§7.8 端到端表格、§7.5 表里 ST-CMDS 放宽+修复重排那一格、
+`PAPER_TABLES_rerank.tex` 里两处 `\TBD`、以及 §0 状态表的"未完成"部分。
+
+**一条不能越界的声称**：在 `\TBD` 落地之前，**不得**写"修复不损害下游 COVO"。
+目前只有**反例侧**证据（出厂重排使 ST-CMDS 端到端 +1.2357pp，§7.1），
+可以写的是"修复消除了已知的下游损害来源"。
 
 ---
 
