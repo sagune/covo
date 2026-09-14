@@ -287,13 +287,33 @@ best  = argmax_{c ∈ sub} ( exact_weighted_score , ctc_loglik(c) / n_tokens(c) 
 
 ---
 
-## 10. 下游接口审计（E37–E38，纯 CPU）
+## 10. 下游接口审计与上游审计（E37–E39，纯 CPU）
 
 ### E37 · 桥接层预演
 - `armG1`（AISHELL 放宽+修复）1334 行、`e2eTHCHSFIX` 2495 行、`e2eSTCMDSORIGFIX` 5130 行 messages 全部渲染成功。
 - 渲染出的真实提示词确认：`ASR top-1:` 已被改写、`Protected hotwords that must be preserved exactly:` 传给了 COVO、每一行 n-best 带 `rank=/score=/asr=/exact=/phon=`。
 
-### E38 · 接口一致性审计（修正过一次）
+### E38 · 上游审计：长度偏置是否也在模型自身的选择里？（纯读代码）
+- **动机**：§7.2 的结论依赖"`asr_score` 有长度偏置"。若模型自己也在用未归一化声学分数，
+  性质就从"末端重排序缺陷"变成"上游选择层缺陷"，论文定位要改。
+- **做法**：把仓库里**所有**产生声学分数的位置找出来（`grep -rn "ctc_loss\|log_softmax\|log_probs"`），
+  逐个看是否按长度归一化、以及是否进入生产路径。
+- **结果**：
+
+| 位置 | 归一化 | 进入生产路径？ |
+|---|---|---|
+| `cb_sensevoice.py::_sequence_logprobs_batch`（~1249） | **是**（`tok.sum(dim=1) / denom`，平均每 token 对数概率；除法无条件） | **是** → 候选 `asr_score` → `_scale_scores_within_candidates`（池内 min-max，单调保序）→ `total_score` |
+| `score_sensevoice_candidate_evidence.py::ctc_sequence_score`（25） | **否**（`-F.ctc_loss(reduction="none")[0]` = 总和） | 否（analysis 脚本），**即被修的 forced-CTC 通道** |
+| `covo_candidate_likelihood_rerank.py`（~155–160） | **是**（`sums / counts`） | 否，仅被自己的单测引用 |
+
+- **结论**：**长度偏置只在 forced-CTC 证据通道里，模型自身的 `total_score` 是良构的。**
+  修复范围正好是该通道；论文不应声称模型候选排序有偏。**好消息**：没有需要披露的上游缺陷。
+- **副产品 — 同名陷阱**：`cb_sensevoice.py:1339` 的 `asr_score` 是**归一化**的，
+  `score_sensevoice_candidate_evidence.py:153` 的 `asr_score` 是**未归一化**的，**同名字段语义相反**；
+  后者还与 `search_score`（154 行）写同一个值。复现时必须先确认字段来源，否则会把两个通道搞混。
+- **去向**：`RESULTS_RERANK_20260914.md` §7.11。
+
+### E39 · 接口一致性审计（修正过一次）
 - **先纠正我自己的一个错误**：`compact_evidence` **默认为 True**，`format_candidates` 只在 `if not compact` 时渲染 → 所谓 "candidate scores" 块**在我们的所有臂里根本没被渲染**（真实 messages 里该字符串计数为 0）。原先"winner 落在 top-8 之外（4.6% → 0.5%）"这个指标**没有对应的接口后果，已作废**。真正的不一致发生在 **n-best 块内部**：第 1 行是传递顺序上的最优候选，而它自带的 `rank=/score=` 是**原始**排名/分数。
 - 真实观察（row id=535，ST-CMDS 出厂重排）：
   ```

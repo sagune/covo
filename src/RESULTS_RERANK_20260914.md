@@ -779,3 +779,26 @@ AISHELL **0.07%**（1/1334）、THCHS-30 **0.24%**（6/2495）、ST-CMDS **4.4%*
 （THCHS-30 原准入下修复版召回 +0.07pp、放宽下 +0.50pp，但同池出厂重排是 −1.26pp —— 两者都不由
 G2 决定）。论文里不要把 G2 写成"召回保证"。
 
+### 7.11 上游审计：长度偏置只存在于 forced-CTC 通道，模型自身的分数是干净的
+
+**动机**：§7.2 的结论依赖 `asr_score` 有长度偏置。如果**模型自己**也在用未归一化的声学分数，
+那这就不是"末端重排序的缺陷"而是"上游选择层的缺陷"，论文定位要改。所以逐一审计了所有产生
+声学分数的位置：
+
+| 位置 | 归一化 | 是否进入生产路径 |
+|---|---|---|
+| `cb_sensevoice.py::_sequence_logprobs_batch`（约 1249 行） | **是**：`vals = tok.sum(dim=1) / denom`，`denom = (target_mask & valid_targets).sum(dim=1)` —— 平均每 token 对数概率；该除法**无条件**（`special_token_ids` 分支只改掩码） | **是**，产出候选的 `asr_score`，进而经 `_scale_scores_within_candidates`（1054 行，池内 min-max，单调、保序）进入 `total_score` |
+| `score_sensevoice_candidate_evidence.py::ctc_sequence_score`（25 行） | **否**：`-F.ctc_loss(..., reduction="none")[0]` = 总对数似然 | 否（analysis 脚本）；**它就是被修的那条 forced-CTC 重排通道** |
+| `covo_candidate_likelihood_rerank.py`（约 155–160 行） | **是**：`lm_scores.extend((sums / counts))` | 否，只被自己的单测引用 |
+
+**结论**：**长度偏置只存在于 forced-CTC 证据通道，模型自身的 `total_score` 是良构的、无此偏置。**
+修复的范围正好就是该通道，论文**不应**声称模型的候选排序有偏。
+
+> ### ⚠ 同名陷阱（`asr_score` 有两个含义）
+> `cb_sensevoice.py:1339` 写入的 `"asr_score"` 是**归一化的**平均每 token 对数概率；
+> `score_sensevoice_candidate_evidence.py:153` 写入的 `"asr_score"` 是**未归一化的** CTC 总对数似然。
+> **两个不同文件里的同名字段语义相反。** §7.2 里"出厂规则退化成 `argmax(asr_score)`"指的是后者；
+> 读代码或复现时务必先确认字段来自哪个文件，否则会把"模型有偏"和"我只在重排通道里有偏"搞混。
+> 另外注意 `score_sensevoice_candidate_evidence.py:154` 还把同一个值同时写进 `search_score`，
+> 所以在那份文件里 `asr_score == search_score`，不能据此判断哪个是波束分。
+
