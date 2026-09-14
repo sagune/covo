@@ -1360,3 +1360,41 @@ $PY .dsh_checks/covo_error_anatomy.py --records $R/dev_reranked.predictions.json
 # 原始界面核对
 $PY .dsh_checks/interface_probe2.py
 ```
+
+### 10.5 泄漏与来源的独立复核（红线，2026-09-15 00:51）
+
+§9.2 是在**证据文件**上核验的，但训练器实际读的是 `train_sft.jsonl`，而该文件只有
+`{messages, id, reference}` 三个字段——**没有 `dataset`/`split`**。也就是说"17,301 行全是 aishell"
+这条链在 §9.2 里是**被断言**的，没有被展示。`leakcheck_v2.py` 把两个缺口一起补上：
+
+**A/B 构成与来源**
+
+| 检查 | 结果 |
+|---|---|
+| 证据文件行数 / `dataset` 取值 | 17,301 / `{'aishell': 17301}` |
+| `split` 取值 | 全部 `train_covo_shard*` |
+| 非 aishell 的 dataset | **无** ✅ 红线 |
+| SFT 行数 / 不同 reference | 17,301 / 17,234（67 条同句重复，属 AISHELL 内不同说话人，非泄漏） |
+| **SFT 的 reference 有多少不在"证据文件且 dataset=aishell"里** | **0** ✅ **来源链闭合** |
+
+**C/D/E 对两个留出集的泄漏测试**
+
+| | ST-CMDS | THCHS-30 |
+|---|---:|---:|
+| C. 与 SFT reference 的**完全重叠** | **0** ✅ | **0** ✅ |
+| E. uttid 与训练 id 的重叠 | **0** ✅ | **0** ✅ |
+| D. 扫描的训练文本条数（reference + 全部可见 nbest + 全部热词） | 581,719 | 581,719 |
+| D. 共享 6-gram 的留出行数 | 18 | 80 |
+| D. **共享 8-gram** | **0** ✅ | **0** ✅ |
+| D. 共享 10-gram / 12-gram | **0 / 0** ✅ | **0 / 0** ✅ |
+
+6-gram 的少量命中都是通用短语（`玩儿英雄联盟`、`的中国好声音`、`在女子一百米`），
+**8 字以上零命中** ⇒ 两个留出集与训练集之间**不存在重复句子**。红线通过，且这次是**可复现的脚本**而非断言。
+
+**顺带发现的一个必须记住的事实**：`train_sft.jsonl` 的 `id` 只有 **1000 个不同取值**（`0..999`），
+即它是**分片内位置索引、跨全文件不唯一**，**不是 AISHELL 的 uttid**。
+后果有两个：
+1. 任何"按 id 去重/按 id 追溯来源"的做法在这个文件上都**无效**（§9.1 的 `(split,id)` 去重是在证据文件上做的，那个是对的）；
+2. 泄漏核验**只能**靠文本（reference / 候选 / 热词），这正是 10.5 用的方法。
+
+复现：`python .dsh_checks/leakcheck_v2.py`（CPU，约 2 分钟）。
