@@ -46,14 +46,21 @@ case "$MODE" in
     PAIRS="$R/dpo_pairs_aishell.jsonl"
     [[ -s "$PAIRS" ]] || { say "FATAL: $PAIRS missing"; exit 1; }
     # max-prompt-length must exceed the real prompt length or the system message is
-    # truncated away (default 896 does exactly that on our 1015-token prompts)
+    # truncated away (default 896 does exactly that: measured 98.2% of prompts exceed
+    # it, and the truncation is from the LEFT).
+    #
+    # Memory: train_lora_dpo_text.py loads TWO full copies of the 9B model (policy and
+    # reference, ~18GB each = ~36GB of weights) on a 49GB card, so the micro-batch has
+    # to stay small.  1 x 16 keeps the effective batch at 16 exactly as 2 x 8 did, and
+    # max-length 2048 still covers the longest pair (measured max prompt 1690 tokens
+    # + a ~20-token completion), so this is purely a memory change.
     PYTORCH_ALLOC_CONF=expandable_segments:True TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 CUDA_VISIBLE_DEVICES=0 \
     PYTHONPATH="$COVO/src" "$PY" "$COVO/scripts/train_lora_dpo_text.py" \
       --train-file "$PAIRS" --output-dir "$OUT/adapter" \
       --model-name-or-path "$MODEL" --adapter-path "$BASE/final" \
-      --max-prompt-length 2048 --max-length 2304 \
+      --max-prompt-length 2048 --max-length 2048 \
       --max-steps 800 --learning-rate 5e-6 --beta 0.1 --sft-weight 0.1 \
-      --per-device-train-batch-size 2 --gradient-accumulation-steps 8 \
+      --per-device-train-batch-size 1 --gradient-accumulation-steps 16 \
       --warmup-steps 50 --logging-steps 20 --save-steps 200 \
       --bf16 --gradient-checkpointing --disable-thinking > "$R/next_dpo_train.log" 2>&1
     ADA="$OUT/adapter"

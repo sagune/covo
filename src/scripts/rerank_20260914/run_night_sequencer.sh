@@ -140,9 +140,16 @@ if [ "$NEED_DPO" = "1" ]; then
   fi
 
   say "---------- DPO fallback ----------"
+  say "free GPU before DPO: $(nvidia-smi --query-gpu=memory.free --format=csv,noheader)"
   bash "$WS/.dsh_checks/run_train_next.sh" dpo >> "$LOG" 2>&1
   rc=$?
   say "DPO finished rc=$rc marker=$([ -f "$R/NEXT_dpo_DONE" ] && echo yes || echo no)"
+  # surface the cause, so a failed fallback is diagnosable without reading raw logs.
+  # train_lora_dpo_text.py holds TWO 9B copies (~36GB of weights) on a 49GB card.
+  if [ "$rc" != "0" ]; then
+    say "DPO failure evidence:"
+    grep -aiE "out of memory|CUDA error|RuntimeError|Traceback|hipped memory" "$R/next_dpo_train.log" 2>/dev/null | tail -6 >> "$LOG"
+  fi
   if [ -s "$R/next_dpo/stcmds.predictions.jsonl" ]; then
     "$PY" "$WS/.dsh_checks/gain_split.py" --records "$R/next_dpo/stcmds.predictions.jsonl" \
       --label "ST-CMDS, DPO adapter" >> "$CMP" 2>&1
@@ -244,6 +251,12 @@ fi
     "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/stcmds_final.predictions.jsonl" \
       --b "$R/next_dpo/stcmds.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
       --label-a "trained adapter" --label-b "DPO adapter" --draws 2000 2>&1
+  else
+    echo
+    echo "== DPO arm DID NOT PRODUCE PREDICTIONS =="
+    echo "  marker NEXT_dpo_FAILED=$([ -f "$R/NEXT_dpo_FAILED" ] && echo yes || echo no)"
+    grep -aiE "out of memory|CUDA error|RuntimeError|Traceback" "$R/next_dpo_train.log" 2>/dev/null | tail -5
+    echo "  (the DPO trainer holds two 9B copies ~36GB of weights; batch is 1 x accum 16)"
   fi
   if [ -s "$OUT/stcmds_likelihood.predictions.jsonl" ]; then
     echo
