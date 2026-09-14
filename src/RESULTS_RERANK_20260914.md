@@ -1534,3 +1534,39 @@ tokenizer 量了 `dpo_pairs_aishell.jsonl` 全部 17,301 条提示词的真实�
 
 这张表与 §7.3 的判定表是同一套判据，只是一个在**生成层**、一个在**结果层**；
 两层同时看，才能区分"学到了正确的选择"和"只是把某些行改对了"。
+
+### 10.10 一个会静默选错子集的 bug（以及同类审计）
+
+**症状**：`run_train2.sh` 阶段 3 本该"取最后 2 个检查点 + final"按 AISHELL dev 选点：
+```bash
+for ck in $(ls -d "$OUT"/final/checkpoint-* | sort -t- -k2 -n | tail -2) "$OUT/final"
+```
+但 `OUT` 是**绝对路径**（`WS=/root/autodl-tmp`），按 `-` 切分后第二个字段是
+`tmp/.dsh_checks/rerank/train_aishell_v1/final/checkpoint`，**不是步数**——
+`/root/autodl-tmp` 里的那个连字符把 `-k2` 打偏了。于是所有 key 相等、排序退化为 `ls` 的字典序
+（1000, 1500, 2000, 500），`tail -2` 给出的是 **checkpoint-2000 与 checkpoint-500**，而不是最后两个。
+
+实测（本机）：
+
+| | 结果 |
+|---|---|
+| 应得（最后两个） | `checkpoint-1500`, `checkpoint-2000` |
+| `sort -t- -k2 -n \| tail -2` 实际给出 | **`checkpoint-2000`, `checkpoint-500`** |
+| 相对路径（`.dsh_checks/...`）下 | **正确**（只有 `checkpoint-` 一个连字符） |
+
+**第一次测试用相对路径，排序是对的**，所以这个 bug 只在真实绝对路径下暴露——
+这正是"验证要用真实输入"的一个例子。
+
+**影响**：目标要求"按 AISHELL dev 端到端 CER 选检查点"，而选点只会看到 4 个检查点中的 2 个
+（`final` 总会评估，所以实际损害可能不大，但训练中期的更优点会被静默跳过）。
+
+**处置**：**没有**改 `run_train2.sh`——它正在运行，而 bash 是**增量读取**脚本的，
+改动运行中的脚本可能导致执行错乱。改为在 `run_night_sequencer.sh` 里补偿，并且做得比原意更强：
+**评估全部** `checkpoint-*`（不止两个），`infer` 已存在文件会跳过所以不会重复跑，
+再用标签去重避免日志重复，最后重新排序并选点。代价约 +20 分钟（两次 AISHELL-dev 推理）。
+
+**同类审计**（`grep -rn "sort -t" .dsh_checks/*.sh src/scripts/...`）发现同一模式还有 3 处：
+`run_train.sh:129`（v1 已废弃脚本）、`train_health.sh:26` 与 `wait_train.sh:22`（**仅供显示**）。
+功能性用途只有 `run_train2.sh:126` 一处，已由 sequencer 覆盖。
+`train_health.sh` 已改为按 `checkpoint-` 后的数字排序（`awk -F'checkpoint-' | sort -n`），
+因为该脚本是我读进度用的，显示顺序反了会误导判断。

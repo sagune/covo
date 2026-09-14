@@ -22,8 +22,13 @@ echo "-- loss statistics --"
 grep -aoE "\"loss\": [0-9.]+" "$L" 2>/dev/null | grep -oE "[0-9.]+" | awk '
   {n++; s+=$1; if(min==""||$1<min)min=$1; if($1>max)max=$1; a[n]=$1}
   END{if(n>0) printf "  n=%d  mean=%.4f  min=%.4f  max=%.4f  last=%.4f\n", n, s/n, min, max, a[n]; else print "  (none yet)"}'
-echo "-- checkpoints --"
-ls -d "$OUT"/final/checkpoint-* 2>/dev/null | sort -t- -k2 -n | tail -3 || echo "  (none yet)"
+echo "-- checkpoints (newest 3, ordered by step) --"
+# NOT `sort -t- -k2 -n`: with an absolute path the field after the FIRST hyphen is the
+# "autodl-tmp" component, so every key ties and the order stays lexicographic (500 last,
+# which is the opposite of newest).  Sort numerically on the number after "checkpoint-".
+ls -d "$OUT"/final/checkpoint-* 2>/dev/null \
+  | awk -F'checkpoint-' '{print $2, $0}' | sort -n | cut -d' ' -f2- | tail -3 \
+  || echo "  (none yet)"
 echo "-- gpu --"
 nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader
 nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv,noheader
