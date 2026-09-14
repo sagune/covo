@@ -48,7 +48,17 @@ gpu_wait() {
 
 infer() {  # messages, predictions, adapter, label
   local msg="$1" pred="$2" ada="$3" label="$4"
-  [ -s "$pred" ] && { say "SKIP infer ($label): exists"; return 0; }
+  local want got
+  want=$(wc -l < "$msg" 2>/dev/null || echo 0)
+  # A prediction file is only reusable if it has EVERY row.  `infer_lora_text.py` writes
+  # to <pred>.inprogress and the old guard promoted it whenever it was non-empty, so a
+  # crash halfway through would be adopted as a finished arm - and every later run would
+  # then SKIP it, permanently reporting numbers over a subset.  Compare row counts.
+  if [ -s "$pred" ]; then
+    got=$(wc -l < "$pred")
+    if [ "$got" = "$want" ]; then say "SKIP infer ($label): complete ($got rows)"; return 0; fi
+    say "infer ($label): existing file has $got of $want rows - RE-RUNNING"
+  fi
   [ -s "$msg" ] || { say "MISSING messages for ($label): $msg"; return 1; }
   [ -d "$ada" ] || { say "MISSING adapter for ($label): $ada"; return 1; }
   say "infer START ($label)"
@@ -57,24 +67,35 @@ infer() {  # messages, predictions, adapter, label
   PYTHONPATH="$COVO/src" "$PY" "$COVO/scripts/infer_lora_text.py" \
     --input "$msg" --output "$pred.inprogress" --model-name-or-path "$MODEL" --adapter-path "$ada" \
     --batch-size 8 --max-new-tokens 96 --progress-every 256 --disable-thinking >> "$LOG" 2>&1
-  [ -s "$pred.inprogress" ] && mv -f "$pred.inprogress" "$pred"
+  rc=$?
   cd "$WS"
-  say "infer done ($label) rows=$(wc -l < "$pred" 2>/dev/null || echo 0)"
+  got=$(wc -l < "$pred.inprogress" 2>/dev/null || echo 0)
+  if [ "$got" = "$want" ]; then
+    mv -f "$pred.inprogress" "$pred"
+    say "infer done ($label) rc=$rc rows=$got"
+  else
+    say "infer INCOMPLETE ($label) rc=$rc got $got of $want rows - NOT promoting the partial file"
+    rm -f "$pred.inprogress"
+    return 1
+  fi
 }
 
 ensure_transfer() {
-  # the two one-shot transfer arms of the trained adapter must exist and be scored
-  if [ ! -s "$OUT/stcmds_final.predictions.jsonl" ]; then
-    infer "$R/e2eSTCMDS_VA.messages.jsonl" "$OUT/stcmds_final.predictions.jsonl" "$OUT/final" "ST-CMDS final"
-    [ -s "$OUT/stcmds_final.predictions.jsonl" ] && "$PY" "$WS/.dsh_checks/restore_eval.py" \
-      --records "$OUT/stcmds_final.predictions.jsonl" --label "ST-CMDS, trained adapter" \
-      --aligned "$S/aligned.txt" --uttid-file "$S/uttid" >> "$TRLOG" 2>&1
+  # The two one-shot transfer arms must exist, be SCORED, and be COMPLETE.  `infer` now
+  # self-guards on the row count, so calling it unconditionally is idempotent and also
+  # repairs a partial file left by a crashed phase 4 - gating on `-s` here would have let
+  # a half-written file through, because a partial file is non-empty.
+  infer "$R/e2eSTCMDS_VA.messages.jsonl" "$OUT/stcmds_final.predictions.jsonl" "$OUT/final" "ST-CMDS final"
+  if [ -s "$OUT/stcmds_final.predictions.jsonl" ] \
+     && ! grep -qa "^# ST-CMDS, trained adapter\$" "$TRLOG"; then
+    "$PY" "$WS/.dsh_checks/restore_eval.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS, trained adapter" --aligned "$S/aligned.txt" --uttid-file "$S/uttid" >> "$TRLOG" 2>&1
   fi
-  if [ ! -s "$OUT/thchs_final.predictions.jsonl" ]; then
-    infer "$OUT/eval_thchs.messages.jsonl" "$OUT/thchs_final.predictions.jsonl" "$OUT/final" "THCHS final"
-    [ -s "$OUT/thchs_final.predictions.jsonl" ] && "$PY" "$WS/.dsh_checks/restore_eval.py" \
-      --records "$OUT/thchs_final.predictions.jsonl" --label "THCHS-30, trained adapter" \
-      --aligned "$T/aligned.txt" --uttid-file "$T/uttid" >> "$TRLOG" 2>&1
+  infer "$OUT/eval_thchs.messages.jsonl" "$OUT/thchs_final.predictions.jsonl" "$OUT/final" "THCHS final"
+  if [ -s "$OUT/thchs_final.predictions.jsonl" ] \
+     && ! grep -qa "^# THCHS-30, trained adapter\$" "$TRLOG"; then
+    "$PY" "$WS/.dsh_checks/restore_eval.py" --records "$OUT/thchs_final.predictions.jsonl" \
+      --label "THCHS-30, trained adapter" --aligned "$T/aligned.txt" --uttid-file "$T/uttid" >> "$TRLOG" 2>&1
   fi
 }
 
