@@ -1570,3 +1570,30 @@ for ck in $(ls -d "$OUT"/final/checkpoint-* | sort -t- -k2 -n | tail -2) "$OUT/f
 功能性用途只有 `run_train2.sh:126` 一处，已由 sequencer 覆盖。
 `train_health.sh` 已改为按 `checkpoint-` 后的数字排序（`awk -F'checkpoint-' | sort -n`），
 因为该脚本是我读进度用的，显示顺序反了会误导判断。
+
+### 10.11 评测路径的两项核验（行序映射 / 两个"池外"计数）
+
+**(1) 行序 → uttid 映射**：所有 recall/破坏数都依赖"第 i 行对应哪个 uttid"。
+`restore_eval.py` 自带这个检查，用 `frontend_baseline.py` 造出每个评测集的前端文件后实测：
+
+| 评测集 | 行数 | 与 uttid 文件的 reference 不一致的行数 |
+|---|---:|---:|
+| AISHELL dev（**选点集**） | 1334 | **0** |
+| THCHS-30 | 2495 | **0** |
+| ST-CMDS held-out（**目标集**） | 5130 | **0** |
+
+⇒ 位置 `id` 到 uttid 的映射是精确的，指定热词召回与破坏数都算在正确的 mention 上。
+顺带确认三个集合的规模：AISHELL dev 21102 字符 / 599 mention / ref-in-pool 85.2%，
+THCHS-30 81139 字符 / 14137 mention / 66.4%，ST-CMDS 56163 字符 / 1718 mention / 86.1%。
+
+**(2) 两个"池外"计数不要混用**（我此前在 §10.1 留下过一个容易误读的地方）：
+
+| 计数 | 定义 | 值 |
+|---|---|---:|
+| `covo_error_anatomy.py::ref_not_in_pool` | reference 不在池内 **且 `e_out > 0`**（输出仍然错） | **685** |
+| `gain_split.py` 的 `ref NOT in pool` 分区 | reference 不在池内（**无** `e_out > 0` 条件） | **711** |
+
+两者各自自洽，**711 才是**论文表 9/10 与 §2.6.1(2) 用的"选择不可能"的那一组
+（`5130 − 711 = 4419`，即 ref-in-pool 86.1%，与 `restore_eval.py` 独立算出的 86.1% 一致）。
+685 是它的子集。已把 `covo_error_anatomy.py` 的打印改成显式写明"AND the output was still wrong"，
+并在输出里直接说明两者的关系，避免以后有人把 685 与 711 当成矛盾。

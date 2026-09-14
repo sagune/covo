@@ -157,7 +157,10 @@ def main():
             print("    %-16s %5d rows  %8.4f pp recoverable by a better SELECTOR" % (k, m["n"], 100.0 * m["gap"] / chars))
     m = miss.get("ref_not_in_pool")
     if m:
-        print("    %-16s %5d rows  (reference unreachable from the pool -> needs EDITING)" % ("ref_not_in_pool", m["n"]))
+        print("    %-16s %5d rows  (reference unreachable from the pool AND the output was"
+              " still wrong)" % ("ref_not_in_pool", m["n"]))
+        print("    %-16s %s" % ("", "note: gain_split.py's 'ref NOT in pool' partition is the"
+              " larger set (no e_out>0 condition); both are correct under their own definition"))
 
 
 if __name__ == "__main__":
