@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""DEPRECATED -- use interface_audit2.py instead.
+
+This version assumed the prompt carries a CB-SenseVoice candidate-scores block
+rendered in original rank order.  It does not: compact_evidence defaults to True and
+format_candidates is only emitted when compact is false
+(cbsensevoice_covo_bridge.py:1140), so that block never appears in our prompts.  The
+metric computed here therefore has no interface consequence.  Kept only for
+provenance; interface_audit2.py measures the real artifact -- a score inversion
+between the first two n-best lines.
+
+The original docstring follows.
+"""
+
 """Interface audit: does the reranked top-1 stay consistent with what COVO is shown?
 
 `bridge prepare` renders three things from one record:
