@@ -157,15 +157,22 @@ save_steps=500
 
 ### 7.3 早上照此判读（判定表）
 
-看 `compare_old_vs_new.txt` 与 `TRAIN_SUMMARY.txt`，按 ST-CMDS `restore[deployable]` 分档：
+看 `MORNING_REPORT.txt`（EARLY 版约 09:20 就有，含 headline 与闸门指标）、
+`compare_old_vs_new.txt` 与 `TRAIN_SUMMARY.txt`，按 ST-CMDS `restore[deployable]` 分档：
 
 | ST-CMDS 结果 | 判读 | 下一步 |
 |---|---|---|
-| **≤ 4.50%** | 达标。再确认召回 ≥ 95.9%、`destroyed` = 0、`edited` 未失控 | 补 V-C/VD 提示词臂（已排队 `run_vd_arm.sh`），写进论文 |
-| 4.50–4.75% | 方向对、幅度不够 | 跑 `run_train_next.sh dpo`（数据已备好，零 GPU 成本），再不行 `epoch2` |
-| 4.75–4.94% | 训练没吃到选择误差 | 转 DPO；若 DPO 也无效，判定"9B+LoRA 文本后纠错吃不下这个误差"，论文如实报告 |
-| ≥ 4.94%（没赢现 adapter） | 界面校准假设被推翻 **或**训练把模型推成了"乱改" | 看 `edited` 是否暴涨、imp/wor 是否塌；按 §五 回退 |
-| AISHELL dev 涨、ST-CMDS 不涨 | 只学到 AISHELL 特性，未泛化 | 以 AISHELL 为唯一调优集的纪律要求如实记录，不改测试集 |
+| **≤ 4.50%** | 达标。再确认召回 ≥ 95.93%、`destroyed` = 0、编辑精确率 ≥ 70% | 写进论文（§4.2 的表），跑 `run_vd_arm.sh` 的 VD 提示词臂做接口敏感性 |
+| 4.50–4.75% | 方向对、幅度不够 | 看 §10.16 的**合并臂**（生成器编辑 + 选择器补放弃行，报告里已自动算）；再不行转 DPO |
+| 4.75–4.94% | 训练没吃到选择误差 | 看似然打分臂：若它也 ≈ 前端，说明"9B 看不见这个选择"，DPO 也难救 → 如实报负结果 |
+| ≥ 4.94%（没赢现 adapter） | 界面校准假设被推翻 **或**训练把模型推成了"乱改" | 看 `edited` 是否暴涨、编辑精确率是否 < 54%；按 §五 回退 |
+| AISHELL dev 涨、ST-CMDS 不涨 | 只学到 AISHELL 特性，未泛化 | 以 AISHELL 为唯一调优集的纪律要求如实记录，**不改测试集** |
+
+**关于备用方案的现实成本（09-15 更新）**：`run_train_next.sh` 的三个模式里，
+`epoch2` 与 `selector` 各自还要 **~7.5 h** 训练，**当天来不及**；真正可行的是
+**似然打分臂（~1 h，已接进 sequencer）**、**合并臂（0 GPU，报告里自动算）**、
+以及 **DPO（~3.5 h，sequencer 会按"编辑精确率 < 60% 就用 keep-it 加权数据"自动选数据）**。
+次序上 sequencer 已经实现为：未达标 → 似然打分 → DPO → 对照臂。
 
 **必须同时看的三个数（任一异常即回退，不看 CER 单项）**：
 `edited` 行数（现 334/5130）、`beyond-N-best` 的 imp/wor（现 **94–98 / 22**，这是编辑能力仪表盘）、
