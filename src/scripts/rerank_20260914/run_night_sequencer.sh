@@ -86,12 +86,16 @@ infer() {  # messages, predictions, adapter, label
   [ -d "$ada" ] || { say "MISSING adapter for ($label): $ada"; return 1; }
   say "infer START ($label)"
   cd "$COVO"
-  PYTORCH_ALLOC_CONF=expandable_segments:True TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 CUDA_VISIBLE_DEVICES=0 \
+  # timeout 4h: a hung inference would otherwise block every later arm with no signal,
+  # and the night has no operator.  A legitimate run is ~2 min (AISHELL dev) to ~40 min
+  # (ST-CMDS 5130 rows), so 4h is ~6x headroom while still surfacing a true hang (rc=124).
+  timeout 14400 env PYTORCH_ALLOC_CONF=expandable_segments:True TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 CUDA_VISIBLE_DEVICES=0 \
   PYTHONPATH="$COVO/src" "$PY" "$COVO/scripts/infer_lora_text.py" \
     --input "$msg" --output "$pred.inprogress" --model-name-or-path "$MODEL" --adapter-path "$ada" \
     --batch-size 8 --max-new-tokens 96 --progress-every 256 --disable-thinking >> "$LOG" 2>&1
   rc=$?
   cd "$WS"
+  [ "$rc" = "124" ] && say "infer TIMED OUT after 4h ($label)"
   got=$(wc -l < "$pred.inprogress" 2>/dev/null || echo 0)
   if [ "$got" = "$want" ]; then
     mv -f "$pred.inprogress" "$pred"
