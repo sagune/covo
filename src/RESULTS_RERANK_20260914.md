@@ -64,39 +64,47 @@ JSON 失败率、`beyond-N-best` 的 imp/wor、destroyed+召回）。
 所有脚本在 `src/scripts/rerank_20260914/`（32 个已入库，全部通过 `py_compile` / `bash -n`，
 无任何产物入库），一键汇总入口 `final_tables.sh`。
 
-### 0.1 如何恢复（权威版本，2026-09-14 13:2x 核验）
+### 0.1 如何恢复（权威版本，2026-09-15 01:50 核验）
 
-**当前机器状态（已核验）**：无任何实验进程，GPU 空闲；队列脚本已被手动终止（不是崩溃）。
-已落地的标记：`POLICY_SWEEP6_DONE`、`BOOTSTRAP_DONE`、`V2_CONFIRM_DONE`、`STCMDS_SAFE_DONE`、
-`BRIDGE_DRYRUN_DONE`、`BRIDGE_DRYRUN_STCMDS_DONE`。
-**未落地**：`SAMECODE_DONE`、`FIXED_RERANK_E2E_DONE`、`STCMDS_ORIG_FIXED_E2E_DONE`、`STCMDS_BREADTH_DONE`。
+> **这一节在 09-15 01:50 被重写过。** 旧版写的是"无任何实验进程，GPU 空闲"（09-14 13:2x 的状态），
+> 对现在**是错的**，照旧版操作会以为训练没在跑。
 
-**已经替你省掉的一步**：修复重排的桥接输入已全部渲染好并校验行数——
-`armG1.messages.jsonl`（1334）、`e2eTHCHSFIX.messages.jsonl`（2495）、
-`e2eSTCMDSORIGFIX.messages.jsonl`（5130）。恢复后直接从**模型步**开始，桥接不会重跑。
+**当前在跑什么（4 个进程）**：
 
+| 进程 | 作用 |
+|---|---|
+| `run_train2.sh` | 后端 SFT 训练（phase 2），step ~420/2163，约 12.4 s/it，ETA ~07:47 |
+| `run_night_sequencer.sh` | **唯一的 GPU 所有者**：训练结束后做 报告 → 补齐 → 判定 → (未达标则)似然打分臂 →(未达标则)DPO → 对照 → VD → 接口臂 → 全检查点选点 → 写 `MORNING_REPORT.txt` |
+| `post_controls_extra.sh` | 纯 CPU，等 `CONTROLS_DONE` 后写 `compare_adapter_identity.txt` 的消歧说明 |
+| （其 `bash -c` 包装进程） | 启动器残留，无副作用 |
+
+**已落地的标记**：`P2_PHASE0_DONE`、`P2_PHASE1_DONE`、`ADAPTER_IDENTITY_DONE`，以及历史队列标记。
+**待落地**：`P2_PHASE2/3/4_DONE` → `TRAIN_PLAN2_DONE`（失败则 `TRAIN_FAILED`）→
+`POST_REPORT_DONE` → `CONTROLS_DONE` → `VD_ARM_DONE` → `OLDIFACE_DONE` → `LIKELIHOOD_DONE`（仅未达标）→
+`NEXT_dpo_DONE`（仅未达标）→ `SEQUENCER_DONE`。
+
+**健康检查（一条命令）**：`bash .dsh_checks/train_health.sh`
+（注意它以前用 `sort -t- -k2 -n` 列检查点，在绝对路径下顺序是错的，已修，见 §10.10。）
+
+**如果 sequencer 挂了，重启它**（幂等：已完成步骤按标记/产物跳过）：
 ```bash
-# 1) 恢复四个后台队列（顺序：同代码基线 → 修复重排 e2e → 原准入+修复 e2e → 广度拆分）
-nohup bash .dsh_checks/run_samecode_baselines.sh        > /dev/null 2>&1 &   # ~2 h   （必须重跑解码）
-nohup bash .dsh_checks/run_fixed_rerank_e2e.sh          > /dev/null 2>&1 &   # ~2.5 h （桥接已完成）
-nohup bash .dsh_checks/run_stcmds_orig_fixed_e2e.sh     > /dev/null 2>&1 &   # ~1.7 h （桥接已完成）
-nohup bash .dsh_checks/run_stcmds_breadth.sh            > /dev/null 2>&1 &   # ~4 h   （带自门控）
-
-# 2) 全部完成后汇总（纯 CPU）
-bash .dsh_checks/final_tables.sh
+cd /root/autodl-tmp && setsid nohup bash .dsh_checks/run_night_sequencer.sh \
+  < /dev/null > .dsh_checks/rerank/sequencer.out 2>&1 & disown
 ```
+**注意**：`run_controls.sh` / `run_vd_arm.sh` / `run_oldiface_arm.sh` / `post_train_watch.sh`
+**不要**再单独启动——它们已被 sequencer 按顺序接管，单独启动会抢 GPU。
+`run_train_next.sh dpo` 也由 sequencer 调用（并会用 `DPO_PAIRS` 选标准/keep-it 加权数据）。
 
-幂等性：四个脚本都用 `[[ ! -s <产物> ]]` 守卫，已完成步骤跳过。**唯一必须从头重跑的是
-`stcmds_base.jsonl`**（同代码 ST-CMDS 基线解码，在 48% 处被人工终止，无可用产物）。
-另需重跑 `stcmds_relax_ctc_scores.jsonl`（中断在 1247/5130；`run_fixed_rerank_e2e.sh` 会
-自动检测行数并重打分，约 6 min）。
+**磁盘**：工作卷 `/root/autodl-tmp` 69 G 可用（374 G 的 82%）；
+`/tmp` 在 30 G 的 overlay 上，13 G 可用（09-15 01:50 已清理过我留下的 ~400 MB 测试产物）。
 
-**恢复后要回填的位置**：§7.8 端到端表格、§7.5 表里 ST-CMDS 放宽+修复重排那一格、
-`PAPER_TABLES_rerank.tex` 里两处 `\TBD`、以及 §0 状态表的"未完成"部分。
-
-**一条不能越界的声称**：在 `\TBD` 落地之前，**不得**写"修复不损害下游 COVO"。
-目前只有**反例侧**证据（出厂重排使 ST-CMDS 端到端 +1.2357pp，§7.1），
-可以写的是"修复消除了已知的下游损害来源"。
+**`\TBD` 的现状（09-15 更新）**：
+- `PAPER_TABLES_rerank.tex` **表 7** 的"原准入 + 修复重排"已**补齐为 5.5214 / 92.90 / 0**（`e2eSTCMDSORIGFIX`，用它自己的前端 5.7867/92.61 交叉确认过身份）。
+- **表 3** 的 ST-CMDS"放宽 + 修复重排"**仍留 `\TBD`**：该格其余数（93.31、Δ+0.11、Δ+0.88）是**放宽单独**的值，
+  而桥接口径测出的是 5.9167/93.36；两条前端口径差约 1 个编辑（Limitations 5），
+  **不得**用另一条口径填。要闭环需重跑 ST-CMDS 放宽的 forced-CTC 打分。
+- 因此**可以**写的声称是："修复消掉了 60.2% 的下游伤害（6.2657 → 5.5214），但**没有**回到 5.0300 基线"；
+  **不能**写"修复不损害下游"。
 
 ---
 
