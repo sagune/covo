@@ -213,6 +213,13 @@ fi
     echo "== where the trained adapter's gain sits (selection vs editing) =="
     "$PY" "$WS/.dsh_checks/gain_split.py" --records "$OUT/stcmds_final.predictions.jsonl" \
       --label "ST-CMDS trained adapter" 2>&1
+    echo
+    echo "== behaviour fingerprint + JSON parse-failure rate (baseline: 0.000%) =="
+    "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS trained adapter" 2>&1
+    echo "  --- the same fingerprint for the arm it must beat ---"
+    "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$R/e2eSTCMDS_VC.predictions.jsonl" \
+      --label "ST-CMDS existing adapter V-C (baseline)" 2>&1
   fi
   if [ -s "$R/next_dpo/stcmds.predictions.jsonl" ]; then
     echo
