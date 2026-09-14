@@ -125,6 +125,20 @@ fi
 
 # --------------------------------------------------------------- 4. arms in order
 if [ "$NEED_DPO" = "1" ]; then
+  # Cheapest informative fallback first (~1 h, no training).  It answers a question DPO
+  # cannot: does the trained adapter know WHICH candidate is right, or can it only not
+  # say it?  If the scorer reaches the target, the bottleneck is decoding.  If it is no
+  # better than the front end, the 9B cannot see the choice at all and DPO will not fix
+  # it - worth knowing before spending 3.5 h.  Note a scorer cannot edit, so its
+  # beyond-N-best imp is ~0 by construction and must not be read as lost editing ability.
+  say "---------- likelihood-scoring diagnostic ----------"
+  bash "$WS/.dsh_checks/run_likelihood_arm.sh" >> "$LOG" 2>&1
+  rc=$?
+  say "likelihood arm finished rc=$rc marker=$([ -f "$R/LIKELIHOOD_DONE" ] && echo yes || echo NO)"
+  if [ -s "$OUT/stcmds_likelihood.predictions.jsonl" ]; then
+    say "likelihood arm ST-CMDS: $("$PY" "$WS/.dsh_checks/get_cer.py" --log "$CMP" --label-substr "trained adapter SCORER")"
+  fi
+
   say "---------- DPO fallback ----------"
   bash "$WS/.dsh_checks/run_train_next.sh" dpo >> "$LOG" 2>&1
   rc=$?
@@ -230,6 +244,16 @@ fi
     "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/stcmds_final.predictions.jsonl" \
       --b "$R/next_dpo/stcmds.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
       --label-a "trained adapter" --label-b "DPO adapter" --draws 2000 2>&1
+  fi
+  if [ -s "$OUT/stcmds_likelihood.predictions.jsonl" ]; then
+    echo
+    echo "== likelihood-scoring arm (same trained adapter, used as a scorer) =="
+    echo "  a selector cannot edit: its beyond-N-best imp is ~0 BY CONSTRUCTION."
+    "$PY" "$WS/.dsh_checks/get_cer.py" --log "$CMP" --label-substr "trained adapter SCORER" 2>&1
+    grep -a "selected_rank" "$LOG" 2>/dev/null | tail -4
+    "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/stcmds_final.predictions.jsonl" \
+      --b "$OUT/stcmds_likelihood.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
+      --label-a "trained adapter (generator)" --label-b "trained adapter (scorer)" --draws 2000 2>&1
   fi
 } > "$R/MORNING_REPORT.txt" 2>&1
 
