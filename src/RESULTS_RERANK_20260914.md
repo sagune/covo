@@ -40,8 +40,27 @@ CTC 按 token 数归一化 + 候选不得短于前端 top-1」，修复后跨三
 **因此：前端层的修复已完成并验证；「不损害下游 COVO」这一条目前只有反例侧的端到端证据
 （出厂重排使 ST-CMDS 端到端退化 +1.236pp），修复版的端到端正例尚未跑。**
 
-所有脚本在 `src/scripts/rerank_20260914/`（20 个），一键汇总入口 `final_tables.sh`。
-产物（证据、预测、日志）按约定不入库。
+所有脚本在 `src/scripts/rerank_20260914/`（32 个已入库，全部通过 `py_compile` / `bash -n`，
+无任何产物入库），一键汇总入口 `final_tables.sh`。
+
+### 0.1 如何恢复（按此顺序即可，脚本幂等）
+
+```bash
+# 1) 恢复被暂停的四个后台队列（每个都会自己等 GPU，串行不冲突）
+nohup bash .dsh_checks/run_samecode_baselines.sh        > /dev/null 2>&1 &   # 同代码基线解码 ~2 h
+nohup bash .dsh_checks/run_fixed_rerank_e2e.sh          > /dev/null 2>&1 &   # 修复重排 e2e ~2.5 h
+nohup bash .dsh_checks/run_stcmds_orig_fixed_e2e.sh     > /dev/null 2>&1 &   # 原准入+修复 e2e ~1.7 h
+nohup bash .dsh_checks/run_stcmds_breadth.sh            > /dev/null 2>&1 &   # 广度-only 拆分 ~4 h
+
+# 2) 全部完成后汇总（纯 CPU）
+bash .dsh_checks/final_tables.sh
+```
+
+幂等性：四个脚本都用 `[[ ! -s <产物> ]]` 守卫，已完成的步骤会跳过。**唯一必须重跑的是
+`stcmds_base.jsonl`（同代码基线解码）**——它在 48% 处被人工终止，没有留下可用产物；
+其余已完成项（ST-CMDS 安全子集 e2e、策略扫描、bootstrap、前端指标）都已在库里。
+恢复后需要回填的位置：§7.8 的端到端表格、§0 状态表的"未完成"部分、
+以及 §7.5 表里 ST-CMDS 放宽 + 修复重排那一格（目前写"见 §7.8"）。
 
 ---
 
