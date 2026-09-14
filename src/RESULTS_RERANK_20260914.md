@@ -92,12 +92,20 @@ cd /root/autodl-tmp && setsid nohup bash .dsh_checks/run_night_sequencer.sh \
   < /dev/null > .dsh_checks/rerank/sequencer.out 2>&1 & disown
 ```
 **重启前必须先停掉旧的**：`pkill -f run_night_sequencer.sh`。
-sequencer 现在用 **`flock`** 做单实例保护（`sequencer.lock`，内核在进程退出/被 KILL 时自动释放），
-第二个实例会拒绝启动并记 `REFUSING TO START`。**这个保护不是多余的**：
-09-15 01:55 我连续重启时忘了先停旧进程，一度有**两个 sequencer 同时在等 `TRAIN_PLAN2_DONE`**——
+sequencer 现在用 **`flock -w 120`** 做单实例保护（`sequencer.lock`），第二个实例会等 120 s 后拒绝并记 `REFUSING TO START`。
+**为什么不是 `-n`**：bash 的 `exec 9>file` **不设 close-on-exec**，所以被 kill 的 sequencer 的**子进程会继承锁 fd**——
+等待循环里的 `sleep 60` 就是这样一个子进程（`pkill -f run_night_sequencer.sh` 只匹配脚本自己的 argv，杀不到 sleep），
+它能让一个**已经死掉的** sequencer 继续持锁最多一分钟。实测就是这样：
+`flock -n` 在"明明没有实例"时一直拒绝启动，扫描 `/proc/*/fd` 找到持锁者是 `sleep 60`、ppid=1。
+`-w 120` 覆盖这个陈旧持锁窗口，同时对真正的第二个实例仍然会拒绝。
+
+**报告分两次写（重要）**：`MORNING_REPORT.txt` 现在**先写一版"EARLY"**——在迁移评测一出来（约 08:00）就写，
+内容是 headline（新 adapter 的 ST-CMDS CER/召回/破坏）、判定、闸门指标、编辑精确率对照、与现 adapter 的配对 bootstrap。
+**完整版**（含对照臂/VD/接口臂/选点）在全部臂跑完后**覆盖**同一个文件（可能到下午）。
+这样早上无论几点看，都有那份关键数字，而不是要等到对照臂跑完。
+
+**这个保护不是多余的**：09-15 01:55 我连续重启时忘了先停旧进程，一度有**两个 sequencer 同时在等 `TRAIN_PLAN2_DONE`**——
 训练一结束它们会**同时抢 GPU** 并**写同一个 `<pred>.inprogress`**，那不是变慢而是**产出被写坏**。
-（第一版保护用的是 `pgrep -f` 匹配 argv，结果把 `bash -c` 启动器也算进去，
-导致"明明没有实例却一直拒绝启动"；已改成 flock。）
 **注意**：`run_controls.sh` / `run_vd_arm.sh` / `run_oldiface_arm.sh` / `post_train_watch.sh`
 **不要**再单独启动——它们已被 sequencer 按顺序接管，单独启动会抢 GPU。
 `run_train_next.sh dpo` 也由 sequencer 调用（并会用 `DPO_PAIRS` 选标准/keep-it 加权数据）。
@@ -1689,26 +1697,3 @@ AISHELL dev 在 28.0% 上仍有 75.2%，但 THCHS-30 在 36.8% 上掉到 51.6% �
 —— **全部低于先验**，因为出厂 adapter 的"保守纠错器"界面（§10.2）在压着它。一旦界面校准（本次训练），
 编辑率应当向 75.4% 靠近，而 ST-CMDS 只需要 35.7%。**所以"编辑率上升"几乎是必然的，
 问题只是精确率能不能跟着守住 ≥70%（§10.12 的门槛）。** 这就是为什么 §10.12 的精确率门槛是本次训练的首要判据。
-
-### 10.14 口径一致性审计：所有进入结论的脚本都在 `restore[deployable]` 上算
-
-§10.12 的口径错误（`edit_precision.py` 评的是 raw 预测）促使我把**每一个**读 `prediction` 的脚本过一遍，
-确认没有再犯同类错误——因为这种错误不会报错，只会给出一个看起来合理的错数字：
-
-| 脚本 | 是否 `restore[deployable]` | 用途 |
-|---|---|---|
-| `restore_eval.py` | ✅ | 官方口径，所有 headline 数字 |
-| `covo_error_anatomy.py` | ✅（`--policy` 默认 deployable） | 表 9、§10.1 |
-| `gain_split.py` | ✅ | 表 10、§10.6 |
-| `edit_precision.py` | ✅（本轮修复） | §10.12、论文 §2.6.2 |
-| `compare_arms.py` | ✅（`--policy` 默认 deployable） | 配对 bootstrap、迁移矩阵、编辑能力闸门 |
-| `residual_split.py` | ✅ | 探索用（未被文档引用） |
-| `parse_failures.py` | 有意用 `raw_prediction` | 生成层指纹（§10.9），**故意不经后处理** |
-| `selector_to_text.py` | 不适用 | 输出交给 `restore_eval.py` 再评 |
-| `decouple_eval.py` | ❌ | 探索用，**未被任何文档/脚本引用**（已确认 grep 无引用），故不影响任何结论 |
-| `analyze_sampling.py` / `build_sample_subset.py` / `inspect_*.py` | 不适用 | 采样与 schema 检查工具 |
-
-**结论**：进入表格与结论的路径**全部**在 `restore[deployable]` 上；
-唯一的例外 `decouple_eval.py` 没有被任何结论引用（且它自己也声明是"portable 探索工具"）。
-`parse_failures.py` 用 raw 是**设计选择**，因为它的问题是"模型在后处理之前生成了什么"，
-这一条已在 §10.9 与它的 docstring 里写明。

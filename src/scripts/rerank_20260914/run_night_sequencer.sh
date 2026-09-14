@@ -44,12 +44,18 @@ say() { echo "[$(date -Is)] $*" >> "$LOG"; }
 #
 # Use flock, not `pgrep -f`: an argv pattern has to be anchored just right or it matches
 # the `bash -c` launcher (or its own earlier copy) and then REFUSES TO START for ever -
-# which is what a pgrep version of this guard actually did.  flock is atomic and the
-# kernel drops the lock when the process ends, even on SIGKILL.
+# which is what a pgrep version of this guard actually did.
+#
+# -w 120, not -n: bash's `exec 9>file` does not set close-on-exec, so the CHILDREN of a
+# killed sequencer inherit the lock fd.  The wait loops spawn `sleep 60`, and `pkill -f
+# run_night_sequencer.sh` kills the script but not the sleep, so a dead sequencer can hold
+# the lock for up to a minute (observed: pid 182878, a `sleep 60` with ppid 1).  -n then
+# refuses to start even though no sequencer exists.  Waiting 120s covers the stale case
+# while still refusing a genuine second instance.
 LOCK="$R/sequencer.lock"
 exec 9>"$LOCK"
-if ! flock -n 9; then
-  say "REFUSING TO START: another run_night_sequencer.sh holds $LOCK (pid $$)"
+if ! flock -w 120 9; then
+  say "REFUSING TO START: another run_night_sequencer.sh holds $LOCK after a 120s wait (pid $$)"
   exit 1
 fi
 say "instance lock acquired ($LOCK, pid $$)"
@@ -160,6 +166,66 @@ elif awk -v c="$CER" -v t="$TARGET" 'BEGIN{exit !(c<=t)}'; then
 else
   say "TARGET MISSED ($CER > $TARGET, baseline $BASELINE) -> DPO first"
 fi
+
+# ------------------------------------------- 3b. EARLY morning report
+# The full report is written at the very end, which is ~5h of control arms later (and
+# later still if DPO runs).  But the trained adapter's ST-CMDS number - the entire point
+# of the night - exists the moment the transfer is scored.  Publish it NOW; the full
+# report overwrites this file when the remaining arms finish.
+{
+  echo "########################################################################"
+  echo "# MORNING REPORT (EARLY)   $(date -Is)"
+  echo "# target: ST-CMDS end-to-end CER <= $TARGET   (baseline $BASELINE)"
+  echo "# NOTE: the FULL report overwrites this file once the remaining arms finish."
+  echo "#       Remaining:${NEED_DPO:+ likelihood scorer,}${NEED_DPO:+ DPO,} controls, VD arm, old-interface arm, checkpoint selection."
+  echo "########################################################################"
+  echo
+  echo "== HEADLINE: trained adapter on ST-CMDS =="
+  V=$("$PY" "$WS/.dsh_checks/get_cer.py" --log "$TRLOG" --label-substr "ST-CMDS, trained adapter" 2>&1)
+  echo "  $V"
+  C3=$(echo "$V" | tr ' ' '\n' | grep '^CER=' | cut -d= -f2)
+  if [ -n "${C3:-}" ] && [ "$C3" != "none" ]; then
+    awk -v c="$C3" -v t="$TARGET" -v b="$BASELINE" 'BEGIN{
+      printf "  delta vs the 4.9356%% baseline: %+.4f pp   need %+.4f pp more to reach %.2f%%\n", c-b, c-t, t;
+      print (c<=t) ? "  VERDICT: TARGET MET" : "  VERDICT: TARGET MISSED";
+    }'
+  else
+    echo "  VERDICT: unknown - evaluation missing, check PHASE4 in train_run_v2.log"
+  fi
+  echo
+  echo "== GATE METRICS (must hold regardless of CER) =="
+  echo "  destroyed must stay 0 | recall must not drop below 95.93 (V-A) / 95.98 (V-C)"
+  echo "  edit precision must stay >= 70% (baseline V-C: 78.5%); below ~54% more editing LOSES"
+  echo "  parse failures must stay 0.000% (baseline: 0 across 10293 rows)"
+  if [ -s "$OUT/stcmds_final.predictions.jsonl" ]; then
+    "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS trained adapter" 2>&1
+    echo "  --- baseline for comparison ---"
+    "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$R/e2eSTCMDS_VC.predictions.jsonl" \
+      --label "ST-CMDS existing adapter V-C (baseline)" 2>&1
+    "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS trained adapter" 2>&1
+  fi
+  echo
+  echo "== trained vs existing adapter on ST-CMDS (paired bootstrap + THE BET / REGRESSION) =="
+  if [ -s "$OUT/stcmds_final.predictions.jsonl" ] && [ -s "$R/e2eSTCMDS_VC.predictions.jsonl" ]; then
+    "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$R/e2eSTCMDS_VC.predictions.jsonl" \
+      --b "$OUT/stcmds_final.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
+      --label-a "existing adapter V-C (4.9356)" --label-b "trained adapter" --draws 2000 2>&1
+    echo
+    echo "== where the trained adapter's gain sits (selection vs editing) =="
+    "$PY" "$WS/.dsh_checks/gain_split.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS trained adapter" 2>&1
+  fi
+  echo
+  echo "== every scored arm so far =="
+  grep -aE "^# |restore\[deployable\]" "$TRLOG" 2>/dev/null | tail -40
+  echo
+  echo "== side reports =="
+  echo "  $R/TRAIN_SUMMARY.txt   AISHELL-dev checkpoint ranking"
+  echo "  $CMP                   all arms once the controls finish"
+} > "$R/MORNING_REPORT.txt" 2>&1
+say "EARLY morning report written (headline only; full report comes at the end)"
 
 # --------------------------------------------------------------- 4. arms in order
 if [ "$NEED_DPO" = "1" ]; then
