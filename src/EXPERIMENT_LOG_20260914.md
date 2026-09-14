@@ -370,7 +370,13 @@ best  = argmax_{c ∈ sub} ( exact_weighted_score , ctc_loglik(c) / n_tokens(c) 
 
 ---
 
-## 13. 提交记录（14 个，均未推送）
+## 13. 提交记录
+
+> **推送状态已更新（2026-09-15）**：本节最初写作时全部留在服务器上（当时的指示是"先不推"），
+> 后来按指示已推送到 `covo`（`git@github.com:sagune/covo.git`，SSH 有写权限），
+> 分支 `cb-sensevoice-covo`，最新提交 `2041698`，另打了标签 `rerank-20260914-session-42`（指向 `5911099`）。
+> 权重/证据/预测/日志等产物（约 7.6 GB）**按设计不入库**，仅存在于容器内。
+> 下表是本轮前 18 个提交的原始记录，保留不改：
 
 ```
 a67a0fb chore(rerank): add the guarantee-verification runner
@@ -405,3 +411,73 @@ c84c4bb docs(rerank): record the verified no-shorten invariant (0 shortened rows
 保留热词覆盖主键 + 按 token 归一化 + 候选不得短于前端 top-1。
 代价是域内 0.010–0.012pp CER，换回跨域 0.755pp 鲁棒性。
 唯一未闭环的是修复版的**端到端**正例（缺 GPU）。
+---
+
+## 15. 后端（COVO）阶段：错误解剖与"接口外基线"的发现（2026-09-15 凌晨）
+
+前端结论已定（§1–14），目标改为 **ST-CMDS 端到端 CER ≤ 4.5%**，唯一剩下的杠杆是后端选择器 COVO。
+本节记录开工前后的两项诊断；训练本身见 `RESULTS_RERANK_20260914.md` §9。
+
+### E40 — 后端的错误解剖（`covo_error_anatomy.py`，policy=`restore[deployable]`）
+
+**做了什么**：把每一行按"后端相对输入做了什么"分类（`no_change` / `sel_win` / `sel_loss` /
+`edit_win` / `edit_loss`），并独立计算"可见 8 条候选里本有更好答案"的可回收字符。三个域各跑一次。
+
+**结果**（`input` = 重排后的前端输出，即 COVO 真正拿到的输入）：
+
+| | ST-CMDS V-C | THCHS-30 | AISHELL dev |
+|---|---:|---:|---:|
+| input CER → output CER | 5.2722% → **4.9356%** | 3.1859% → 3.1674% | 3.6821% → 2.5874% |
+| `no_change` 行占比 | **93.3%** | 63.2% | 72.0% |
+| `sel_win` / `sel_loss` 行 | 167 / 45 | 171 / 122 | 150 / 33 |
+| `edit_win` / `edit_loss` 行 | 56 / 16 | 207 / 232 | 89 / 46 |
+| 净编辑（字符） | **−336** | −15 | −231 |
+| `miss_visible`（更好候选可见却被跳过） | **1322 行 / 2.7046pp** | 644 / 1.1671pp | 178 / 1.0662pp |
+| `ref_not_in_pool`（只能靠"写"） | 685 行 | 773 行 | 173 行 |
+
+**结论（推翻了此前的直觉）**：ST-CMDS 上压住 CER 的**不是"改错了"，而是"几乎不改"**——
+COVO 只动了 6.7% 的行，而 25.8% 的行"更好的候选就印在提示词编号列表里"。其中 **1198 个 `no_change` 行
+携带 1341 字符（2.39pp）可回收价值**；净损失（`sel_loss`+`edit_loss`）只有 74 字符 = 可回收空间的 1/18。
+同一族 adapter 在 THCHS-30 上"很敢改"（改错 232 行 vs 改对 207 行），ST-CMDS 上"几乎不改"——
+**编辑倾向差 5 倍，这不是能力差异，是校准差异。**
+
+### E41 — 根因：现 adapter 是在**另一套界面**上训练的（已核对原始训练文件）
+
+**做了什么**：把两个出厂 adapter 的**原始训练文件第一行**读出来（`interface_probe2.py`），
+与我们在推理时实际喂的提示词逐字对比。此前只有"老格式平均 371 token"这一条间接证据。
+
+**结果**（现 ST-CMDS adapter，`train.cb-hardnegative.qwen.jsonl` 138,180 行）：
+
+| | 训练时看到的 | 推理时喂的 |
+|---|---|---|
+| system | `你是一个保守的中文ASR后纠错器。…只修正证据支持的识别错误；**证据不足时保持第一候选**。`（100 字符） | `你是一个中文 ASR N-best 候选选择器。…**不要默认保守复制 top-1**。`（165 字符） |
+| user | `N-best文本：`/`N-best拼音：` 纯列表（682 字符，无 top-1 标签、无热词、无分数、无稳定片段） | `ASR top-1:` / `Protected hotwords …` / `N-best with reliability labels` / `Stable spans` / `Hotword evidence`（1260–2651 字符） |
+| 结尾 | `请输出：{"text":"纠错后的完整句子"}` | `请输出 JSON：{"text":"…"}` |
+| max_length | 1024（p99 提示词 1631 ⇒ 31% 的行当年被截断） | 2048 |
+
+**四处同时改变，其中两处把目标反过来了**（保守↔激进）。AISHELL adapter 是同族的 127 字符保守版本，同一个矛盾。
+这**直接解释 E40 的 93.3% `no_change`**：adapter 忠实地执行了它学到的那条规则，而它从未见过这套表述。
+
+**结论**：**4.9356% 是接口外（out-of-interface）测出来的数字**，衡量的是"一个保守纠错器被要求当选择器用"，
+不是 COVO 的选择能力上限。把它训到与推理逐字一致的界面上是最小、最必要的修正实验，不是工程补丁。
+
+**对照臂（已排队，单变量）**：`run_oldiface_arm.sh` —— 同一 adapter、同一批音频、同一份 `input`，
+只把提示词按它**自己**的训练模板重渲染（`render_old_iface.py`）。若 ≈4.9356 则假设被推翻；
+若明显更优则"接口校准"被直接证实、基线偏低有定量证据。
+
+### 4.5 的账
+
+- 需要再省 **245 字符 / 56163 = 0.4356pp**；完美选择器（只用可见 8 条）可达 **2.231%** ⇒ 目标只要这个空间的 **16.1%**。
+- 分布上可回收的行占 25.8%，而模型只动 6.7% ——**欠编辑，不是过编辑**。
+- 训练集里"池内存在更好候选"的行占 73.4%，评测集 ST-CMDS 只有 25.8% ⇒ 训练**必然**把模型推向"更敢改"，
+  正好是 ST-CMDS 缺的方向。**风险不对称且偏向目标方向。**
+- 兜底指标：`edited` 行数、`beyond-N-best` 的 imp/wor（现 94–98 / 22）、`destroyed`（现 0）、召回（现 95.98%）。
+
+### 数据/产物勘误
+
+- 我曾在临时命令里把 `e2eSTCMDSFIX` 标注为"relax + 手工修复（5.1279）"——**错**。
+  `e2eSTCMDSFIX` = **放宽准入 + FIXED 重排**（`run_fixed_rerank_e2e.sh`），实测 **5.6443% / 93.60 / 0**；
+  5.1279 是"放宽 + **出厂**重排"；5.5214 是"**原**准入 + 修复重排"。三者不可混用（`compare_adapter_identity.txt` 已对齐）。
+- `run_controls.sh` 用**AISHELL** adapter 跑 ST-CMDS 提示词却标注"existing adapter"，
+  而同一份报告的正文把 4.9570（**ST-CMDS** adapter）称为"the control above"——两个不同 adapter。
+  已用 `post_controls_extra.sh` 生成 `compare_adapter_identity.txt` 消歧（CPU，无 GPU 占用）。

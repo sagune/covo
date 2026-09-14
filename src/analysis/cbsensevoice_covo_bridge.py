@@ -791,6 +791,7 @@ def format_nbest(
     max_items: int,
     compact: bool = False,
     rank_mode: str = "original",
+    score_mode: str = "beam",
 ) -> List[str]:
     cbw = input_block.get("cbwhisper", {}) or {}
     scored_candidates = list(cbw.get("candidates", []) or [])
@@ -813,26 +814,25 @@ def format_nbest(
         else:
             source = "trusted_scored"
             if compact:
+                # rank_mode and score_mode are orthogonal:
+                #   rank_mode=transmitted -> `rank=` is the position the model is reading,
+                #                            the beam rank moves to `beam_rank=`
+                #   score_mode=none       -> omit the beam score/asr numbers, which are
+                #                            measured to be anti-correlated with correctness
+                bits = [f"rank={idx}" if rank_mode == "transmitted"
+                        else f"rank={int(scored.get('rank', idx))}"]
                 if rank_mode == "transmitted":
-                    # `rank=` is the position in the list the model is reading, so the
-                    # ordering carries no hidden contradiction; the beam provenance is
-                    # kept under an explicit name, and the rescorer's own score is shown
-                    # when the record provides it.
-                    bits = [
-                        f"rank={idx}",
-                        f"beam_rank={int(scored.get('rank', idx))}",
-                        f"score={float(scored.get('total_score', 0.0)):.3f}",
-                        f"asr={float(scored.get('asr_score', 0.0)):.3f}",
-                    ]
-                    if rerank_score is not None and normalized == normalize_text(
+                    bits.append(f"beam_rank={int(scored.get('rank', idx))}")
+                if score_mode != "none":
+                    bits.append(f"score={float(scored.get('total_score', 0.0)):.3f}")
+                    bits.append(f"asr={float(scored.get('asr_score', 0.0)):.3f}")
+                if rank_mode == "transmitted":
+                    rs = scored.get("rerank_score")
+                    if rs is None and rerank_score is not None and normalized == normalize_text(
                             str(input_block.get("asr_top1") or "")):
-                        bits.append(f"rerank={float(rerank_score):.3f}")
-                else:
-                    bits = [
-                        f"rank={int(scored.get('rank', idx))}",
-                        f"score={float(scored.get('total_score', 0.0)):.3f}",
-                        f"asr={float(scored.get('asr_score', 0.0)):.3f}",
-                    ]
+                        rs = rerank_score
+                    if rs is not None:
+                        bits.append(f"rerank={float(rs):.3f}")
                 exact = float(scored.get("exact_score", 0.0))
                 phon = float(scored.get("phonetic_score", 0.0))
                 if abs(exact) > 1e-6:
@@ -1086,7 +1086,7 @@ def build_user_prompt(
             "N-best with reliability labels "
             "(trusted_scored=CB-SenseVoice scored beam, supplemental_unscored=extra diversity candidate):"
         )
-        lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest)), compact=compact, rank_mode=str(getattr(args, "rank_mode", "original"))))
+        lines.extend(format_nbest(nbest, input_block, hotword_rows, max_items=max(1, int(args.max_nbest)), compact=compact, rank_mode=str(getattr(args, "rank_mode", "original")), score_mode=str(getattr(args, "score_mode", "beam"))))
 
     if bool(getattr(args, "include_consensus_spans", False)) and nbest:
         consensus = input_block.get("nbest_consensus")
@@ -1514,6 +1514,9 @@ def add_prepare_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--output", required=True, help="Qwen/covo messages JSONL")
     parser.add_argument("--reference-field", default="reference")
     parser.add_argument("--max-nbest", type=int, default=8)
+    parser.add_argument("--score-mode", default="beam", choices=["beam", "none"],
+                        help="none: omit the beam score/asr numbers from the n-best lines; they are "
+                             "measured to be anti-correlated with correctness")
     parser.add_argument("--rank-mode", default="original", choices=["original", "transmitted"],
                         help="transmitted: print the position in the transmitted n-best list as rank= "
                              "and keep the beam rank under beam_rank=, so the prompt cannot contradict itself")
