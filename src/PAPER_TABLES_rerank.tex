@@ -1,0 +1,232 @@
+% ---------------------------------------------------------------------------
+% CB-SenseVoice rescoring: paper-ready tables for the verified results.
+%
+% STATUS: front-end results are verified (offline replay of logged pools).
+%         The downstream (COVO) rows marked \TBD are NOT measured yet -- the
+%         fixed reranker's end-to-end runs were queued but not executed.
+%         Do not remove the \TBD markers before those runs land.
+%
+% Every number traces to src/RESULTS_RERANK_20260914.md (sections 0, 6, 7) and
+% src/EXPERIMENT_LOG_20260914.md.
+%
+% Four numbers in Table 3 and Table 1 come from other verified sources:
+%   5.7529 / -0.0392  -> policy_sweep4.log, policy_sweep6.log ("ctc_ln, floor d=0")
+%   0.3330            -> v2_confirm.log ("5.7921% -> 6.1250%")
+%   600 / 1399 / 3139 -> line counts of the dataset hotword lists
+%                        (aishell .../dev/hotword.txt = 600,
+%                         thchs30 .../test/hotword.txt = 1399,
+%                         stcmds .../heldout/test/hotword.txt = 3139)
+% check_tex_numbers.py verifies all 140 numeric literals against these sources.
+%
+% Required packages:
+%   \usepackage{booktabs}
+%   \usepackage{multirow}
+%   \usepackage{algorithm}
+%   \usepackage{algpseudocode}
+% ---------------------------------------------------------------------------
+
+\newcommand{\TBD}{\textsuperscript{\textdagger}}
+\newcommand{\pp}{\,pp}
+
+% ===================== Table 1: datasets ==================================
+\begin{table}[t]
+\centering
+\caption{Evaluation sets. AISHELL dev is the only tuning set; the other two are
+one-off transfer checks. The THCHS-30 word list is error-targeted and therefore
+diagnostic (not deployable).}
+\label{tab:datasets}
+\begin{tabular}{llrrl}
+\toprule
+Dataset & Role & Utterances & Designated mentions & Lexicon \\
+\midrule
+AISHELL dev      & tuning    & 1334 &   599 & 600 words \\
+THCHS-30 test    & transfer  & 2495 & 14137 & 1399 words (error-targeted, diagnostic) \\
+ST-CMDS held-out & transfer  & 5130 &  1718 & 3139 words \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 2: front-end main ============================
+\begin{table}[t]
+\centering
+\caption{Front-end results. ``relaxed'' widens the hotword admission;
+``fixed'' is the non-shortening, length-normalised rescorer of
+Section~\ref{sec:method}. Both axes improve on AISHELL dev and THCHS-30; on
+ST-CMDS the residual is entirely the admission change (the rescorer itself is
+$-0.005\pp$, Table~\ref{tab:fixonly}).}
+\label{tab:frontend}
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & Configuration & CER (\%) & Recall (\%) & $\Delta$CER (\pp) & $\Delta$Recall (\pp) \\
+\midrule
+\multirow{2}{*}{AISHELL dev}
+  & baseline (original admission, shipped) & 3.8101 & 90.15 & --- & --- \\
+  & relaxed + fixed                        & \textbf{3.5257} & \textbf{93.66} & $\mathbf{-0.2844}$ & $\mathbf{+3.51}$ \\
+\midrule
+\multirow{2}{*}{THCHS-30}
+  & baseline (original admission, shipped) & 3.4681 & 86.52 & --- & --- \\
+  & relaxed + fixed                        & \textbf{3.1982} & \textbf{91.21} & $\mathbf{-0.2699}$ & $\mathbf{+4.69}$ \\
+\midrule
+\multirow{2}{*}{ST-CMDS held-out}
+  & baseline (original admission, shipped) & 5.7921 & 92.43 & --- & --- \\
+  & relaxed + fixed                        & 5.90xx\TBD & 93.31 & $+0.11$ & $+0.88$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 3: ablation ==================================
+\begin{table}[t]
+\centering
+\caption{Ablation on ST-CMDS held-out at the original admission. Each row adds
+one ingredient to the shipped rescorer; the two contributions are additive
+($0.417 + 0.338 = 0.755\pp$, the total harm of the shipped rescorer).}
+\label{tab:ablation}
+\begin{tabular}{lrr}
+\toprule
+Rescorer & CER (\%) & $\Delta$CER (\pp) \\
+\midrule
+shipped (\texttt{argmax}$\,$(\texttt{ews}, total CTC LL)) & 6.5417 & $+0.7496$ \\
+\; + per-token normalisation of the CTC score           & 6.1250 & $+0.3330$ \\
+\; + non-shortening constraint (\textbf{final})          & \textbf{5.7867} & $\mathbf{-0.0053}$ \\
+\midrule
+non-shortening, but dropping the \texttt{ews} primary key & 5.7529 & $-0.0392$ \\
+\multicolumn{3}{l}{\footnotesize\quad (rejected: costs $1.32\pp$ designated recall on THCHS-30)}\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 4: fix-only deltas ===========================
+\begin{table}[t]
+\centering
+\caption{Effect of the fixed rescorer alone, measured within a fixed admission
+(i.e.\ relative to that admission's own top-1). It is a CER lever: the recall
+column stays below $1\pp$ in every pool.}
+\label{tab:fixonly}
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & Admission & $\Delta$CER (\pp) & $\Delta$Recall (\pp) & Rows changed & Floor triggered \\
+\midrule
+AISHELL dev   & original & $-0.1185$ & $+0.17$ & 143 (10.7\%) & 484 \\
+AISHELL dev   & relaxed  & $-0.0663$ & $-0.17$ & 144 (10.8\%) & 482 \\
+THCHS-30      & original & $-0.1122$ & $+0.07$ & 288 (11.5\%) & 951 \\
+THCHS-30      & relaxed  & $-0.0789$ & $+0.50$ & 289 (11.6\%) & 986 \\
+ST-CMDS       & original & $-0.0053$ & $+0.17$ & 293 (5.7\%)  & 2086 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 5: bootstrap =================================
+\begin{table}[t]
+\centering
+\caption{Paired bootstrap over utterances (2000 draws, resampled with
+replacement) for the fixed rescorer against two references. The final column is
+the fraction of draws in which the fix is no worse on \emph{both} axes.}
+\label{tab:bootstrap}
+\begin{tabular}{llrrr}
+\toprule
+Pool & Reference & $\Delta$CER (\pp) [95\% CI] & $\Delta$Recall (\pp) [95\% CI] & $P$(both) \\
+\midrule
+AISHELL, original & top-1           & $-0.1185$ $[-0.2384, +0.0000]$ & $+0.17$ $[+0.00, +0.52]$ & 0.980 \\
+AISHELL, relaxed  & top-1           & $-0.0663$ $[-0.1900, +0.0576]$ & $-0.17$ $[-0.52, +0.00]$ & 0.324 \\
+THCHS-30, original& top-1           & $\mathbf{-0.1122}$ $[-0.1518, -0.0715]$ & $+0.07$ $[-0.39, +0.52]$ & 0.658 \\
+THCHS-30, relaxed & top-1           & $\mathbf{-0.0789}$ $[-0.1270, -0.0284]$ & $\mathbf{+0.50}$ $[+0.13, +0.89]$ & \textbf{0.995} \\
+ST-CMDS, original & top-1           & $-0.0053$ $[-0.0692, +0.0621]$ & $+0.17$ $[-0.06, +0.43]$ & 0.546 \\
+\midrule
+ST-CMDS, original & \textbf{shipped} & $\mathbf{-0.7549}$ $[-0.8313, -0.6728]$ & $+0.00$ & \textbf{1.000} \\
+AISHELL, both     & shipped          & $+0.0095$ $[+0.0000, +0.0239]$ & $+0.00$ & 0.145 \\
+THCHS-30, both    & shipped          & $+0.0123$ $[+0.0037, +0.0234]$ & $-0.06$ / $-0.04$ & 0.003 / 0.002 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 6: cost and selection error ==================
+\begin{table}[t]
+\centering
+\caption{Left: what the non-shortening constraint forfeits at oracle level
+(pool oracle with the constraint minus pool oracle without it). Right:
+front-end selection error (top-1 CER minus pool-oracle CER).}
+\label{tab:cost}
+\begin{tabular}{lrrrrr}
+\toprule
+\multirow{2}{*}{Pool} & \multicolumn{3}{c}{Oracle cost of the constraint} & \multicolumn{2}{c}{Selection error (\pp)} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}
+ & oracle (\%) & constrained & cost (\pp) & baseline & fixed \\
+\midrule
+AISHELL dev, original & 1.7913 & 1.8055 & 0.0142 & 2.0188 & 1.9003 \\
+AISHELL dev, relaxed  & 1.5449 & 1.5733 & 0.0284 & 2.0472 & 1.9808 \\
+THCHS-30, original    & 2.1654 & 2.2049 & 0.0394 & 1.3027 & 1.1906 \\
+THCHS-30, relaxed     & 2.1432 & 2.2196 & 0.0764 & 1.1339 & 1.0550 \\
+ST-CMDS, original     & 1.9372 & 2.0084 & 0.0712 & 3.8549 & 3.8495 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 7: downstream ================================
+\begin{table}[t]
+\centering
+\caption{Downstream (COVO) end-to-end, character-level protection layer
+(\texttt{restore[deployable]}). Destruction counts protected spans broken.
+\TBD{} = not measured; the fixed rescorer's end-to-end runs were queued but not
+executed, so no positive claim about the fix is supported yet.}
+\label{tab:downstream}
+\begin{tabular}{llrrr}
+\toprule
+Dataset & Configuration & CER (\%) & Recall (\%) & Destruction \\
+\midrule
+\multirow{3}{*}{AISHELL dev}
+  & baseline (original admission, anchor ON) & 2.5922 & 92.65 & 1 \\
+  & relaxed, no anchor (no rescoring)        & \textbf{2.5495} & \textbf{94.82} & 1 \\
+  & relaxed + shipped rescorer               & \textbf{2.5732} & \textbf{94.82} & 1 \\
+\midrule
+\multirow{2}{*}{THCHS-30}
+  & baseline (same code, anchor ON)          & 3.2241 & 91.27 & 162 \\
+  & relaxed + shipped rescorer               & \textbf{3.1674} & \textbf{93.96} & \textbf{110} \\
+\midrule
+\multirow{4}{*}{ST-CMDS held-out}
+  & baseline (original admission, anchor ON) & 5.0300 & 93.48 & 0 \\
+  & original admission + shipped rescorer    & 6.2657 & 92.90 & 0 \\
+  & relaxed + shipped rescorer               & 5.1279 & 94.00 & 0 \\
+  & original admission + \textbf{fixed} rescorer & 5.0xxx\TBD & 92.61\TBD & \TBD \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 8: interface =================================
+\begin{table}[t]
+\centering
+\caption{Downstream interface consistency. The prompt puts the rescored winner
+on n-best line~1 but prints each line's \emph{original} rank and score, so line~1
+can carry metadata that ranks it below line~2 (a visible score inversion).
+The fix reduces this on the transfer set and leaves it unchanged in domain,
+where the non-shortening constraint rarely fires.}
+\label{tab:interface}
+\begin{tabular}{llrrr}
+\toprule
+Pool & Rescorer & Comparable rows & Inversion rate & Mean line-1 original rank \\
+\midrule
+ST-CMDS, original & shipped & 5126 & 12.5\% & 1.75 \\
+ST-CMDS, original & fixed   & 5126 & \textbf{5.7\%} & \textbf{1.15} \\
+AISHELL, relaxed  & shipped & 1334 & 10.8\% & 1.25 \\
+AISHELL, relaxed  & fixed   & 1334 & 10.8\% & 1.25 \\
+THCHS-30, relaxed & shipped & 2495 & 11.7\% & 1.26 \\
+THCHS-30, relaxed & fixed   & 2495 & 11.6\% & 1.25 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Algorithm ==========================================
+\begin{algorithm}[t]
+\caption{Non-shortening, length-normalised pool rescoring}
+\label{alg:rescoring}
+\begin{algorithmic}[1]
+\Require pool $\mathcal{C}$ with forced-CTC scores; front-end hypothesis $h$;
+         prompt hotwords $\mathcal{H}$
+\Ensure  $h'$ with $|h'| \ge |h|$ and $P \subseteq h'$
+\State $P \leftarrow \{\, p \in \mathcal{H} : p \subseteq h \,\}$
+\State $\mathcal{S} \leftarrow \{\, c \in \mathcal{C} : \forall p \in P,\; p \subseteq c \,\}$
+\State $\mathcal{S} \leftarrow \{\, c \in \mathcal{S} : |c| \ge |h| \,\}$
+         \Comment{$h \in \mathcal{S}$, so $\mathcal{S} \neq \emptyset$}
+\State $h' \leftarrow \arg\max_{c \in \mathcal{S}} \bigl( \mathrm{ews}(c),\; \mathrm{ctc}(c) / n_{\text{tok}}(c) \bigr)$
+\State \Return $h'$ \Comment{lexicographic: coverage first, acoustic tie-break}
+\end{algorithmic}
+\end{algorithm}
