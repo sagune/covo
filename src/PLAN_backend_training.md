@@ -138,11 +138,21 @@ save_steps=500
 ⇒ ST-CMDS 上可回收价值 (2.39pp) 是当前净损失 (0.13pp) 的 **18 倍**；同一族 adapter 在 THCHS-30 改 36.8% 的行、
 在 ST-CMDS 只改 6.7%——**5 倍编辑倾向差 = 校准差异，不是能力差异**（原因见 §二 的更新）。
 
-### 7.2 4.5 的账
+### 7.2 4.5 的账（用 `gain_split.py` 精确化）
 
-- 需要再省 **245 字符 = 0.4356pp**；完美选择器（只用可见 8 条）上界 **2.231%** ⇒ 只要这个空间的 **16.1%**。
+出厂 COVO 在 ST-CMDS 上的 +189 字符收益里，**43% 来自选择（+82）、57% 来自编辑（+107）**，
+而选择只实现了选择空间的 **6.6%**（82 / 1251）。THCHS-30 上选择这一侧甚至是**负的（−130）**，
+整体收益全靠编辑（+145）兜底——这是"它根本没在做选择"的直接证据。
+
+- 目标还需 **+245 字符**。若编辑保持 +107 不变，**选择必须做到 +327**，
+  即把实现率从 **6.6% 提到 26%（约 4 倍）**。
+- 分母：可见 8 条的上界是 **1251 字符 = 2.08pp**；全池上界 **1.9390%**（比当前输出低 2.9966pp = 1683 字符）
+  ⇒ 目标只需要全池可用空间的 **26%**。
 - 训练集"池内有更好候选"占 **73.4%**，ST-CMDS 评测只占 **25.8%** ⇒ 训练**必然**把模型推向"更敢改"，
   正好对着 ST-CMDS 缺的方向。**风险不对称，且偏向目标方向。**（这是 §9.10 "过度编辑"风险的镜像。）
+- **编辑是当前收益的一半以上，所以"编辑不被牺牲"是硬约束**：`beyond-N-best` 的 imp/wor 必须守住（现 94–98 / 22），
+  否则即使 CER 好看也是在拆收益来源。反过来，THCHS-30 的选择侧是负的，
+  说明"选择变好"与"编辑不变"在同一目标下**不冲突**。
 
 ### 7.3 早上照此判读（判定表）
 
@@ -170,6 +180,26 @@ save_steps=500
 | **接口臂** | `run_oldiface_arm.sh` | 现 adapter 跑**它自己的**训练界面（单变量对照） | ~14:35 |
 | 汇总 | `post_train_watch.sh` | 训练一结束就出 `TRAIN_SUMMARY.txt`；末尾补跑缺失臂/最佳检查点 | — |
 | 消歧 | `post_controls_extra.sh` | 生成 `compare_adapter_identity.txt`，修正 adapter 身份标注 | 已出（CPU） |
+
+**早上要跑的两条对照命令**（都需要 predictions 文件已存在，CPU）：
+
+```bash
+S=datasets/stcmds/cb_sensevoice_heldout/hotword/test; R=.dsh_checks/rerank
+PY=/root/autodl-tmp/great/bin/python
+# 1) 新 adapter vs 现 adapter：配对 bootstrap + 行为迁移矩阵 + "THE BET / REGRESSION" 两行
+$PY .dsh_checks/compare_arms.py --a $R/e2eSTCMDS_VA.predictions.jsonl \
+   --b $R/train_aishell_v1/stcmds_final.predictions.jsonl \
+   --aligned $S/aligned.txt --uttid $S/uttid \
+   --label-a "existing adapter" --label-b "trained adapter"
+# 2) 收益拆成选择/编辑两侧，看 4.5 还差多少
+$PY .dsh_checks/gain_split.py --records $R/train_aishell_v1/stcmds_final.predictions.jsonl \
+   --label "ST-CMDS trained adapter"
+```
+
+`compare_arms.py` 的 **THE BET / REGRESSION 两行是这套方案的成败判据**：
+"THE BET" = 现 adapter 放着不动、新 adapter 改成对的那些行（欠编辑被修好）；
+"REGRESSION" = 现 adapter 本来改对了、新 adapter 又退回不动的那些行。
+若 THE BET ≫ REGRESSION → 假设成立；若两者相当 → 训练只是把编辑和选择互相抵消。
 
 ### 7.5 数据/产物勘误（避免早上误读）
 
