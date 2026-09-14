@@ -2,9 +2,13 @@
 % CB-SenseVoice rescoring: paper-ready tables for the verified results.
 %
 % STATUS: front-end results are verified (offline replay of logged pools).
-%         The downstream (COVO) rows marked \TBD are NOT measured yet -- the
-%         fixed reranker's end-to-end runs were queued but not executed.
-%         Do not remove the \TBD markers before those runs land.
+%         Table 7's downstream (COVO) fixed-rescorer row is now MEASURED
+%         (5.5214 / 92.90 / 0).  The remaining \TBD in Table 3 is the ST-CMDS
+%         "relaxed + fixed" FRONT END: it is measured by the bridge pipeline
+%         (5.9167 / 93.36) but the row's other cells are the relax-only values
+%         (5.9060 / 93.31), and Limitations item 5 records that the two front-end
+%         pipelines differ by ~1 edit - so it must not be filled from the other
+%         pipeline before that is reconciled.  Do not remove that \TBD.
 %
 % Every number traces to src/RESULTS_RERANK_20260914.md (sections 0, 6, 7) and
 % src/EXPERIMENT_LOG_20260914.md.
@@ -16,7 +20,10 @@
 %                        (aishell .../dev/hotword.txt = 600,
 %                         thchs30 .../test/hotword.txt = 1399,
 %                         stcmds .../heldout/test/hotword.txt = 3139)
-% check_tex_numbers.py verifies all 140 numeric literals against these sources.
+% check_tex_numbers.py verifies all 190 numeric literals against these sources.
+% Tables 9 and 10 come from src/RESULTS_RERANK_20260914.md sections 10.1 and 10.6
+% (behaviour decomposition and pool-reachability gain split), reproduced bit-for-bit
+% by covo_error_anatomy.py --policy deployable and gain_split.py.
 %
 % Required packages:
 %   \usepackage{booktabs}
@@ -166,8 +173,9 @@ ST-CMDS, original     & 1.9372 & 2.0084 & 0.0712 & 3.8549 & 3.8495 \\
 \centering
 \caption{Downstream (COVO) end-to-end, character-level protection layer
 (\texttt{restore[deployable]}). Destruction counts protected spans broken.
-\TBD{} = not measured; the fixed rescorer's end-to-end runs were queued but not
-executed, so no positive claim about the fix is supported yet.}
+The fixed rescorer's end-to-end runs are now measured: it removes most of the
+shipped rescorer's harm ($6.2657 \to 5.5214$) but still does not return to the
+$5.0300$ baseline, so no claim that the fix is free downstream is supported.}
 \label{tab:downstream}
 \begin{tabular}{llrrr}
 \toprule
@@ -186,7 +194,7 @@ Dataset & Configuration & CER (\%) & Recall (\%) & Destruction \\
   & baseline (original admission, anchor ON) & 5.0300 & 93.48 & 0 \\
   & original admission + shipped rescorer    & 6.2657 & 92.90 & 0 \\
   & relaxed + shipped rescorer               & 5.1279 & 94.00 & 0 \\
-  & original admission + \textbf{fixed} rescorer & 5.0xxx\TBD & 92.61\TBD & \TBD \\
+  & original admission + \textbf{fixed} rescorer & \textbf{5.5214} & 92.90 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -210,6 +218,62 @@ AISHELL, relaxed  & shipped & 1334 & 10.8\% & 1.25 \\
 AISHELL, relaxed  & fixed   & 1334 & 10.8\% & 1.25 \\
 THCHS-30, relaxed & shipped & 2495 & 11.7\% & 1.26 \\
 THCHS-30, relaxed & fixed   & 2495 & 11.6\% & 1.25 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 9: backend behaviour =========================
+\begin{table}[t]
+\centering
+\caption{What the downstream corrector (COVO) actually does on ST-CMDS held-out,
+classified per utterance against its own input ($56163$ reference characters).
+\texttt{no\_change} means the output equals the front-end top-1.
+The point of the table: the model leaves $93.3\%$ of utterances untouched, and
+$1198$ of those untouched rows carry a candidate that is visibly better and is
+printed in the prompt's own numbered list ($1341$ characters $= 2.39\pp$),
+against a net loss from wrong edits of only $74$ characters.}
+\label{tab:backend-behaviour}
+\begin{tabular}{lrrrrr}
+\toprule
+Behaviour & Rows & \% rows & $e_{\text{in}}$ & $e_{\text{out}}$ & Net edits \\
+\midrule
+\texttt{no\_change}            & 4786 & 93.3 & 2335 & 2335 & 0 \\
+\texttt{sel\_win}              & 167  & 3.3  & 277  & 98   & $\mathbf{-179}$ \\
+\texttt{sel\_tie}              & 41   & 0.8  & 79   & 79   & 0 \\
+\texttt{sel\_loss}             & 45   & 0.9  & 47   & 97   & $+50$ \\
+\texttt{edit\_win}             & 56   & 1.1  & 146  & 62   & $\mathbf{-84}$ \\
+\texttt{edit\_tie}             & 19   & 0.4  & 51   & 51   & 0 \\
+\texttt{edit\_loss}            & 16   & 0.3  & 26   & 50   & $+24$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ===================== Table 10: backend gain split =======================
+\begin{table}[t]
+\centering
+\caption{Where the downstream corrector's gain comes from, split by whether the
+reference is reachable from the candidate pool. Rows with the reference
+\emph{in} the pool can be solved by selection; rows without it can only be solved
+by generation. On ST-CMDS more than half the gain ($+107$ of $+189$ characters)
+comes from the $711$ rows where selection is impossible, while selection realises
+only $7.0\%$ of its own $1169$-character opportunity. On THCHS-30 the selection
+side is \emph{negative}: the model damages rows the pool could have fixed.}
+\label{tab:backend-gain}
+\begin{tabular}{llrrrrr}
+\toprule
+Dataset & Partition & Rows & Chars & In CER (\%) & Out CER (\%) & Gain \\
+\midrule
+\multirow{2}{*}{ST-CMDS}
+  & reference \textbf{in} pool (selection)     & 4419 & 48031 & 2.7024 & 2.5317 & $+82$ \\
+  & reference \textbf{not} in pool (editing)   & 711  & 8132  & 20.4501 & 19.1343 & $+107$ \\
+\midrule
+\multirow{2}{*}{THCHS-30}
+  & reference \textbf{in} pool (selection)     & 1665 & 54079 & 0.7249 & 0.9653 & $-130$ \\
+  & reference \textbf{not} in pool (editing)   & 830  & 27060 & 8.1042 & 7.5684 & $+145$ \\
+\midrule
+\multirow{2}{*}{AISHELL dev}
+  & reference \textbf{in} pool (selection)     & 1107 & 17295 & 1.3819 & 0.9309 & $+78$ \\
+  & reference \textbf{not} in pool (editing)   & 227  & 3807  & 14.1319 & 10.1129 & $+153$ \\
 \bottomrule
 \end{tabular}
 \end{table}
