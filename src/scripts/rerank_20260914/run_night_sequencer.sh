@@ -255,6 +255,35 @@ fi
       --b "$OUT/stcmds_likelihood.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
       --label-a "trained adapter (generator)" --label-b "trained adapter (scorer)" --draws 2000 2>&1
   fi
+  echo
+  echo "########################################################################"
+  echo "# the other two datasets: trained vs existing adapter, same prompt file"
+  echo "# (goal item (d) asks for all three, each against its own control)"
+  echo "########################################################################"
+  if [ -s "$OUT/dev_final.predictions.jsonl" ] && [ -s "$OUT/dev_OLD.predictions.jsonl" ]; then
+    echo
+    echo "== AISHELL dev (the tuning set) =="
+    "$PY" "$WS/.dsh_checks/get_cer.py" --log "$TRLOG" --label-substr "AISHELL dev, final" 2>&1
+    "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/dev_OLD.predictions.jsonl" \
+      --b "$OUT/dev_final.predictions.jsonl" --aligned "$A/aligned.txt" --uttid "$A/uttid" \
+      --label-a "existing adapter" --label-b "trained adapter" --draws 2000 2>&1
+  else
+    echo "  (AISHELL dev arm missing: dev_final=$([ -s "$OUT/dev_final.predictions.jsonl" ] && echo yes || echo no) dev_OLD=$([ -s "$OUT/dev_OLD.predictions.jsonl" ] && echo yes || echo no))"
+  fi
+  if [ -s "$OUT/thchs_final.predictions.jsonl" ] && [ -s "$OUT/thchs_OLD.predictions.jsonl" ]; then
+    echo
+    echo "== THCHS-30 (one-shot transfer) =="
+    "$PY" "$WS/.dsh_checks/get_cer.py" --log "$TRLOG" --label-substr "THCHS-30, trained adapter" 2>&1
+    "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/thchs_OLD.predictions.jsonl" \
+      --b "$OUT/thchs_final.predictions.jsonl" --aligned "$T/aligned.txt" --uttid "$T/uttid" \
+      --label-a "existing adapter" --label-b "trained adapter" --draws 2000 2>&1
+    echo
+    echo "  THCHS-30 behaviour fingerprint:"
+    "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$OUT/thchs_final.predictions.jsonl" \
+      --label "THCHS-30 trained adapter" 2>&1
+  else
+    echo "  (THCHS arm missing: thchs_final=$([ -s "$OUT/thchs_final.predictions.jsonl" ] && echo yes || echo no) thchs_OLD=$([ -s "$OUT/thchs_OLD.predictions.jsonl" ] && echo yes || echo no))"
+  fi
 } > "$R/MORNING_REPORT.txt" 2>&1
 
 say "MORNING_REPORT.txt written"
