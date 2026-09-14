@@ -35,6 +35,10 @@ SYS = ("你是一个保守的中文 ASR 候选选择器。"
        "必须只输出一个合法 JSON 对象，格式为 {\"choice\": 编号}，编号从 1 开始。")
 
 LINE = re.compile(r"^\s*(\d+)\.\s+(.*?)\s+\|\s")
+# the user turn rendered for the text task ends by asking for {"text": ...}; a selector
+# must be asked for the index instead, or the two instructions contradict each other
+TAIL = re.compile(r"请输出\s*JSON\s*[:：]\s*\{[^}]*\}")
+TAIL_NEW = '请输出 JSON：{"choice":编号}，编号从 1 开始。'
 
 
 def main():
@@ -78,7 +82,8 @@ def main():
         best_cers.append(best[0])
         if best[0] > 4:
             far += 1
-        rows.append({"messages": [{"role": "system", "content": SYS}, msgs[1],
+        rows.append({"messages": [{"role": "system", "content": SYS},
+                                  {"role": "user", "content": TAIL.sub(TAIL_NEW, user)},
                                   {"role": "assistant",
                                    "content": json.dumps({"choice": best[1]}, ensure_ascii=False,
                                                          separators=(",", ":"))}],
