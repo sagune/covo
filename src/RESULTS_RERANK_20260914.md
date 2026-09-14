@@ -479,12 +479,19 @@ best  = argmax_{c ∈ sub} ( exact_weighted_score , ctc_loglik(c) / n_tokens(c) 
 |---|---:|---:|---:|---:|---:|
 | AISHELL dev（1334 行 / 599 mention） | 3.8101% / 90.15% | 3.5921% / 93.82% | **3.5257% / 93.66%** | **−0.2844pp** | **+3.51pp** |
 | THCHS-30（2495 行 / 14137 mention） | 3.4681% / 86.52% | 3.2771% / 90.71% | **3.1982% / 91.21%** | **−0.2699pp** | **+4.69pp** |
-| ST-CMDS held-out（5130 行 / 1718 mention） | 5.7921% / 92.43% | 5.9060% / 93.31% | 见 7.6 | +0.11pp（准入造成） | +0.88pp |
+| ST-CMDS held-out（5130 行 / 1718 mention） | 5.7921% / 92.43% | 5.9060% / 93.31% | 见 §7.8 | +0.11pp（准入造成） | +0.88pp |
 
 **两个杠杆的分工必须说清楚**：放宽准入负责**召回**（+3.5 ~ +4.7pp），修复后的重排负责**CER**
 （每个准入内 −0.005 ~ −0.119pp，且从不退化）。重排单独并不显著提高召回（同准入内 −0.17 ~ +0.50pp，
 量级 <1pp），所以「召回与 CER 同时改善」这句话是**对整套前端改动**成立的，而不是对重排单独成立的。
-只在 THCHS-30 上、且必须保留 `exact_weighted_score` 护栏，重排本身才同时给出两轴收益。
+只在 THCHS-30 放宽准入这一格上，重排本身的两轴收益才同时通过 bootstrap 显著性检验（P=0.995，
+见下面的配对 bootstrap 小节）。
+
+**调参纪律**：修复**没有可调超参数**——长度归一化就是除以 token 数，只增不减的门槛就是
+`len(c) >= len(top-1)`（"原 top-1 永远留在候选集里"这一条本身没有自由度），主键保持出厂设置。
+所以**没有任何数值是在 ST-CMDS / THCHS-30 上调出来的**；这两个集的角色是事后迁移检查。
+唯一的"二选一"是「保留还是丢掉 `exact_weighted_score` 主键」，判定依据是先验的——重排不应该
+推翻前端已经做出的热词覆盖决定——THCHS-30 的 −1.32pp 只是**事后印证**，不是选择依据。
 
 只看修复本身（同一准入内，修复重排 vs 该准入的前端 top-1）：
 
@@ -573,6 +580,10 @@ THCHS 放宽 47 → 66（1.80%→2.57%），ST-CMDS 原准入 405 → 420（7.52
 ```bash
 # 策略扫描（纯 CPU，不占 GPU）
 bash .dsh_checks/run_policy_sweep6.sh          # key × floor 全网格，五组池
+bash .dsh_checks/run_bootstrap.sh              # 配对 bootstrap 置信区间
+/root/autodl-tmp/great/bin/python .dsh_checks/ctc_length_bias.py --ctc-scores "LABEL=PATH" ...
+/root/autodl-tmp/great/bin/python .dsh_checks/floor_cost.py --uttid <uttid> --evidence "LABEL=PATH" ...
+/root/autodl-tmp/great/bin/python .dsh_checks/exact_key_informativeness.py --evidence "LABEL=PATH" ...
 
 # 修复版重排 + 前端指标
 /root/autodl-tmp/great/bin/python .dsh_checks/apply_rerank_v2.py \
@@ -581,6 +592,24 @@ bash .dsh_checks/run_policy_sweep6.sh          # key × floor 全网格，五组
   --label "..." --out <reranked.jsonl>          # 加 --no-floor 复现出厂行为
 
 # 端到端（等 GPU 空闲后串行执行）
-bash .dsh_checks/run_fixed_rerank_e2e.sh       # AISHELL / ST-CMDS / THCHS-30，无强锚点
+bash .dsh_checks/run_fixed_rerank_e2e.sh            # 放宽 + 修复重排，三个数据集，无强锚点
+bash .dsh_checks/run_stcmds_orig_fixed_e2e.sh       # 原准入 + 修复重排（重排修复的干净对比）
+bash .dsh_checks/run_stcmds_breadth.sh              # 只放宽"广度"组，带自门控
+
+# 汇总所有臂的所有指标
+bash .dsh_checks/final_tables.sh
 ```
+
+### 7.8 端到端验收（修复重排，COVO，无强锚点）
+
+（本节由 GPU 队列产出：`FIXED_RERANK_E2E_DONE` → `STCMDS_ORIG_FIXED_E2E_DONE` → `STCMDS_BREADTH_DONE`。
+记录文件：`armG1` / `e2eSTCMDSFIX` / `e2eTHCHSFIX` / `e2eSTCMDSORIGFIX` / `e2eSTCMDSBREADTH`。）
+
+**待填** —— 已知的三条参照线（第 6 节 + 7.1）：
+
+| 数据集 | 基线（原准入 + 锚点 ON） | 原准入 + 出厂重排 | 放宽 + 出厂重排 |
+|---|---|---|---|
+| AISHELL dev | 2.5922% / 92.65% (555)，破坏 1 | — | 2.5732% / 94.82% (568)，破坏 1 |
+| THCHS-30 | 3.2241% / 91.27% (12903)，破坏 162 | — | 3.1674% / 93.96% (13283)，破坏 110 |
+| ST-CMDS | 5.0300% / 93.48% (1606)，破坏 0 | **6.2657% / 92.90% (1596)，破坏 0** ❌ | 5.1279% / 94.00% (1615)，破坏 0 |
 
