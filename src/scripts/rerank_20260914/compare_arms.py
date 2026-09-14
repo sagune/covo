@@ -182,7 +182,19 @@ def main():
 
     rng = random.Random(args.seed)
     dc, dr, both = [], [], 0
+    ded, ed_better = [], 0
     N = len(rows)
+
+    def agg_edit(sample):
+        """Beyond-N-best partition: the rows where only generation can help, i.e. the
+        editing-ability dashboard.  Returns net gain in CER points for A and B."""
+        sub = [x for x in sample if x["beyond"]]
+        if not sub:
+            return 0.0, 0.0
+        c = sum(x["chars"] for x in sub)
+        return (100.0 * sum(x["e0"] - x["ea"] for x in sub) / c,
+                100.0 * sum(x["e0"] - x["eb"] for x in sub) / c)
+
     for _ in range(args.draws):
         s = [rows[rng.randrange(N)] for _ in range(N)]
         x = agg(s)
@@ -192,11 +204,22 @@ def main():
         dr.append(e)
         if d <= 0 and e >= 0:
             both += 1
-    dc.sort(); dr.sort()
+        ea, eb = agg_edit(s)
+        ded.append(eb - ea)
+        if eb >= ea:
+            ed_better += 1
+    dc.sort(); dr.sort(); ded.sort()
     print("  paired bootstrap (%d draws): dCER %+.4f pp [%+.4f, %+.4f]   drecall %+.2f pp [%+.2f, %+.2f]"
           % (args.draws, cb - ca, dc[int(.025 * args.draws)], dc[int(.975 * args.draws)],
              rb - ra, dr[int(.025 * args.draws)], dr[int(.975 * args.draws)]))
     print("  P(B no worse on both axes) = %.3f" % (both / args.draws))
+    print("  EDITING-ABILITY GATE (beyond-N-best partition):  d(edit gain) %+.4f pp "
+          "[%+.4f, %+.4f]   P(B's editing >= A's) = %.3f"
+          % (ded[len(ded) // 2], ded[int(.025 * args.draws)], ded[int(.975 * args.draws)],
+             ed_better / args.draws))
+    if ded[int(.025 * args.draws)] < -0.5:
+        print("  ^^ WARNING: the lower bound says B may have LOST more than 0.5 pp of editing"
+              " ability - this is the rollback condition the plan declares")
 
     mig = Counter((r["ca"], r["cb"]) for r in rows)
     cls_order = ["no_change", "sel_win", "sel_tie", "sel_loss", "edit_win", "edit_tie", "edit_loss"]
