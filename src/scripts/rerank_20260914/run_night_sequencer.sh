@@ -172,8 +172,29 @@ run_arm run_controls.sh     CONTROLS_DONE  "controls (existing adapter, same pro
 run_arm run_vd_arm.sh       VD_ARM_DONE    "VD arm (trained adapter, rerank= prompt)"
 run_arm run_oldiface_arm.sh OLDIFACE_DONE  "old-interface arm (shipped adapter, own template)"
 
-# --------------------------------------------------------------- 5. repair
+# --------------------------------------------------------------- 5. checkpoint selection
 say "---------- checkpoint selection ----------"
+# Phase 3's own loop is broken and this repairs it.  It runs
+#     ls -d "$OUT"/final/checkpoint-* | sort -t- -k2 -n | tail -2
+# but $OUT is ABSOLUTE (/root/autodl-tmp/...), so the field after the FIRST hyphen is the
+# "autodl-tmp" component, not the step number: every key ties, the sort is a no-op, and
+# `tail -2` returns checkpoint-2000 and checkpoint-500 rather than the LAST two
+# (verified on this box).  The goal selects the checkpoint by AISHELL-dev CER, so a
+# selection over the wrong subset is not acceptable.  Evaluate ALL checkpoints here;
+# `infer` skips existing files and the label guard keeps train_run_v2.log duplicate-free.
+for ck in $(ls -d "$OUT"/final/checkpoint-* 2>/dev/null); do
+  [ -s "$ck/adapter_model.safetensors" ] || continue
+  tag=$(basename "$ck")
+  infer "$OUT/eval_aishell.messages.jsonl" "$OUT/dev_$tag.predictions.jsonl" "$ck" "AISHELL dev $tag"
+  if [ -s "$OUT/dev_$tag.predictions.jsonl" ] && ! grep -qa "^# AISHELL dev, $tag\$" "$TRLOG"; then
+    "$PY" "$WS/.dsh_checks/restore_eval.py" --records "$OUT/dev_$tag.predictions.jsonl" \
+      --label "AISHELL dev, $tag" --aligned "$A/aligned.txt" --uttid-file "$A/uttid" >> "$TRLOG" 2>&1
+  fi
+done
+"$PY" "$WS/.dsh_checks/consolidate_train.py" --log "$TRLOG" --out "$R/TRAIN_SUMMARY.txt" >> "$LOG" 2>&1
+say "re-ranked every checkpoint; TRAIN_SUMMARY.txt refreshed:"
+grep -aE "^  [0-9]+\. " "$R/TRAIN_SUMMARY.txt" 2>/dev/null | head -8 >> "$LOG"
+
 BEST=$(grep -a "^BEST_CKPT=" "$R/TRAIN_SUMMARY.txt" 2>/dev/null | head -1 | cut -d= -f2)
 VRD=$(grep -a "^VERDICT=" "$R/TRAIN_SUMMARY.txt" 2>/dev/null | head -1 | cut -d= -f2)
 say "AISHELL-dev best ckpt: ${BEST:-none} / ${VRD:-none}"
