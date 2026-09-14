@@ -189,16 +189,38 @@ save_steps=500
   但同时要警惕 `edited` 暴涨（学到了"总是在候选里挑一个"）。
 - 无论哪种，**判据仍是 ST-CMDS 的 `restore[deployable]` + 三个守门指标**，损失只是解释用的第二维度。
 
-### 7.5 排队中的臂（截至 00:50）
+### 7.5 排队中的臂 —— 已改为**单一 GPU 所有权**（`run_night_sequencer.sh`）
 
-| 臂 | 脚本 | 作用 | 预计完成 |
+**为什么改**：原来四个臂各自"等上一个的标记"，这在计划固定时没问题，但**结果不好时顺序是错的**——
+如果训练没打到 4.5，目标明确要求的 DPO 备用方案会被排在对照（2.5h）+ VD 臂（1.7h）+ 接口臂（0.9h）
+之后，白等约 5 小时 GPU，而这三个臂没有一个能改善 CER。所以改成**一个进程按测量结果决定顺序**，
+它是唯一启动 GPU 工作的进程：
+
+```
+1 报告   训练一结束立刻（纯 CPU）出 TRAIN_SUMMARY.txt
+2 补齐   用 get_cer.py 确认头部数字存在；缺了就重跑对应迁移臂
+3 判定   读新 adapter 的 ST-CMDS restore[deployable] CER
+4 执行   达标 (<=4.50) -> 只跑三个对照臂（原计划）
+         未达标        -> 先跑 DPO，再跑三个对照臂
+5 选点   若 AISHELL dev 说 final 不是最好，用胜出的检查点重跑 ST-CMDS 迁移
+6 早上   写 MORNING_REPORT.txt（一屏给出结论 + 闸门指标 + 所有臂）
+```
+
+| 臂 | 脚本 | 作用 | 触发 |
 |---|---|---|---|
-| 阶段 3/4 | `run_train2.sh` | 选点 + ST-CMDS/THCHS 迁移 | ~09:30 |
-| 对照 | `run_controls.sh` | 现 adapter 在**同三份提示词**上跑一遍 | ~12:00 |
-| VD 臂 | `run_vd_arm.sh` | 新 adapter 跑带 `rerank=` 的提示词 | ~13:45 |
-| **接口臂** | `run_oldiface_arm.sh` | 现 adapter 跑**它自己的**训练界面（单变量对照） | ~14:35 |
-| 汇总 | `post_train_watch.sh` | 训练一结束就出 `TRAIN_SUMMARY.txt`；末尾补跑缺失臂/最佳检查点 | — |
-| 消歧 | `post_controls_extra.sh` | 生成 `compare_adapter_identity.txt`，修正 adapter 身份标注 | 已出（CPU） |
+| 阶段 3/4 | `run_train2.sh` | 选点 + ST-CMDS/THCHS 迁移 | 训练结束 |
+| 头报 | `consolidate_train.py` | AISHELL-dev 检查点排名 | 训练结束（CPU） |
+| **DPO（仅未达标）** | `run_train_next.sh dpo` | 偏好对教"选对候选而不是复制 top-1" | CER > 4.50 |
+| 对照 | `run_controls.sh` | 现 adapter 在**同三份提示词**上跑一遍 | 之后 |
+| VD 臂 | `run_vd_arm.sh` | 新 adapter 跑带 `rerank=` 的提示词 | 之后 |
+| 接口臂 | `run_oldiface_arm.sh` | 现 adapter 跑**它自己的**训练界面（单变量对照 E41） | 之后 |
+| 消歧 | `post_controls_extra.sh` | `compare_adapter_identity.txt`（CPU） | CONTROLS_DONE |
+
+**已把原来四个独立等待进程（run_controls / run_vd_arm / run_oldiface_arm / post_train_watch）
+全部停掉**，避免和 sequencer 抢 GPU；它们的逻辑已由 sequencer 按顺序调用，标记链不变。
+
+判读用的两个新工具：`get_cer.py`（从日志里取一条臂的 CER/召回/破坏/imp/wor，取不到就返回 rc=1）、
+`compare_arms.py`（配对 bootstrap + 行为迁移 + THE BET/REGRESSION）。
 
 **早上要跑的两条对照命令**（都需要 predictions 文件已存在，CPU）：
 
