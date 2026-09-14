@@ -259,6 +259,15 @@ fi
     echo "== behaviour fingerprint + JSON parse-failure rate (baseline: 0.000%) =="
     "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$OUT/stcmds_final.predictions.jsonl" \
       --label "ST-CMDS trained adapter" 2>&1
+    echo
+    echo "== edit precision vs coverage (THE operating-point check) =="
+    echo "   baseline V-C: edit rate 6.9%, precision 75.3%, coverage 13.4%, +144 chars"
+    echo "   break-even precision is ~54%; below it more editing LOSES (THCHS 45.1% -> -297 chars)"
+    "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+      --label "ST-CMDS trained adapter" 2>&1
+    echo "  --- the arm it must beat ---"
+    "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$R/e2eSTCMDS_VC.predictions.jsonl" \
+      --label "ST-CMDS existing adapter V-C (baseline)" 2>&1
     echo "  --- the same fingerprint for the arm it must beat ---"
     "$PY" "$WS/.dsh_checks/parse_failures.py" --records "$R/e2eSTCMDS_VC.predictions.jsonl" \
       --label "ST-CMDS existing adapter V-C (baseline)" 2>&1
