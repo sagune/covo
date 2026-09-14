@@ -307,8 +307,9 @@ fi
       --label "ST-CMDS trained adapter" 2>&1
     echo
     echo "== edit precision vs coverage (THE operating-point check) =="
-    echo "   baseline V-C: edit rate 6.9%, precision 75.3%, coverage 13.4%, +144 chars"
-    echo "   break-even precision is ~54%; below it more editing LOSES (THCHS 45.1% -> -297 chars)"
+    echo "   baseline V-C: edit rate 6.7%, precision 78.5%, coverage 13.4%, +158 chars (policy=deployable)"
+    echo "   break-even precision is ~51-59%; AISHELL dev does 28.0% edit rate at 75.2% precision"
+    echo "   (positive), THCHS-30 does 36.8% at 51.6% (negative) -> safe region is edit rate <~30%."
     echo "   the training prior says 'change' on 75.4% of rows; ST-CMDS only needs 35.7%,"
     echo "   so an edit-rate rise is expected - precision is what must hold (>=70%)."
     "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_final.predictions.jsonl" \
