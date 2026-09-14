@@ -37,6 +37,23 @@ TARGET=4.50
 BASELINE=4.9356
 say() { echo "[$(date -Is)] $*" >> "$LOG"; }
 
+# ------------------------------------------------------------------ single instance
+# Two sequencers would both wake on TRAIN_PLAN2_DONE, both grab the GPU, and both write
+# the same <pred>.inprogress files - which corrupts arms rather than merely slowing them.
+# This happened once (a relaunch without killing the previous copy).
+#
+# Use flock, not `pgrep -f`: an argv pattern has to be anchored just right or it matches
+# the `bash -c` launcher (or its own earlier copy) and then REFUSES TO START for ever -
+# which is what a pgrep version of this guard actually did.  flock is atomic and the
+# kernel drops the lock when the process ends, even on SIGKILL.
+LOCK="$R/sequencer.lock"
+exec 9>"$LOCK"
+if ! flock -n 9; then
+  say "REFUSING TO START: another run_night_sequencer.sh holds $LOCK (pid $$)"
+  exit 1
+fi
+say "instance lock acquired ($LOCK, pid $$)"
+
 gpu_wait() {
   for i in $(seq 1 60); do
     busy=$(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | tr -d ' \n')

@@ -91,6 +91,13 @@ JSON 失败率、`beyond-N-best` 的 imp/wor、destroyed+召回）。
 cd /root/autodl-tmp && setsid nohup bash .dsh_checks/run_night_sequencer.sh \
   < /dev/null > .dsh_checks/rerank/sequencer.out 2>&1 & disown
 ```
+**重启前必须先停掉旧的**：`pkill -f run_night_sequencer.sh`。
+sequencer 现在用 **`flock`** 做单实例保护（`sequencer.lock`，内核在进程退出/被 KILL 时自动释放），
+第二个实例会拒绝启动并记 `REFUSING TO START`。**这个保护不是多余的**：
+09-15 01:55 我连续重启时忘了先停旧进程，一度有**两个 sequencer 同时在等 `TRAIN_PLAN2_DONE`**——
+训练一结束它们会**同时抢 GPU** 并**写同一个 `<pred>.inprogress`**，那不是变慢而是**产出被写坏**。
+（第一版保护用的是 `pgrep -f` 匹配 argv，结果把 `bash -c` 启动器也算进去，
+导致"明明没有实例却一直拒绝启动"；已改成 flock。）
 **注意**：`run_controls.sh` / `run_vd_arm.sh` / `run_oldiface_arm.sh` / `post_train_watch.sh`
 **不要**再单独启动——它们已被 sequencer 按顺序接管，单独启动会抢 GPU。
 `run_train_next.sh dpo` 也由 sequencer 调用（并会用 `DPO_PAIRS` 选标准/keep-it 加权数据）。
