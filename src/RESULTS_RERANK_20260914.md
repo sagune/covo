@@ -1461,3 +1461,34 @@ $PY .dsh_checks/interface_probe2.py
 
 **这个方法同时提供了一个可复用的检查**：以后任何"改了提示词模板"的实验，
 都可以用"推理骨架 ⊆ 训练骨架"这条判据在**跑 GPU 之前**发现错配——E41 那个 bug 当年就是漏了这一步。
+
+### 10.8 DPO 备用方案的可执行性核验（含一个会静默毁掉它的默认值）
+
+目标是"失败就转 DPO"，所以备用方案必须**在真跑之前**被证明可用。`dpo_prompt_len.py` 用模型自己的
+tokenizer 量了 `dpo_pairs_aishell.jsonl` 全部 17,301 条提示词的真实长度：
+
+| 统计 | 值 |
+|---|---|
+| prompt token 数 | 均值 **1189**，p50 1186，p90 1397，p99 1478，**max 1690** |
+| `pair_type` 分布 | `B_top1_wrong` 10,973（63.4%）/ `C_keep_it` 4,258（24.6%）/ `A_ref_out_of_pool` 2,070（12.0%） |
+
+**关键结论：如果沿用 `train_lora_dpo_text.py` 的默认 `--max-prompt-length 896`，
+98.2% 的提示词会被截断**（该参数是**从左截断**，会先吃掉系统提示词，再吃掉大部分候选证据）：
+
+| `--max-prompt-length` | 被截断的提示词 |
+|---:|---:|
+| 896（脚本默认） | **16,983（98.2%）** |
+| 1024 | 14,333（82.8%） |
+| 1536 | 21（0.1%） |
+| **2048（`run_train_next.sh` 实际用的）** | **0（0.0%）** |
+
+⇒ `run_train_next.sh` 里的 `--max-prompt-length 2048` 是**必需的**，不是保守设置。
+另外 800 步 × batch 2 × accum 8 的 DPO 训练路径已用 `--dry-run` 跑通（`rows: 17301`），
+样本含 `prompt_ids`(1016) / `chosen_ids`(15) / `rejected_ids`(16) / `pair_type`，
+且训练脚本支持的全部 flag 与 `run_train_next.sh` 传入的逐一核对无缺失。
+
+**一个方法论坑（记下来免得再踩）**：这个 tokenizer 的 `apply_chat_template(..., tokenize=True)`
+返回的是 `BatchEncoding`，里面 `input_ids` 是**按消息分段的列表**，不是扁平 token 列表。
+按 `len()` 量会得到"2"（两个 key），按嵌套列表处理会得到"0"。**先 `tokenize=False` 渲染成字符串、
+再调用 tokenizer** 才能得到无歧义的长度——并且要用"解码后的文本确实包含用户消息片段"来校验，
+否则就是一个看起来跑通、实际量错的分析脚本（我这两次都踩了，第三次才加上这个断言）。
