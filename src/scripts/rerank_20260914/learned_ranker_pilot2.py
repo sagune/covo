@@ -58,6 +58,21 @@ def ranks(vals):
     return r
 
 
+def keep_indices(names, drop):
+    """Indices of the features to KEEP after removing every name matching a substring."""
+    if not drop:
+        return None
+    pats = [d for d in drop.split(",") if d]
+    return [i for i, n in enumerate(names) if not any(p in n for p in pats)]
+
+
+def prune(utts, keep):
+    if keep is None:
+        return
+    for u in utts:
+        u["X"] = u["X"][:, keep]
+
+
 def build(evidence, ctc_path, uttid, aligned):
     pos2utt = [l.split()[0] for l in Path(uttid).read_text(encoding="utf-8-sig").splitlines() if l.strip()]
     desig = defaultdict(list)
@@ -122,8 +137,9 @@ def featurise(utts, ctc, with_hand_flag):
         bc, ba = max(cl), max(asr)
         feas = [j for j in range(len(cs)) if all(p in cs[j][0] for p in u["prot"])
                 and len(cs[j][0]) >= len(old)]
+        feas_prot = [j for j in range(len(cs)) if all(p in cs[j][0] for p in u["prot"])] or list(range(len(cs)))
         if not feas:
-            feas = [j for j in range(len(cs)) if all(p in cs[j][0] for p in u["prot"])] or list(range(len(cs)))
+            feas = feas_prot
         jh = max(feas, key=lambda j: (num(cs[j][1].get("exact_weighted_score")), cl[j]))
         rows, cers = [], []
         for i, (t, c) in enumerate(cs):
@@ -148,6 +164,7 @@ def featurise(utts, ctc, with_hand_flag):
         u["yl"] = u["y_cls"].astype(np.float64)
         u["ncer"] = u["cers"] / max(1.0, len(ref))
         u["feas"] = feas
+        u["feas_prot"] = feas_prot
     return names
 
 
@@ -219,16 +236,36 @@ def main():
     ap.add_argument("--train-uttid", default="")
     ap.add_argument("--train-aligned", default="")
     ap.add_argument("--emit-jsonl", default="", help="write reranked evidence here")
+    ap.add_argument("--drop-features", default="", help="comma list of name substrings to drop")
+    ap.add_argument("--protect-only", action="store_true",
+                    help="feasible set = protection only, i.e. deletion is allowed")
+    ap.add_argument("--constrain", action="store_true",
+                    help="restrict both the training label and the inference choice to the "
+                         "feasible set (keeps every protected hotword, never shortens)")
     a = ap.parse_args()
 
     utts, ctc = build(a.evidence, a.ctc_scores, a.uttid, a.aligned)
-    names = featurise(utts, ctc, a.with_hand_flag)
+    all_names = featurise(utts, ctc, a.with_hand_flag)
+    keep = keep_indices(all_names, a.drop_features)
+    prune(utts, keep)
+    names = [n for i, n in enumerate(all_names) if keep is None or i in keep]
     ndim = len(names)
+
+    if a.constrain:
+        for u in utts:
+            m = np.zeros(len(u["y_cls"]))
+            for j in (u["feas_prot"] if a.protect_only else u["feas"]):
+                m[j] = 1.0
+            u["y_cls"] = (u["y_cls"] * m).astype(np.int64)
+            if u["y_cls"].sum() == 0:            # no feasible candidate is optimal: fall back
+                u["y_cls"] = np.asarray([1 if j == u["feas"][0] else 0 for j in range(len(m))], dtype=np.int64)
+            u["y"] = u["y_cls"].astype(np.float64) / max(1.0, u["y_cls"].sum())
 
     # ---- optional cross-domain mode: train on one dataset, score this one -------
     if a.train_evidence:
         tr_utts, tr_ctc = build(a.train_evidence, a.train_ctc, a.train_uttid, a.train_aligned)
         featurise(tr_utts, tr_ctc, a.with_hand_flag)
+        prune(tr_utts, keep)
         mu = np.vstack([u["X"] for u in tr_utts]).mean(0)
         sd = np.vstack([u["X"] for u in tr_utts]).std(0) + 1e-6
         for u in tr_utts:
@@ -264,7 +301,13 @@ def main():
             train_torch(model, blob, kind, seed=a.seed)
             sc = score_pools(model, utts, teidx, "Z")
             for i in teidx:
-                emit2(tag, utts[i], utts[i]["cands"][int(np.argmax(sc[i]))][0])
+                s = sc[i]
+                if a.constrain:
+                    _f = utts[i]["feas_prot"] if a.protect_only else utts[i]["feas"]
+                    j = _f[int(np.argmax(s[_f]))]
+                else:
+                    j = int(np.argmax(s))
+                emit2(tag, utts[i], utts[i]["cands"][j][0])
         # ---- optional: write the reranked pool out in the rescorer's own format ----
         emit_rows = {}
         if a.emit_jsonl:
@@ -316,6 +359,7 @@ def main():
 
     wanted = [m for m in a.models.split(",") if m]
     acc = defaultdict(lambda: dict(chars=0, e=0, men=0, hit=0))
+    oof_pick = {}          # utterance index -> text chosen by the out-of-fold model
 
     def emit(k, u, txt):
         d = acc[k]
@@ -360,7 +404,29 @@ def main():
             sc = score_pools(model, utts, te, "Z")
             for i in te:
                 s = sc[i]
-                emit(tag, utts[i], utts[i]["cands"][int(np.argmax(s))][0])
+                if a.constrain:
+                    _f = utts[i]["feas_prot"] if a.protect_only else utts[i]["feas"]
+                    j = _f[int(np.argmax(s[_f]))]
+                else:
+                    j = int(np.argmax(s))
+                pick = utts[i]["cands"][j][0]
+                emit(tag, utts[i], pick)
+                if tag == "lin_ce":
+                    oof_pick[i] = pick
+
+    # ---- optional: write the out-of-fold reranked pool for the end-to-end arm ----
+    if a.emit_jsonl and oof_pick:
+        order = [str(json.loads(l).get("id"))
+                 for l in Path(a.evidence).read_text(encoding="utf-8").splitlines() if l.strip()]
+        with open(a.emit_jsonl, "w", encoding="utf-8") as fh:
+            for i, u in enumerate(utts):
+                r = json.loads(json.dumps(u["raw"], ensure_ascii=False))
+                best = oof_pick[i]
+                old_nb = (r.get("input") or {}).get("nbest") or []
+                r["input"]["asr_top1"] = best
+                r["input"]["nbest"] = [best] + [t for t in old_nb if norm(t) != best]
+                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+        print("# wrote %d out-of-fold rows to %s" % (len(utts), a.emit_jsonl))
 
     print("# %s   utterances=%d  features=%d  hand-flag=%s" % (
         a.label, len(utts), ndim, a.with_hand_flag))
