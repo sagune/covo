@@ -120,7 +120,7 @@ def build(evidence, ctc_path, uttid, aligned):
     return utts, ctc
 
 
-def featurise(utts, ctc, with_hand_flag):
+def featurise(utts, ctc, with_hand_flag, label_mode="mincer"):
     names = ["len", "dlen", "ntok", "asr", "ctc_raw", "ctc_ln", "ctc_rank", "ctc_margin",
              "asr_rank", "asr_margin", "ed_old", "search", "total", "exact_s", "exact_w",
              "hotword", "phon", "consensus", "consensus_sup", "is_old", "nonshort",
@@ -141,7 +141,7 @@ def featurise(utts, ctc, with_hand_flag):
         if not feas:
             feas = feas_prot
         jh = max(feas, key=lambda j: (num(cs[j][1].get("exact_weighted_score")), cl[j]))
-        rows, cers = [], []
+        rows, cers, hlost = [], [], []
         for i, (t, c) in enumerate(cs):
             row = [len(t), len(t) - len(old), nt[i], asr[i], cr[i], cl[i], rc[i], bc - cl[i],
                    ra[i], ba - asr[i], edit_distance(list(old), list(t)),
@@ -156,40 +156,60 @@ def featurise(utts, ctc, with_hand_flag):
                 row.append(float(i == jh))
             rows.append(row)
             cers.append(edit_distance(list(ref), list(t)))
+            # designated hotwords that the reference has but this candidate lacks
+            hlost.append(sum(1 for k in u["keys"] if k in ref and k not in t))
         u["X"] = np.asarray(rows, dtype=np.float64)
         u["cers"] = np.asarray(cers, dtype=np.float64)
         mn = min(cers)
-        u["y_cls"] = np.asarray([1 if v == mn else 0 for v in cers], dtype=np.int64)
+        if label_mode == "nohotloss":
+            # prefer the minimum-CER candidate among those that lose no designated
+            # hotword the reference contains; fall back to plain min-CER if none does
+            keep_h = [j for j in range(len(cers)) if hlost[j] == 0]
+            if keep_h:
+                mn = min(cers[j] for j in keep_h)
+                u["y_cls"] = np.asarray([1 if (j in keep_h and cers[j] == mn) else 0
+                                         for j in range(len(cers))], dtype=np.int64)
+            else:
+                u["y_cls"] = np.asarray([1 if v == mn else 0 for v in cers], dtype=np.int64)
+        else:
+            u["y_cls"] = np.asarray([1 if v == mn else 0 for v in cers], dtype=np.int64)
         u["y"] = u["y_cls"].astype(np.float64) / max(1.0, u["y_cls"].sum())
+        u["conflict"] = 1.0 if hlost[int(np.argmin(cers))] > 0 else 0.0
         u["yl"] = u["y_cls"].astype(np.float64)
         u["ncer"] = u["cers"] / max(1.0, len(ref))
+        hl = np.asarray(hlost, dtype=np.float64)
+        u["hlost"] = hl / max(1.0, hl.max())
         u["feas"] = feas
         u["feas_prot"] = feas_prot
     return names
 
 
-def pad_pools(utts, idx, key):
+def pad_pools(utts, idx, key, cw=0.0):
     """(N, K, F) padded features + (N, K) targets + mask, built once per fold."""
     K = max(len(utts[i][key]) for i in idx)
     N, F = len(idx), utts[idx[0]][key].shape[1]
     X = np.zeros((N, K, F), dtype=np.float32)
     Y = np.zeros((N, K), dtype=np.float32)
     C = np.zeros((N, K), dtype=np.float32)
+    H = np.zeros((N, K), dtype=np.float32)
     M = np.zeros((N, K), dtype=np.float32)
+    Wt = np.ones((N,), dtype=np.float32)
     for r, i in enumerate(idx):
         u = utts[i]
         k = len(u[key])
         X[r, :k] = u[key]
         Y[r, :k] = u["y"]
         C[r, :k] = u["ncer"]
+        H[r, :k] = u["hlost"]
         M[r, :k] = 1.0
-    return (torch.tensor(X), torch.tensor(Y), torch.tensor(C), torch.tensor(M))
+        Wt[r] = 1.0 + cw * u.get("conflict", 0.0)
+    return (torch.tensor(X), torch.tensor(Y), torch.tensor(C), torch.tensor(H),
+            torch.tensor(M), torch.tensor(Wt))
 
 
-def train_torch(model, blob, loss_kind, epochs=250, lr=0.08, wd=1e-4, seed=0):
+def train_torch(model, blob, loss_kind, epochs=250, lr=0.08, wd=1e-4, seed=0, recall_weight=0.0):
     torch.manual_seed(seed)
-    X, Y, C, M = blob
-    Xf, Yf, Cf, Mf = X.reshape(-1, X.shape[-1]), Y, C, M
+    X, Y, C, H, M, Wt = blob
     opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=wd)
     neg = torch.finfo(X.dtype).min
     for ep in range(epochs):
@@ -197,9 +217,12 @@ def train_torch(model, blob, loss_kind, epochs=250, lr=0.08, wd=1e-4, seed=0):
         s = s.masked_fill(M < 0.5, neg)
         logp = torch.log_softmax(s, dim=1)
         if loss_kind == "ce":
-            loss = -(Y * logp).sum(dim=1).mean()
+            per = -(Y * logp).sum(dim=1)
         else:
-            loss = (torch.softmax(s, dim=1) * C).sum(dim=1).mean()
+            per = (torch.softmax(s, dim=1) * C).sum(dim=1)
+        if recall_weight > 0:
+            per = per + recall_weight * (torch.softmax(s, dim=1) * H).sum(dim=1)
+        loss = (per * Wt).sum() / Wt.sum()
         opt.zero_grad()
         loss.backward()
         opt.step()
@@ -237,6 +260,13 @@ def main():
     ap.add_argument("--train-aligned", default="")
     ap.add_argument("--emit-jsonl", default="", help="write reranked evidence here")
     ap.add_argument("--drop-features", default="", help="comma list of name substrings to drop")
+    ap.add_argument("--conflict-weight", type=float, default=0.0,
+                    help="extra weight on utterances whose pool CER-optimum loses a designated hotword")
+    ap.add_argument("--label-mode", default="mincer", choices=["mincer", "nohotloss"],
+                    help="mincer: label = pool minimum-CER candidate. "
+                         "nohotloss: minimum-CER candidate among those losing no designated hotword")
+    ap.add_argument("--recall-weight", type=float, default=0.0,
+                    help="weight of the auxiliary expected designated-hotword-loss term")
     ap.add_argument("--protect-only", action="store_true",
                     help="feasible set = protection only, i.e. deletion is allowed")
     ap.add_argument("--constrain", action="store_true",
@@ -295,10 +325,10 @@ def main():
         for tag, kind, hidden in (("lin_ce", "ce", 0), ("lin_ece", "ece", 0), ("mlp_ce", "ce", 32)):
             if tag not in wanted2:
                 continue
-            blob = pad_pools(tr_utts, tridx, "Z")
+            blob = pad_pools(tr_utts, tridx, "Z", a.conflict_weight)
             layers = [nn.Linear(ndim, hidden), nn.ReLU(), nn.Linear(hidden, 1)] if hidden else [nn.Linear(ndim, 1)]
             model = nn.Sequential(*layers)
-            train_torch(model, blob, kind, seed=a.seed)
+            train_torch(model, blob, kind, seed=a.seed, recall_weight=a.recall_weight)
             sc = score_pools(model, utts, teidx, "Z")
             for i in teidx:
                 s = sc[i]
@@ -314,7 +344,7 @@ def main():
             tag = "lin_ce"
             blob = pad_pools(tr_utts, tridx, "Z")
             model = nn.Sequential(nn.Linear(ndim, 1))
-            train_torch(model, blob, "ce", seed=a.seed)
+            train_torch(model, blob, "ce", seed=a.seed, recall_weight=a.recall_weight)
             sc = score_pools(model, utts, teidx, "Z")
             src = {}
             for l in Path(a.evidence).read_text(encoding="utf-8").splitlines():
@@ -397,10 +427,10 @@ def main():
         for tag, kind, hidden in (("lin_ce", "ce", 0), ("lin_ece", "ece", 0), ("mlp_ce", "ce", 32)):
             if tag not in wanted:
                 continue
-            blob = pad_pools(utts, tr, "Z")
+            blob = pad_pools(utts, tr, "Z", a.conflict_weight)
             layers = [nn.Linear(ndim, hidden), nn.ReLU(), nn.Linear(hidden, 1)] if hidden else [nn.Linear(ndim, 1)]
             model = nn.Sequential(*layers)
-            train_torch(model, blob, kind, seed=a.seed)
+            train_torch(model, blob, kind, seed=a.seed, recall_weight=a.recall_weight)
             sc = score_pools(model, utts, te, "Z")
             for i in te:
                 s = sc[i]
