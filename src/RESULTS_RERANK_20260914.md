@@ -299,6 +299,11 @@ CBW_EVIDENCE_ONLY=1 CBW_EVIDENCE_OUT=dev_base.jsonl \
 | **基线**（原准入 + 锚点 ON） | 5.7921% / 92.43% | 4.9588% / 92.61% | **5.0300% / 93.48%** (1606) | 0 |
 | **新配置**（放宽 + 去锚点） | 5.9060% / 93.31% | 5.0353% / 93.19% | **5.1279% / 94.00%** (1615) | 0 |
 
+基线记录文件（可复现）：`.dsh_checks/stcmds/stcmds_9b_stcmds_adapter.predictions.jsonl`；
+新配置：`.dsh_checks/rerank/e2eSTCMDS.predictions.jsonl`。逐层数字（`restore_eval.py`）：
+基线 input 5.7921%/92.43% → raw 4.9588%/92.61%（破坏 30）→ **restore[deployable] 5.0300%/93.48%（破坏 0）**；
+新配置 input 5.9060%/93.31% → raw 5.0353%/93.19%（破坏 28）→ **restore[deployable] 5.1279%/94.00%（破坏 0）**。
+
 | 验收线 | Δ | 结论 |
 |---|---|---|
 | 前端 CER | +0.1139pp | ❌ **退化** |
