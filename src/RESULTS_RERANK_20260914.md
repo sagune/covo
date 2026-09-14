@@ -340,14 +340,39 @@ CBW_EVIDENCE_ONLY=1 CBW_EVIDENCE_OUT=dev_base.jsonl \
 
 出厂重排的伤害是放宽准入的 **6.6 倍**。第 6 节把 ST-CMDS 的失败整体归给准入，是错的。
 
-### 7.2 机制：总对数似然是长度偏置的
+### 7.2 机制：主键是热词覆盖护栏，真正在做选择的是有偏的声学项
 
-`src/analysis/score_sensevoice_candidate_evidence.py::ctc_sequence_score` 返回
-`F.ctc_loss(..., reduction="none")` 的**总和**（未按目标长度归一化），直接存进
-`asr_score`。同时池内 `exact_weighted_score` 在绝大多数行上是惰性字段（ST-CMDS 抽样
-可见全为 `0.0`；AISHELL 1297/1334 行、THCHS 2486/2495 行池内并列），
-于是出厂规则 `max(exact_weighted_score, asr_score)` **实际退化成 `argmax(asr_score)`**：
-一个随发射 token 数单调下降的分数 —— 它的无约束 argmax 会系统性偏好**更短**的候选。
+出厂规则是 `max(exact_weighted_score, asr_score)` 的字典序。先把这个主键的性质测清楚
+（`exact_key_informativeness.py`，`exact_weighted_score` 即 `cb_sensevoice.py:1341/2756`
+的 `exact_stats["weighted_coverage"]`，取值基本只有 {0, 0.5, 1}）：
+
+| 池 | 行数 | 全 0 池 | 有非 0 | 池内取值≥2 种 | **top-1 已是池内最大** |
+|---|---:|---:|---:|---:|---:|
+| AISHELL dev | 1334 | 7.4% | 92.6% | 75.5% | **99.3%** |
+| THCHS-30 | 2495 | 20.3% | 79.7% | 67.5% | **98.4%** |
+| ST-CMDS | 5126 | 71.8% | 28.2% | 21.7% | **98.0%** |
+| AISHELL relax | 1334 | 4.2% | 95.8% | 78.3% | **99.5%** |
+| THCHS relax | 2495 | 15.0% | 85.0% | 74.5% | **97.9%** |
+
+也就是说：**前端 top-1 在 98–99.5% 的行上已经取到了最大热词覆盖**，主键实际上是在
+"保住前端的热词判断"，真正的选择发生在**覆盖相同的候选之间 —— 那里只有声学项说了算**。
+所以出厂规则的实际选择器是 `argmax(asr_score)`。
+
+而 `src/analysis/score_sensevoice_candidate_evidence.py::ctc_sequence_score` 返回的是
+`F.ctc_loss(..., reduction="none")` 的**总和**（未按目标长度归一化），直接存进 `asr_score`。
+`ctc_length_bias.py` 在全部 (句, 候选) 对上直接测量（Pearson / Spearman / 每 token 斜率）：
+
+| 池 | 对数 | r(len, 总LL) | ρ | dLL/token | r(len, LL/n) | 池内长度极差 | 池内长度 std |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| AISHELL dev | 21218 | −0.044 | +0.042 | −0.072 | +0.289 | 0.53 | 0.158 |
+| AISHELL relax | 21275 | −0.027 | +0.044 | −0.054 | +0.263 | 0.61 | 0.187 |
+| THCHS-30 | 39920 | +0.009 | +0.030 | +0.007 | +0.233 | 0.59 | 0.190 |
+| THCHS-30 relax | 39920 | −0.102 | +0.006 | −0.316 | −0.013 | 0.80 | 0.263 |
+| **ST-CMDS** | 71343 | **−0.442** | **−0.349** | **−1.193** | +0.438 | **0.81** | **0.247** |
+
+**这就是为什么出厂重排在域内看起来没问题**：在 AISHELL / THCHS-30 上「长度 ↔ 总对数似然」
+几乎不相关（−0.04 / +0.01），而且池内长度几乎没有自由度；到 ST-CMDS 变成强负相关
+（−0.44，每个 token 平均 −1.19 nats），池内长度极差也最大。
 
 受害行解剖（只看相对前端 top-1 被改动过的行，`mean Δlen` = 改动后字数 − 原字数）：
 
@@ -375,9 +400,12 @@ best  = argmax_{c ∈ sub} ( exact_weighted_score , ctc_loglik(c) / n_tokens(c) 
 
 | 改动 | 修的缺陷 | 单独作用（ST-CMDS 原准入 ΔCER） |
 |---|---|---|
-| `ctc / n_tokens`（长度归一化） | 总对数似然的长度偏置 | 6.5417% → 6.1250%（−0.417pp） |
+| `ctc / n_tokens`（长度归一化） | 同覆盖候选间的声学项有长度偏置 | 6.5417% → 6.1250%（−0.417pp） |
 | `len(c) >= len(top-1)`（只增不减） | 覆盖可以删除已有内容 | 6.1250% → 5.7867%（−0.338pp） |
-| 保留 `exact_weighted_score` 作主键 | 丢掉 THCHS-30 的 +1.3pp 召回 | 保留（见 7.4 的 `ctc_ln` 行） |
+| 保留 `exact_weighted_score` 作主键 | 丢掉热词覆盖护栏 → THCHS-30 召回 −1.3pp | 保留（见 7.4 的 `ctc_ln` 行） |
+
+即：**热词覆盖护栏留着，声学项去偏置，再加一条不许变短的约束。** 在本例中后两者作用
+正好可加：0.417 + 0.338 = **0.755pp**，即出厂重排的全部伤害。
 
 规则**无参考、无测试词表、无置信度阈值**：只比较候选与前端自己的 top-1。
 
