@@ -25,6 +25,11 @@
 % (behaviour decomposition and pool-reachability gain split), reproduced bit-for-bit
 % by covo_error_anatomy.py --policy deployable and gain_split.py.
 %
+% NOTE ON VERIFICATION STRENGTH: check_tex_numbers.py only proves a literal appears
+% SOMEWHERE in the sources, so a wrong number that also exists elsewhere would pass.
+% Tables 9 and 10 are therefore additionally checked END-TO-END against a fresh run of
+% those two scripts by verify_new_tables.py, which re-derives every cell and compares.
+%
 % Required packages:
 %   \usepackage{booktabs}
 %   \usepackage{multirow}
