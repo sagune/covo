@@ -43,7 +43,11 @@ OUT="$R/next_$MODE"
 mkdir -p "$OUT"
 case "$MODE" in
   dpo)
-    PAIRS="$R/dpo_pairs_aishell.jsonl"
+    # DPO_PAIRS lets the sequencer pick a variant from the DIAGNOSED failure mode:
+    # standard pairs, or the keep-it-weighted file for the over-editing case that
+    # RESULTS 10.13 predicts.  Default is unchanged.
+    PAIRS="${DPO_PAIRS:-$R/dpo_pairs_aishell.jsonl}"
+    say "DPO pair file: $PAIRS"
     [[ -s "$PAIRS" ]] || { say "FATAL: $PAIRS missing"; exit 1; }
     # max-prompt-length must exceed the real prompt length or the system message is
     # truncated away (default 896 does exactly that: measured 98.2% of prompts exceed

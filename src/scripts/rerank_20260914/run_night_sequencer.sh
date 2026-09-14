@@ -141,9 +141,30 @@ if [ "$NEED_DPO" = "1" ]; then
 
   say "---------- DPO fallback ----------"
   say "free GPU before DPO: $(nvidia-smi --query-gpu=memory.free --format=csv,noheader)"
+  # Choose the pair file from the DIAGNOSED failure mode rather than guessing.  RESULTS
+  # 10.12/10.13: precision below ~54% means more editing loses, and the training prior
+  # (75.4% "change") is 2.1x ST-CMDS's rate (35.7%), so over-editing is the expected
+  # failure.  If the trained arm's edit precision came in low, strengthen the keep-it
+  # anchors; otherwise use the standard pairs, which teach selection more directly.
+  DPO_PAIRS="$R/dpo_pairs_aishell.jsonl"; DPO_WHY="standard"
+  if [ -s "$OUT/stcmds_final.predictions.jsonl" ]; then
+    PREC=$("$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+             --label "pre-DPO diagnosis" 2>/dev/null \
+           | grep -a "EDIT PRECISION" | grep -oE "[0-9]+\.[0-9]+" | head -1)
+    RATE=$("$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_final.predictions.jsonl" \
+             --label "pre-DPO diagnosis" 2>/dev/null \
+           | grep -a "edited rows" | grep -oE "[0-9]+\.[0-9]+%" | head -1)
+    say "pre-DPO diagnosis: edit rate ${RATE:-?} precision ${PREC:-?}% (baseline 6.9% / 75.3%)"
+    if [ -n "${PREC:-}" ] && awk -v p="$PREC" 'BEGIN{exit !(p<60)}'; then
+      DPO_PAIRS="$R/dpo_pairs_aishell_keepit50.jsonl"
+      DPO_WHY="keep-it weighted (precision ${PREC}% < 60% => over-editing; 49.5% keep-it pairs)"
+    fi
+  fi
+  say "DPO variant: $DPO_WHY -> $(basename "$DPO_PAIRS")"
+  export DPO_PAIRS
   bash "$WS/.dsh_checks/run_train_next.sh" dpo >> "$LOG" 2>&1
   rc=$?
-  say "DPO finished rc=$rc marker=$([ -f "$R/NEXT_dpo_DONE" ] && echo yes || echo no)"
+  say "DPO finished rc=$rc marker=$([ -f "$R/NEXT_dpo_DONE" ] && echo yes || echo no) using $(basename "$DPO_PAIRS")"
   # surface the cause, so a failed fallback is diagnosable without reading raw logs.
   # train_lora_dpo_text.py holds TWO 9B copies (~36GB of weights) on a 49GB card.
   if [ "$rc" != "0" ]; then
