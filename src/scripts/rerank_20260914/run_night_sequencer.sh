@@ -429,6 +429,25 @@ fi
     "$PY" "$WS/.dsh_checks/compare_arms.py" --a "$OUT/stcmds_final.predictions.jsonl" \
       --b "$OUT/stcmds_likelihood.predictions.jsonl" --aligned "$S/aligned.txt" --uttid "$S/uttid" \
       --label-a "trained adapter (generator)" --label-b "trained adapter (scorer)" --draws 2000 2>&1
+    # COMBINATION: keep the generator's edits, use the selector only where it abstained.
+    # Targets the diagnosed failure (10.12: precise but timid - coverage 13.4%) without
+    # giving up the editing that supplies 57% of the backend's value.
+    if [ -s "$OUT/stcmds_final.predictions.jsonl" ]; then
+      echo
+      echo "== COMBINATION: generator's edits + selector where the generator abstained =="
+      "$PY" "$WS/.dsh_checks/combine_arms.py" --generator "$OUT/stcmds_final.predictions.jsonl" \
+        --selector "$OUT/stcmds_likelihood.predictions.jsonl" \
+        --out "$OUT/stcmds_combined.predictions.jsonl" 2>&1
+      if [ -s "$OUT/stcmds_combined.predictions.jsonl" ]; then
+        "$PY" "$WS/.dsh_checks/restore_eval.py" --records "$OUT/stcmds_combined.predictions.jsonl" \
+          --label "ST-CMDS, trained generator + selector on abstention" \
+          --aligned "$S/aligned.txt" --uttid-file "$S/uttid" 2>&1
+        "$PY" "$WS/.dsh_checks/edit_precision.py" --records "$OUT/stcmds_combined.predictions.jsonl" \
+          --label "ST-CMDS combined" 2>&1
+        "$PY" "$WS/.dsh_checks/gain_split.py" --records "$OUT/stcmds_combined.predictions.jsonl" \
+          --label "ST-CMDS combined" 2>&1
+      fi
+    fi
   fi
   echo
   echo "########################################################################"
