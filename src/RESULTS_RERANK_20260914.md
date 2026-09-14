@@ -1689,3 +1689,26 @@ AISHELL dev 在 28.0% 上仍有 75.2%，但 THCHS-30 在 36.8% 上掉到 51.6% �
 —— **全部低于先验**，因为出厂 adapter 的"保守纠错器"界面（§10.2）在压着它。一旦界面校准（本次训练），
 编辑率应当向 75.4% 靠近，而 ST-CMDS 只需要 35.7%。**所以"编辑率上升"几乎是必然的，
 问题只是精确率能不能跟着守住 ≥70%（§10.12 的门槛）。** 这就是为什么 §10.12 的精确率门槛是本次训练的首要判据。
+
+### 10.14 口径一致性审计：所有进入结论的脚本都在 `restore[deployable]` 上算
+
+§10.12 的口径错误（`edit_precision.py` 评的是 raw 预测）促使我把**每一个**读 `prediction` 的脚本过一遍，
+确认没有再犯同类错误——因为这种错误不会报错，只会给出一个看起来合理的错数字：
+
+| 脚本 | 是否 `restore[deployable]` | 用途 |
+|---|---|---|
+| `restore_eval.py` | ✅ | 官方口径，所有 headline 数字 |
+| `covo_error_anatomy.py` | ✅（`--policy` 默认 deployable） | 表 9、§10.1 |
+| `gain_split.py` | ✅ | 表 10、§10.6 |
+| `edit_precision.py` | ✅（本轮修复） | §10.12、论文 §2.6.2 |
+| `compare_arms.py` | ✅（`--policy` 默认 deployable） | 配对 bootstrap、迁移矩阵、编辑能力闸门 |
+| `residual_split.py` | ✅ | 探索用（未被文档引用） |
+| `parse_failures.py` | 有意用 `raw_prediction` | 生成层指纹（§10.9），**故意不经后处理** |
+| `selector_to_text.py` | 不适用 | 输出交给 `restore_eval.py` 再评 |
+| `decouple_eval.py` | ❌ | 探索用，**未被任何文档/脚本引用**（已确认 grep 无引用），故不影响任何结论 |
+| `analyze_sampling.py` / `build_sample_subset.py` / `inspect_*.py` | 不适用 | 采样与 schema 检查工具 |
+
+**结论**：进入表格与结论的路径**全部**在 `restore[deployable]` 上；
+唯一的例外 `decouple_eval.py` 没有被任何结论引用（且它自己也声明是"portable 探索工具"）。
+`parse_failures.py` 用 raw 是**设计选择**，因为它的问题是"模型在后处理之前生成了什么"，
+这一条已在 §10.9 与它的 docstring 里写明。
