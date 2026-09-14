@@ -353,8 +353,10 @@ def main():
                     src[str(r.get("id"))] = r
             for i in teidx:
                 u = utts[i]
-                best = u["cands"][int(np.argmax(sc[i]))][0]
+                _j = int(np.argmax(sc[i]))
+                best = u["cands"][_j][0]
                 r = json.loads(json.dumps(u["raw"], ensure_ascii=False))
+                r["input"]["asr_top1_rerank_score"] = float(sc[i][_j])
                 old_nb = (r.get("input") or {}).get("nbest") or []
                 r["input"]["asr_top1"] = best
                 r["input"]["nbest"] = [best] + [t for t in old_nb if norm(t) != best]
@@ -390,6 +392,7 @@ def main():
     wanted = [m for m in a.models.split(",") if m]
     acc = defaultdict(lambda: dict(chars=0, e=0, men=0, hit=0))
     oof_pick = {}          # utterance index -> text chosen by the out-of-fold model
+    oof_score = {}         # utterance index -> score vector, for the rerank= field
 
     def emit(k, u, txt):
         d = acc[k]
@@ -443,6 +446,7 @@ def main():
                 emit(tag, utts[i], pick)
                 if tag == "lin_ce":
                     oof_pick[i] = pick
+                    oof_score[i] = s
 
     # ---- optional: write the out-of-fold reranked pool for the end-to-end arm ----
     if a.emit_jsonl and oof_pick:
@@ -452,6 +456,10 @@ def main():
             for i, u in enumerate(utts):
                 r = json.loads(json.dumps(u["raw"], ensure_ascii=False))
                 best = oof_pick[i]
+                for _j, _c in enumerate(u["cands"]):
+                    if _c[0] == best:
+                        r["input"]["asr_top1_rerank_score"] = float(oof_score[i][_j])
+                        break
                 old_nb = (r.get("input") or {}).get("nbest") or []
                 r["input"]["asr_top1"] = best
                 r["input"]["nbest"] = [best] + [t for t in old_nb if norm(t) != best]
