@@ -1872,3 +1872,80 @@ reference 的候选**——而前端在这 1461 行上**全都选了 top-1**（�
 target `{"choice": k}`；`selector_to_text.py` 已冒烟测试）。
 另外，既然 min-edit 规则是最强的选择器（43.5%），应当把它**作为特征显式写进提示词**，
 让选择器不必自己发现它——这不是"适配数据"，而是给选择器**更好的输入**。
+
+---
+
+## 13. 打分臂结果与 MBR 选择（关机前的最后一段）
+
+```
+################ likelihood scorer (zero-shot selector) ################
+# ST-CMDS likelihood scorer   policy=deployable   rows=5130
+  edited rows                : 1908 (37.2% of all rows)
+  of those  helped/hurt/tie  : 539 / 1004 / 365
+  EDIT PRECISION             : 34.9%  (helped / (helped+hurt))
+  characters gained by edits : +-489
+     from helped edits       : +592
+     lost to hurt edits      : -1081
+  EDITABLE ROWS (the prompt showed a strictly better candidate): 1461 (28.5%)
+  COVERAGE                   : 36.9%  (539 of 1461 editable rows improved)
+  headroom on editable rows  : 1655 characters
+  net vs the front end       : -29.5% of the editable headroom realised
+
+====================================================================================================
+POPULATION
+====================================================================================================
+  corpus rows            : 5130   chars 56163
+  front-end (top-1) CER  : 5.2722%
+  DECISION ROWS (a strictly better candidate is visible): 1461 (28.5%)
+  oracle over those rows : 2.9468 pp  (5.2722% -> 2.3254%)   target needs 2.1746 pp of it
+
+
+====================================================================================================
+TEXT ARM (a real model's output, split by row type): stcmds_likelihood.predictions.jsonl
+====================================================================================================
+  ON the 1461 decision rows : best-candidate accuracy 30.3%  (443 hit / 1018 miss)
+     its errors there 2025 vs the front end's 2388  ->  -363 chars
+  ON the 39778 non-decision chars : errors 1597 vs the front end's 573  ->  +1024 chars
+     ^ this is the damage from editing rows where no better candidate existed
+
+====================================================================================================
+ARMS  (accuracy on the 1461 decision rows; corpus CER if adopted there only)
+====================================================================================================
+  do nothing (front-end top-1)       top1-acc   0.0%   corpus CER  5.2722%   
+  best forced-CTC asr_score          top1-acc   4.0%   corpus CER  5.1529%   
+  best total_score (front end)       top1-acc   4.4%   corpus CER  5.1689%   
+  best exact_weighted_score          top1-acc   0.8%   corpus CER  5.3202%   
+  best phonetic_score                top1-acc   0.6%   corpus CER  5.3345%   
+  best hotword_score                 top1-acc   0.8%   corpus CER  5.3202%   
+  most similar to top-1 (heuristic)  top1-acc  43.5%   corpus CER  4.4887%   <= TARGET
+  longest candidate (heuristic)      top1-acc   7.3%   corpus CER  5.2009%   
+  shortest candidate (heuristic)     top1-acc   0.8%   corpus CER  5.4484%   
+  ORACLE (upper bound)               top1-acc 100.0%   corpus CER  2.3254%   <= TARGET
+
+====================================================================================================
+DEPLOYABLE CHECK: apply the rule to EVERY row.  The arms above replace only the
+decision rows, which needs oracle knowledge of which rows those are -- not a
+deployable rule.  This applies it everywhere, so damage on non-decision rows counts.
+====================================================================================================
+  min-edit-to-top1 rule, ALL rows          corpus CER 10.7847%   changed  5124 rows   
+  do nothing (top-1 everywhere)            corpus CER  5.2722%   changed     0 rows   
+
+  --- gate: apply the min-edit rule only if it changes at most K characters ---
+
+################ MBR selection over the scorer's own candidate scores ################
+rows 5130 chars 56163 | front-end CER 5.2722%
+decision rows 1461 | non-decision rows 3669
+target 4.50% needs 0.7722 pp = 26.2% of the oracle gain
+
+  T       a(dec)    k(non)    corpus CER  verdict
+  0.05    30.3      73.3      6.3868      
+  0.10    30.0      74.5      6.2603      
+  0.20    27.4      78.6      5.9844      
+  0.50    21.4      87.0      5.4965      
+  1.00    16.1      89.5      5.4716      
+  2.00    12.9      90.0      5.5553      
+  5.00    12.2      90.0      5.5837      
+
+best: T=1.00  CER 5.4716%  a=16.1%  k=89.5%
+iso-target frontier (RESULTS 12.6): a>=26.2%% at k=1.0, a>=36.9%% at k=0.95, a>=47.6%% at k=0.90
+```
