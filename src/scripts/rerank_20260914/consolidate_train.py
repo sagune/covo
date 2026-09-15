@@ -110,7 +110,8 @@ def main():
     th = [b for b in blocks if b["label"].startswith("THCHS")]
     lines.append("")
     lines.append("-" * 108)
-    for name, grp, base in (("ST-CMDS (target 4.5000%)", st, 4.9356), ("THCHS-30", th, 3.1674)):
+    for name, grp, base, tgt in (("ST-CMDS (target 4.5000%)", st, 4.9356, 4.5),
+                                 ("THCHS-30 (no target; reference only)", th, 3.1674, None)):
         lines.append("%s   existing-adapter baseline %.4f%%" % (name, base))
         for b in grp:
             c = cell(b)
@@ -118,8 +119,13 @@ def main():
                 lines.append("   %-42s %s" % (b["label"], c))
         if grp and POLICY in grp[-1]["policies"]:
             got = grp[-1]["policies"][POLICY]["cer"]
-            lines.append("   >>> delta vs baseline = %+.4f pp   %s" % (
-                got - base, "TARGET MET" if got <= 4.5 else "target NOT met (need %.4f pp more)" % (got - 4.5)))
+            verdict = ""
+            if tgt is not None:
+                # the 4.5 target is ST-CMDS-only; printing "TARGET MET" for THCHS-30 because
+                # 3.42 < 4.5 was actively misleading.
+                verdict = "   %s" % ("TARGET MET" if got <= tgt else
+                                     "target NOT met (need %.4f pp more)" % (got - tgt))
+            lines.append("   >>> delta vs baseline = %+.4f pp%s" % (got - base, verdict))
 
     txt = "\n".join(lines)
     print(txt)
