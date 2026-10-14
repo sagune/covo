@@ -1,5 +1,7 @@
 # 当前服务器源码快照
 
+当前保留的最终方法是[五数据集基础 9B 纠错系列](results/mainline-multidataset.md)。本快照中的神经连接器、局部匹配和后续声学复核源码只作为历史尝试留痕，不再作为默认模型入口。为保持源码哈希和实验依赖，整理结果时没有移动或删除快照内的文件。
+
 GitHub 原仓库以早期 CoVo 为主；服务器包含整个 CBSense 工程、嵌套 CoVo 包和多轮锁定实验。本次不覆盖旧脚本，在 `server_snapshot` 保存相同相对目录结构，保留实验引用关系。
 
 原始根目录 `/root/autodl-tmp`，原 Git HEAD `402b364`（完整 SHA 见 `SOURCE_MANIFEST.json`）。导出的是当前文件系统，不仅是历史 commit；清单记录每个原文件的路径、大小和 SHA256。

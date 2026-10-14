@@ -2,3 +2,8 @@
 server_snapshot/** -text
 *.png binary
 *.xlsx binary
+
+# Preserve archival report byte hashes across platforms.
+docs/archive/connectors/*.md -text
+docs/archive/ceger/*.md -text
+docs/archive/ceger/*.csv -text

@@ -9,6 +9,8 @@
 | 连接器 + 9B 联合训练 | [A/B/C/D 完整报告](joint-lora-20260923.md) | 保留 B/text 初稿基线及全部音频条件；不只保留有利行 |
 | 局部音文匹配 | [CE / MATCH](local-match-20261004.md) | 发音查询、局部匹配监督与最终纠错结果 |
 
-当前采用复用冻结 SenseVoice 输出 CTC 支持消息、再适配 9B 候选判决的路线，而不是默认加载这些神经连接器。详见[当前结果索引](../../results/README.md)。
+保留的最终路线是做过五数据集实验的基础 CBSense / SenseVoice + 9B CEGER 系列。后来复用 SenseVoice CTC 消息的复核也属于归档探索，不当作默认主线。详见[主线结果索引](../../results/README.md)。
+
+Afull、Residual、发音连接器和局部匹配源码仍在[原始 experiments 快照](../../../server_snapshot/src/experiments/)对应目录，原路径/哈希保留，只供追溯，不是当前入口。
 
 原源码与锁定协议仍在 `server_snapshot/src/experiments/` 原路径。后续实验引用其中的公共工具、初始化或基线，所以没有移动/删除源码、检查点或原始预测。服务器与本地结果没有清理。

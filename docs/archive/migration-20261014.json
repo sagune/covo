@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-14",
+  "scope": "GitHub only; no server/local-original-output cleanup",
+  "order": [
+    "neural connectors",
+    "CEGER historical reports"
+  ],
+  "content_policy": "Moved report files retain identical bytes. No measurements, failures or scoring rules changed.",
+  "preserved": [
+    "server_snapshot contents and SOURCE_MANIFEST",
+    "initialization checkpoints and baseline predictions",
+    "full histories and all control results"
+  ],
+  "entries": [
+    {
+      "from": "docs/results/shard-connectors-20260922.md",
+      "to": "docs/archive/connectors/shard-connectors-20260922.md",
+      "sha256": "58aaeb41a9a918804eae17915f808bd14432f3729497553cd14bbc0e649a19c5",
+      "original_git_blob_sha256": "3abf69e0e1c37f35d7f8b17e40e167b730fd5b612607ac8cc0cfce865e02a0c5"
+    },
+    {
+      "from": "docs/results/connector-diagnosis-20260922.md",
+      "to": "docs/archive/connectors/connector-diagnosis-20260922.md",
+      "sha256": "5ca2becaa362a717435ada873f8d8a5c9081ef30ab6d680fa40254744551cc66",
+      "original_git_blob_sha256": "5ca2becaa362a717435ada873f8d8a5c9081ef30ab6d680fa40254744551cc66"
+    },
+    {
+      "from": "docs/results/joint-lora-20260923.md",
+      "to": "docs/archive/connectors/joint-lora-20260923.md",
+      "sha256": "4855e887cf71dad26f0b4583dc9825133368db203cfdef9c0f0e091cd9b71633",
+      "original_git_blob_sha256": "4855e887cf71dad26f0b4583dc9825133368db203cfdef9c0f0e091cd9b71633"
+    },
+    {
+      "from": "docs/results/local-match-20261004.md",
+      "to": "docs/archive/connectors/local-match-20261004.md",
+      "sha256": "3cc87bb2f570de6f0ebed97a495036752f5051646a4ea7aabef04aa0041a5249",
+      "original_git_blob_sha256": "3cc87bb2f570de6f0ebed97a495036752f5051646a4ea7aabef04aa0041a5249"
+    },
+    {
+      "from": "docs/results/acoustic-rereview-20261005.md",
+      "to": "docs/archive/ceger/acoustic-rereview-20261005.md",
+      "sha256": "cbf8f9a03facf731d0e9585232f2e980319f4a879e0b0fb78c326a155ef9d2b6",
+      "original_git_blob_sha256": "cbf8f9a03facf731d0e9585232f2e980319f4a879e0b0fb78c326a155ef9d2b6"
+    },
+    {
+      "from": "docs/results/all-edit-training-20261007.md",
+      "to": "docs/archive/ceger/all-edit-training-20261007.md",
+      "sha256": "11a00bad752758b398520556d288100ea7169182c69dbb80a6c76f3c8044ae53",
+      "original_git_blob_sha256": "11a00bad752758b398520556d288100ea7169182c69dbb80a6c76f3c8044ae53"
+    },
+    {
+      "from": "docs/experiment_log.md",
+      "to": "docs/archive/ceger/experiment-log-early.md",
+      "sha256": "0fd8dfed9b278d09af5593230bfa2d1a071522d9f7ebc3d2872afcce36df6216",
+      "original_git_blob_sha256": "e084ca920c2be2e0082d6deb4534eea441a9682dc4557ae371884428ed14752a"
+    },
+    {
+      "from": "docs/results/all-edit-oracle-20261007.md",
+      "to": "docs/archive/ceger/all-edit-oracle-20261007.md",
+      "sha256": "6a823471c7dc82abb5be909d6ca82d6a6580decfdb7c571e1208bcb03d909b2a",
+      "original_git_blob_sha256": "6a823471c7dc82abb5be909d6ca82d6a6580decfdb7c571e1208bcb03d909b2a"
+    },
+    {
+      "from": "docs/results/evidence-decision-20261006.md",
+      "to": "docs/archive/ceger/evidence-decision-20261006.md",
+      "sha256": "18aec8d85664fade5eb6d20dd7a5eba53843e5e378fd11f6ff0720a6fae02921",
+      "original_git_blob_sha256": "18aec8d85664fade5eb6d20dd7a5eba53843e5e378fd11f6ff0720a6fae02921"
+    },
+    {
+      "from": "docs/results/evidence-decision-all-seeds.csv",
+      "to": "docs/archive/ceger/evidence-decision-all-seeds.csv",
+      "sha256": "a9f8a992993e8d4720245daf935f5e3edc6293f702b18dad74a23a3e02c53c1e",
+      "original_git_blob_sha256": "a585ae7f58ea9218e9190a7531617c68b9bdfb8fbdd2bb6198ce3865f3b8eb65"
+    }
+  ],
+  "mainline": "Retain the previously evaluated five-dataset CBSense/SenseVoice and foundational 9B CEGER family; later neural-connector and acoustic-review trials are archived.",
+  "hash_scope": "sha256 records the pre-move working-file bytes. Git may previously have normalized CRLF; original Git blob hashes are recorded separately."
+}

@@ -22,9 +22,9 @@
 </p>
 
 > [!IMPORTANT]
-> 当前主链路是 **CBSense → 文本证据整理 → CEGER**。完整工程位于 [`server_snapshot/`](server_snapshot/)；根目录的早期 CoVo 工具保留作历史版本。模型权重和数据集需另行准备。
+> 本仓库保留的最终主线是 **CBSense / SenseVoice 识别候选 → 文本证据整理 → 9B CEGER 纠错**，对应 AISHELL、ST-CMDS、MAGICDATA-READ、THCHS-30 与 LibriSpeech 的已有实验。各数据集使用匹配的 adapter，并非同一 checkpoint 通用于五个数据集。旧连接器和后续声学复核尝试已归档。
 >
-> The current pipeline uses one text-only 9B correction model. Full-system sources are archived under `server_snapshot/`; weights and datasets are not bundled.
+> The retained mainline is the multi-dataset ASR + 9B correction family, with dataset-specific adapters. Superseded neural connectors and acoustic-review trials are archived, not presented as the final pipeline.
 
 <p align="center">
   <img src="docs/figures/cbsense-ceger-full-flow.png" alt="Offline hotword feature bank and online CBSense to CEGER pipeline" width="100%" />
@@ -90,7 +90,7 @@ CEGER 是原 CoVo 大模型模块的新名称；仓库名和 Python 包名仍为
 | 证据整理 | 候选、拼音、稳定/分歧片段、适用的热词信息 | 结构化文本输入 |
 | 生成式纠错 | Qwen3.5-9B + 已训练 LoRA | 最终转写 JSON |
 
-CEGER 不直接接收波形或音频张量。连接器、声学匹配和后续 A/B 复核属于单独的探索实验，未混入上方主流程。
+CEGER 主线读取识别候选等文本证据，不直接接收波形或神经连接器张量。旧 MLP、Residual、局部匹配及后来基于 SenseVoice 分数的 A/B 复核均属于[归档尝试](docs/archive/README.md)，不再作为默认方案展示。
 
 <details>
 <summary>展开 CBSense 模块图</summary>
@@ -123,7 +123,7 @@ CEGER 不直接接收波形或音频张量。连接器、声学匹配和后续 A
 | 历史损失实现 | 整段训练对话的因果语言建模监督 |
 | 参数更新 | 冻结 Qwen3.5-9B 基座，只更新 LoRA |
 
-后续 CBSense 输入适配和声学研究分支使用不同的初始化、接口与训练目标，需分别阅读对应协议；不能用后续 Assistant-only loss 描述第一轮训练。
+多数据集实验使用各自匹配的模型与 adapter，THCHS-30 保留无训练迁移的全部 9B 对照。旧声学研究分支已归档，不作为正式主线的训练阶段；不能把探索模型的初始化、损失或开发集指标混入基础模型说明。
 
 <details>
 <summary>展开第一轮 LoRA 与候选证据图</summary>
@@ -136,19 +136,24 @@ CEGER 不直接接收波形或音频张量。连接器、声学匹配和后续 A
 
 ## 实验结果
 
-以下为同一份历史 **AISHELL contextual dev** 的诊断结果：1,334 句、21,102 参考字、599 个热词 mentions。它不是官方完整 dev，也不是新的独立测试集。
+当前结果页只展示已做过多数据集实验的基础 9B 纠错系列，不再混入后来的 AISHELL 开发集连接器或复核尝试。
 
-| 系统 / 条件 | 字符错误数 ↓ | CER ↓ | 热词召回 ↑ |
-|---|---:|---:|---:|
-| CBSense 输入 | 804 | 3.8101% | 90.15% |
-| 原 checkpoint30022，D/text | 663 | 3.1419% | 77.80% |
-| 联合训练后关闭音频，B/text | 622 | 2.9476% | 78.30% |
+| 数据集 / 范围 | Adapter / checkpoint | 指标 | 输入 → 输出 |
+|---|---|---|---|
+| AISHELL-1 test，7,174 条有效计分 | AISHELL checkpoint-30022 | CER | 5.8354% → 2.6231% |
+| ST-CMDS test，5,130 条 | ST-CMDS checkpoint-34400 | CER | 5.6407% → 4.4994% |
+| MAGICDATA-READ test，24,279 条 | MAGICDATA checkpoint-39185 | CER | 3.7245% → 2.4334% |
+| THCHS-30 test，2,495 条，无训练迁移 | AISHELL checkpoint-30022 | CER | 5.1664% → 4.3111% |
+| THCHS-30 test，2,495 条，无训练迁移 | ST-CMDS checkpoint-34400 | CER | 5.1664% → 4.3358% |
+| THCHS-30 test，2,495 条，无训练迁移 | MAGICDATA checkpoint-39185 | CER | 5.1664% → 4.4023% |
+| LibriSpeech test-clean，2,620 条 | final 2-epoch adapter | WER | 3.2277% → 2.6419% |
+| LibriSpeech test-other，2,939 条 | final 2-epoch adapter | WER | 7.2789% → 5.9206% |
 
-来源：[联合训练完整报告（已归档）](docs/archive/connectors/joint-lora-20260923.md)。B/text 来自联合训练后的文本推理条件，不是独立纯文本训练组。该表展示了当前的重要权衡：整体 CER 降低，但热词召回仍低于前端输入。
+来源：[主线结果与模型索引](docs/results/mainline-multidataset.md)、[完整历史总表](server_snapshot/RESULTS_ALL_DATASETS_20260826.md)。这里只转录原始结果，不进行新评估或重新选 checkpoint；THCHS-30 的三个跨域 adapter 全部保留，不按其 test 成绩挑一个作为预先选定模型。
 
-声学证据判决、三种子复验与全类型候选 Oracle 在[实验索引](docs/results/README.md)中单独报告。Oracle 是使用参考选择候选的理论上限，不能作为模型实测成绩。
+上述行的前端是历史 SenseVoice 10-best（MAGICDATA 为 WOITN）；不能全部改称 CBSense 热词增强结果。CBSense/CB-SenseVoice 联合实验在完整总表中另列；测试参考构造热词的 Error-targeted、OracleLex 以及候选 Oracle 仍明确标为诊断，不包装成正式 held-out 成绩。AISHELL 旧评估器跳过了两条空参考，因此有效计分数为 7,174，不隐瞒此边界。
 
-早期 AISHELL、MAGICDATA-READ、ST-CMDS、THCHS-30 与 LibriSpeech 结果见[五数据集历史汇总](server_snapshot/RESULTS_ALL_DATASETS_20260826.md)。各报告的划分、热词来源和模型条件不同，不能直接混合排名。历史 **2.777% 属于 4B**，不是上述 9B 条件的统一基线。
+旧连接器、热词续训、自由 JSON 复核、声学 A/B LoRA 与候选上限等尝试从当前展示中移出，原文与失败记录保存在[历史档案](docs/archive/README.md)及不可变源码快照中。历史 1,334 contextual dev 的结果不再充当这套多数据集模型的主成绩。
 
 ## 快速开始
 
@@ -238,13 +243,15 @@ covo/
 │   │                               # 迁移实验对应后端源码
 │   └── SOURCE_MANIFEST.json         # 原始文件大小与 SHA256
 ├── docs/figures/                    # 全流程、模块与训练图
-├── docs/results/                    # 历史报告及实验索引
+├── docs/results/                    # 多数据集主线结果与模型索引
+├── docs/archive/                    # 已停止展示的探索尝试，原报告保留
 ├── src/ · scripts/ · tests/         # 保留的早期 CoVo 工具
 └── .github/workflows/               # 轻量自动检查
 ```
 
 - [源码快照与重现说明](docs/current_snapshot.md)
-- [历次实验结果与限制](docs/results/README.md)
+- [主线结果与模型](docs/results/README.md)
+- [旧尝试档案](docs/archive/README.md)
 - [论文图与真实样本来源](docs/figures/README.md)
 - [源码哈希清单](server_snapshot/SOURCE_MANIFEST.json)
 - [原仓库 README](docs/legacy/README-before-20261014.md)
@@ -265,7 +272,7 @@ CBSense · CEGER is a research pipeline for contextual speech recognition and tr
 
 **CBSense** retrieves relevant hotwords using SenseVoice acoustic representations and TCResNet keyword spotting, then incorporates the selected context into recognition. **CEGER** uses a LoRA-adapted Qwen3.5-9B to correct transcripts from textual candidate evidence: Top-1, N-best, pinyin, candidate agreement/disagreement and applicable hotword information.
 
-CEGER is the renamed CoVo module; the repository and Python package retain the name `covo`. The primary pipeline contains one text-only 9B model. Acoustic connectors and later review models are separate research experiments.
+CEGER is the renamed CoVo module; the repository and package retain `covo`. The retained mainline is the previously evaluated multi-dataset 9B correction family. Neural-connector and later acoustic-review experiments are archived and are not the default pipeline.
 
 ## Design Highlights
 
@@ -293,11 +300,13 @@ For the current full-system sources, work under `server_snapshot/`, install its 
 
 ## Evaluation and Scope
 
-The historical AISHELL contextual development protocol contains **1,334 utterances, 21,102 reference characters and 599 hotword mentions**. It is neither the official full development set nor a fresh held-out test set. In the recorded joint-training comparison, B/text achieves CER **2.9476%** and hotword recall **78.30%**, versus **3.8101% / 90.15%** for its CBSense input. Lower overall CER therefore does not imply better hotword retention.
+The retained model family has recorded evaluations on AISHELL-1, ST-CMDS, MAGICDATA-READ, THCHS-30 and LibriSpeech, using matching adapters rather than one shared checkpoint. See the [mainline result and model index](docs/results/mainline-multidataset.md) for source records and protocol boundaries.
 
-B/text is a text-inference condition after joint training, not a separately trained text-only control. The historical **2.777%** result belongs to the earlier 4B model. Consult the [experiment index](docs/results/README.md) for checkpoints, controls, confidence intervals and limitations. Reference-selected Oracle results are upper-bound diagnostics, not deployed model performance.
+Chinese results use CER and LibriSpeech results use WER. THCHS-30 has no in-domain training; all three historical 9B transfer adapters remain reported. The main table uses SenseVoice 10-best inputs, not uniformly CBSense contextual inputs. Contextual, test-reference-derived vocabulary and Oracle rows remain separately classified in the full historical ledger.
 
-This release archives source code and reports; it does not bundle weights, datasets, per-utterance predictions or runtime environments. Lightweight tests do not establish GPU numerical reproducibility or end-to-end latency.
+Superseded neural connectors, continuation-training and acoustic-review trials are available in the [archive](docs/archive/README.md). Their repeated 1,334-utterance contextual dev results are not the multi-dataset model's test results. Failed trials, baselines, controls and locked source files are retained unchanged.
+
+This release does not bundle weights, datasets, per-utterance predictions or runtime environments. No new evaluation, checkpoint selection or server cleanup was performed during this repository-only organization.
 
 ## Acknowledgements and License
 
