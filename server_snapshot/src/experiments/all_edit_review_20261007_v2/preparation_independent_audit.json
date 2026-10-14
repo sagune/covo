@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "independent_train_labels": true,
+  "all_dev_routes_reference_free": true,
+  "all_token_inputs_verified": true,
+  "pairs": 18956,
+  "updates": 2370,
+  "dev_pairs": 604,
+  "token_inputs": 40932,
+  "old_best_initialization": "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195",
+  "initial_adapter_sha256": "745ebb17882dfdd6dcb43ffb9d34f00b87ade7e3405a5917c2d871f952e4585a",
+  "protocol_sha256": "6deda31b3afcbd6851ec6b9bf1bf031ee64e0a2366dccae91311a31484f9e39c",
+  "data_lock_sha256": "bb978f8dcb21db38c643c351da35936e12ef233ccd24af58ae2ddead210d9725",
+  "no_formal_training_started": true
+}

@@ -13,3 +13,34 @@ checkpoints/
 # Keep tiny examples, avoid committing large generated datasets.
 !examples/
 !examples/*.jsonl
+
+# Credentials, weights, audio and local environments must stay off GitHub.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.wav
+*.flac
+*.mp3
+*.tar
+*.tar.gz
+*.zip
+.venv/
+venv/
+server_snapshot/**/outputs/
+server_snapshot/**/logs/
+server_snapshot/**/runs/
+server_snapshot/**/models/
+server_snapshot/**/checkpoints/
+server_snapshot/**/mlruns/
+server_snapshot/**/*.jsonl
+server_snapshot/covo/data/
+server_snapshot/cbwhisper_covo_migration_20260609_tar_extracted/covo/data/

@@ -1,176 +1,60 @@
-# covo
+# CBSense + CEGER
 
-CB-Whisper 后纠错实验计划与流程文档。
+上下文热词语音识别与候选证据引导的生成式纠错。CEGER 是原 CoVo 大模型模块的新名称，代码包名仍保留 `covo`。
 
-阶段策略：前期先用 Whisper large-v3 作为 ASR 参考系统，跑通 N-best 纠错、训练和 verifier；后期再接入 CB-Whisper 的 KWS、热词和重排序证据。
+本次更新保存截至 **2026-10-14** 的服务器源码、实验协议、已有结果报告与论文流程图。原仓库早期文本纠错工具保留；**当前完整系统以 [`server_snapshot/`](server_snapshot/) 为准**，不要把根目录历史配置当成当前 9B 实验配置。
 
-相关仓库：
+![CBSense + CEGER 全流程](docs/figures/cbsense-ceger-full-flow.png)
 
-- CB-Whisper 当前进度：<https://github.com/sagune/cbwhisper>
+## 当前系统
 
-当前入口：
+1. **离线热词库**：候选热词经 TTS 合成、冻结 SenseVoice 编码、有效帧提取与归一化，缓存帧级声学表示。
+2. **CBSense**：输入语音经 SenseVoice 提取特征，与热词特征库匹配，TCResNet 检出相关热词；热词编码与音频特征共同参与上下文识别，输出 Top-1 与 N-best。
+3. **CEGER**：整理候选、拼音、稳定/分歧片段及适用的热词信息，以结构化文本输入 Qwen3.5-9B + LoRA，生成最终转写。
 
-- [CB-Whisper 受约束后纠错计划](docs/cbwhisper_correction_plan.md)
-- [LoRA 训练快速开始](docs/training_quickstart.md)
-- [服务器运行手册](docs/server_runbook.md)
-- [Evidence JSONL 字段规范](docs/evidence_schema.md)
-- [实验日志](docs/experiment_log.md)
+这条主链路只有一个文本 9B，不直接接收原始音频或连接器张量。连接器、声学分数 A/B 判决和复核实验是独立研究分支，不是上图默认流程。
 
-## 配置化运行
+## 代码位置
 
-常用流程已经放在 `configs/` 里，统一用 `scripts/run_pipeline.py` 调起。每个配置可以写入 `log_file`，默认落到 `outputs/logs/`，记录每一步命令、开始/结束时间、耗时和返回码。
+| 内容 | 入口 |
+|---|---|
+| CBSense 模型与上下文适配 | [`server_snapshot/src/model/`](server_snapshot/src/model/) |
+| TCResNet/KWS | [`server_snapshot/src/efficient_kws/`](server_snapshot/src/efficient_kws/) |
+| 前端入口 | [`server_snapshot/src/run_CLI.py`](server_snapshot/src/run_CLI.py) |
+| 文本证据桥接 | [`server_snapshot/src/analysis/cbsensevoice_covo_bridge.py`](server_snapshot/src/analysis/cbsensevoice_covo_bridge.py) |
+| CoVo/CEGER 包、LoRA 训练与推理 | [`server_snapshot/covo/`](server_snapshot/covo/) |
+| 迁移实验实际使用的运行时代码 | [`server_snapshot/cbwhisper_covo_migration_20260609_tar_extracted/covo/`](server_snapshot/cbwhisper_covo_migration_20260609_tar_extracted/covo/) |
+| 连接器、发音匹配、声学复核研究 | [`server_snapshot/src/experiments/`](server_snapshot/src/experiments/) |
+| 源文件哈希清单 | [`server_snapshot/SOURCE_MANIFEST.json`](server_snapshot/SOURCE_MANIFEST.json) |
 
-先检查命令：
+## 训练与评估
 
-```bash
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/sample_prepare_chinesehp.json \
-  --dry-run
-```
+第一轮 9B 基础 LoRA 沿用早期 4B 的候选证据构造思路：N-best、拼音、候选分歧、困难候选增强和证据随机丢弃。9B 独立加载自己的基座，不继承 4B 权重。历史第一轮采用整段对话因果语言建模监督，只更新 LoRA；不能把后续 Assistant-only loss 倒写成第一轮实现。
 
-实际跑一个 20 条样本的准备流程：
+CBSense 输入适配、联合连接器训练、声学证据判决的初始化和目标不同，详见各实验锁定协议与报告。历史 **2.777% 是 4B 结果，不是当前 9B 的统一基线**。
 
-```bash
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/sample_prepare_chinesehp.json
-```
+- [源码快照使用说明](docs/current_snapshot.md)
+- [历次实验结果索引](docs/results/README.md)
+- [流程图与样例来源](docs/figures/README.md)
+- [原仓库说明（保留）](docs/legacy/README-before-20261014.md)
 
-当前配置：
+中文主要报告 CER，英文报告 WER。历史 AISHELL contextual dev 的 **1,334 句 / 21,102 字 / 599 热词 mentions** 不是官方完整 dev，也不是新测试集。Oracle 是参考已知的候选上限，不是模型实测能力。
 
-- `configs/sample_prepare_chinesehp.json`：ChineseHP 样本准备、过滤、导出 Qwen messages、统计。
-- `configs/prepare_chinesehp_full.json`：ChineseHP 全量准备、过滤、按原始 split 切分、导出 train/dev/test。
-- `configs/baselines_chinesehp_test.json`：在 test 集上评测 no-correction、oracle N-best 和 rule baseline。
-- `configs/whisper_v3_decode.json`：Whisper large-v3 生成 N-best，需音频和 Whisper 依赖。
-- `configs/deepseek_teacher_sample.json`：DeepSeek teacher 生成 edits、应用、评测，需环境变量 `DEEPSEEK_API_KEY`。
-- `configs/qwen_lora_5090.json`：5090/GPU 环境上的 Qwen LoRA/QLoRA 训练入口，使用 train/dev。
-- `configs/evaluate_qwen_lora_test.json`：加载 LoRA adapter，在 test 集推理、应用 edits、评测和分析。
-
-服务器上的推荐顺序：
+## 安装与运行边界
 
 ```bash
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/prepare_chinesehp_full.json
-
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/baselines_chinesehp_test.json
-
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/qwen_lora_5090.json
-
-PYTHONPATH=src python scripts/run_pipeline.py \
-  --config configs/evaluate_qwen_lora_test.json
+git clone https://github.com/sagune/covo.git
+cd covo/server_snapshot
+# 在独立、适配 GPU/CUDA 的环境安装。
+pip install -r requirements.txt
+pip install -e covo
+pip install -r covo/requirements-train.txt
+PYTHONPATH=covo/src python covo/scripts/train_lora_sft.py --help
+PYTHONPATH=covo/src python covo/scripts/infer_lora_text.py --help
 ```
 
-训练完成后会保存 LoRA adapter、tokenizer 文件和训练元信息：
+这是源码留痕快照，不是零配置部署产品。锁定实验保留原服务器路径及哈希，没有为发布改写实验。重现需另备数据、基座、adapter、热词库、匹配环境及路径；宽松的 `requirements.txt` 不能代替特定实验的后端版本锁定。
 
-```text
-outputs/qwen_asr_corrector_lora/
-outputs/qwen_asr_corrector_lora/training_metadata.json
-```
+**不包含**：服务器密码与 SSH 配置、私钥/API token、模型权重、语音数据集、逐条预测、训练样本、运行环境、长日志和第三方论文 PDF。推送代码不会启动或改变服务器实验。
 
-评测配置默认从 `outputs/qwen_asr_corrector_lora` 加载 adapter，base model 仍使用配置里的 `Qwen/Qwen3-4B`。
-
-## 当前可用工具
-
-```bash
-python scripts/prepare_chinesehp_sft.py \
-  --input data/raw/chinesehp_aishell1.jsonl \
-  --output data/processed/chinesehp_aishell1_sft.jsonl \
-  --nbest-size 5 \
-  --output-mode edits
-```
-
-这会把 ChineseHP AISHELL-1 的 `reference / nbest / nbest_pinyin` 转成后续 LoRA/SFT 可用的数据格式。样例见：
-
-- [examples/chinesehp_aishell1_sft_sample.jsonl](examples/chinesehp_aishell1_sft_sample.jsonl)
-
-本地检查：
-
-```bash
-PYTHONPATH=src python -m unittest discover -s tests
-PYTHONPATH=src python -m compileall src scripts tests
-```
-
-应用 edits 并评测：
-
-```bash
-PYTHONPATH=src python scripts/apply_edits_jsonl.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl \
-  --output outputs/sample_applied.jsonl
-
-PYTHONPATH=src python scripts/evaluate_correction_jsonl.py \
-  --input outputs/sample_applied.jsonl
-```
-
-Whisper large-v3 N-best 生成脚本已经预留，需在有 GPU 和音频文件的环境中安装额外依赖：
-
-```bash
-pip install -r requirements-whisper.txt
-PYTHONPATH=src python scripts/transcribe_whisper_v3.py \
-  --manifest data/manifests/aishell_sample.jsonl \
-  --output data/processed/whisper_v3_aishell_sample.jsonl
-```
-
-导出 Qwen chat SFT 格式、过滤训练数据、解析模型输出：
-
-```bash
-PYTHONPATH=src python scripts/filter_sft_jsonl.py \
-  --input data/processed/chinesehp_aishell1_sft.jsonl \
-  --output data/processed/chinesehp_aishell1_sft.clean.jsonl \
-  --max-baseline-cer 0.8 \
-  --max-total-changed-chars 24
-
-PYTHONPATH=src python scripts/export_sft_format.py \
-  --input data/processed/chinesehp_aishell1_sft.clean.jsonl \
-  --output data/processed/chinesehp_aishell1_qwen_messages.jsonl \
-  --format qwen-messages
-
-PYTHONPATH=src python scripts/parse_model_edits_jsonl.py \
-  --input outputs/model_raw_outputs.jsonl \
-  --output outputs/model_parsed_edits.jsonl
-```
-
-LoRA/QLoRA 训练脚本已预留，需在 5090/GPU 环境安装训练依赖：
-
-```bash
-pip install -r requirements-train.txt
-PYTHONPATH=src python scripts/train_lora_sft.py --help
-PYTHONPATH=src python scripts/infer_lora_edits.py --help
-```
-
-数据切分、统计和纠错分析：
-
-```bash
-PYTHONPATH=src python scripts/split_jsonl.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl \
-  --output-dir outputs/splits \
-  --mode field
-
-PYTHONPATH=src python scripts/dataset_stats.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl
-
-PYTHONPATH=src python scripts/analyze_corrections.py \
-  --input outputs/sample_applied.jsonl \
-  --output-dir outputs/analysis
-```
-
-Manifest、规则 baseline 和 DeepSeek teacher：
-
-```bash
-PYTHONPATH=src python scripts/build_manifest.py \
-  --text data/local/text \
-  --audio-dir data/local/wav \
-  --output data/manifests/local.jsonl
-
-PYTHONPATH=src python scripts/rule_correct_jsonl.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl \
-  --output outputs/rule_corrected.jsonl
-
-PYTHONPATH=src python scripts/evaluate_baselines_jsonl.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl
-
-DEEPSEEK_API_KEY=... PYTHONPATH=src python scripts/generate_teacher_edits_deepseek.py \
-  --input examples/chinesehp_aishell1_sft_sample.jsonl \
-  --output outputs/deepseek_teacher.jsonl \
-  --limit 5
-```
+`server_snapshot/LICENSE.md` 保留原前端 BSD-3-Clause 许可和版权声明。第三方模型、库与数据仍受各自许可约束，本仓库不为其授予新许可。

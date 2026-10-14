@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "failed_parent_protocol_sha256": "eb844d357e0370961d50e7443241ae56c06f99b6964f9f672866974ae017e172",
+  "same_model_initialization_data_labels_prompts_order_objective_hyperparameters": true,
+  "reused_files": {
+    "train_drafts.jsonl": "941abec6a189b56dbbb69514cced55ec5cc8978807cd6c05dee1c030e927fca4",
+    "train_edit_manifest.jsonl": "4ea595f973d79308ab494fc6c5d61cfdb1159dc35f7d21b95059fb6c546557ba",
+    "train_evidence.jsonl": "084a5719fd6f8ba9c1dde83639fa96cbae567cca20c5e11d3e287e8c5e341dda",
+    "train_queries.jsonl": "2de8a6f13164e3159b52a9658889c30f40263eff30f4c33ae143d9c5b9fbc42a",
+    "train_labels.jsonl": "ce8509c44ce23398b35e8364ec45a9585f7494ad8c4a7ebed1a3a8f182de3834",
+    "dev_queries.jsonl": "c2aa9112703bb175a9f5e9ee53877dffa9f3400af89abe26020fdb2a788b77a9",
+    "token_bank.pt": "f7280a639aab9b2a83f17034cfa4f7d23d5418e53f2e056e2f1662b10ead7aee",
+    "token_bank_metadata.json": "136b6ae706c48191bf678cbfb55fdc3549bda481e2c733c88ee0976ef64020d2",
+    "native_interface.json": "707a7fe1263332a250b720c099e67f3a660dca18337b480582594bd84f097e33"
+  },
+  "only_runtime_checkpoint_storage_revision": true,
+  "no_failed928_step_weights_available": true,
+  "no_smoke_weights_as_formal_initializer": true
+}

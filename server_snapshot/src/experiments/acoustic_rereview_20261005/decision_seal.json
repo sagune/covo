@@ -1,0 +1,10 @@
+{
+  "protocol_sha256": "15b2574893c42cb63dd070f28bde81add78206ddcdf5592edcc6dfdbb3c52f1d",
+  "hashes": {
+    "none": "4b2db0378c2ee6e4de6c6e201ec26bf55f9af4afdc447e7eac542657db4fd521",
+    "true": "3c51967e3102a94c03088ad4756b4f9431a0fe05bcbd4b2c1a61d495d891a900",
+    "zero": "513411aee03caf7ff4d9712679e2558d46c54dbdd635ca2eda1fefdfc4d40e49",
+    "mismatch": "a0b9200a914fd29b707b7af9dbdb792ee5e9746226db41118af82fe1d7443bbd"
+  },
+  "reference_used": false
+}

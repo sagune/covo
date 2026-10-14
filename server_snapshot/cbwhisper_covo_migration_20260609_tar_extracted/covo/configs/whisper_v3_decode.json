@@ -1,0 +1,22 @@
+{
+  "name": "whisper_v3_decode",
+  "log_file": "outputs/logs/whisper_v3_decode.json",
+  "env": {
+    "PYTHONPATH": "src"
+  },
+  "steps": [
+    {
+      "name": "decode_whisper_v3",
+      "script": "scripts/transcribe_whisper_v3.py",
+      "args": {
+        "manifest": "data/manifests/aishell_sample.jsonl",
+        "output": "data/processed/whisper_v3_aishell_sample.jsonl",
+        "model": "openai/whisper-large-v3",
+        "language": "zh",
+        "num_beams": 8,
+        "num_return_sequences": 5,
+        "device": "auto"
+      }
+    }
+  ]
+}

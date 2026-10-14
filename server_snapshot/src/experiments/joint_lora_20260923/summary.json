@@ -1,0 +1,428 @@
+{
+  "summaries": {
+    "A_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 663,
+      "input_errors": 804,
+      "hits": 466,
+      "mentions": 599,
+      "lost": 90,
+      "gained": 16,
+      "improved": 262,
+      "worsened": 157,
+      "unchanged": 915,
+      "exact": 960,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03141882286039238,
+      "recall": 0.7779632721202003,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.6681831106056295,
+      "relative_cer_change": -0.17537313432835822
+    },
+    "A_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 691,
+      "input_errors": 804,
+      "hits": 437,
+      "mentions": 599,
+      "lost": 118,
+      "gained": 15,
+      "improved": 272,
+      "worsened": 190,
+      "unchanged": 872,
+      "exact": 935,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03274571130698512,
+      "recall": 0.7295492487479132,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5354942659463555,
+      "relative_cer_change": -0.14054726368159204
+    },
+    "A_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 658,
+      "input_errors": 804,
+      "hits": 465,
+      "mentions": 599,
+      "lost": 90,
+      "gained": 15,
+      "improved": 260,
+      "worsened": 152,
+      "unchanged": 922,
+      "exact": 961,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.031181878494929392,
+      "recall": 0.7762938230383973,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.6918775471519284,
+      "relative_cer_change": -0.18159203980099503
+    },
+    "A_mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 22133,
+      "input_errors": 804,
+      "hits": 7,
+      "mentions": 599,
+      "lost": 533,
+      "gained": 0,
+      "improved": 1,
+      "worsened": 1324,
+      "unchanged": 9,
+      "exact": 6,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 1.0488579281584685,
+      "recall": 0.011686143572621035,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 101.07572741920198,
+      "relative_cer_change": 26.52860696517413
+    },
+    "B_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 622,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 136,
+      "unchanged": 933,
+      "exact": 983,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029475879063595868,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8624774902852808,
+      "relative_cer_change": -0.2263681592039801
+    },
+    "B_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 646,
+      "input_errors": 804,
+      "hits": 451,
+      "mentions": 599,
+      "lost": 104,
+      "gained": 15,
+      "improved": 275,
+      "worsened": 179,
+      "unchanged": 880,
+      "exact": 959,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.030613212017818216,
+      "recall": 0.7529215358931552,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.748744194863046,
+      "relative_cer_change": -0.19651741293532338
+    },
+    "B_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 630,
+      "input_errors": 804,
+      "hits": 468,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 15,
+      "improved": 260,
+      "worsened": 133,
+      "unchanged": 941,
+      "exact": 979,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029854990048336652,
+      "recall": 0.7813021702838063,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8245663918112024,
+      "relative_cer_change": -0.21641791044776118
+    },
+    "B_mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 21611,
+      "input_errors": 804,
+      "hits": 23,
+      "mentions": 599,
+      "lost": 517,
+      "gained": 0,
+      "improved": 7,
+      "worsened": 1302,
+      "unchanged": 25,
+      "exact": 26,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 1.0241209364041324,
+      "recall": 0.038397328881469114,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 98.60202824376837,
+      "relative_cer_change": 25.879353233830845
+    },
+    "C_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 702,
+      "input_errors": 804,
+      "hits": 448,
+      "mentions": 599,
+      "lost": 107,
+      "gained": 15,
+      "improved": 265,
+      "worsened": 187,
+      "unchanged": 882,
+      "exact": 952,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03326698891100369,
+      "recall": 0.7479131886477463,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.4833665055444983,
+      "relative_cer_change": -0.12686567164179105
+    },
+    "D_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 663,
+      "input_errors": 804,
+      "hits": 466,
+      "mentions": 599,
+      "lost": 90,
+      "gained": 16,
+      "improved": 262,
+      "worsened": 157,
+      "unchanged": 915,
+      "exact": 960,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03141882286039238,
+      "recall": 0.7779632721202003,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.6681831106056295,
+      "relative_cer_change": -0.17537313432835822
+    }
+  },
+  "input_summary": {
+    "n": 1334,
+    "chars": 21102,
+    "errors": 804,
+    "input_errors": 804,
+    "hits": 540,
+    "mentions": 599,
+    "lost": 0,
+    "gained": 0,
+    "improved": 0,
+    "worsened": 0,
+    "unchanged": 1334,
+    "exact": 883,
+    "empty": 0,
+    "parse_failures": 0,
+    "cer": 0.038100653966448676,
+    "recall": 0.9015025041736227,
+    "input_cer": 0.038100653966448676,
+    "cer_delta_pp": 0.0,
+    "relative_cer_change": 0.0
+  },
+  "diagnostics": {
+    "A_text": {
+      "S": 584,
+      "D": 59,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 117,
+      "errors_on_correct_inputs": 164,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "A_true": {
+      "S": 651,
+      "D": 18,
+      "I": 22,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 147,
+      "errors_on_correct_inputs": 207,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "A_zero": {
+      "S": 578,
+      "D": 58,
+      "I": 22,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 114,
+      "errors_on_correct_inputs": 159,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "A_mismatch": {
+      "S": 19011,
+      "D": 1584,
+      "I": 1538,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 877,
+      "errors_on_correct_inputs": 14213,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_text": {
+      "S": 548,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_true": {
+      "S": 609,
+      "D": 18,
+      "I": 19,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 134,
+      "errors_on_correct_inputs": 179,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_zero": {
+      "S": 554,
+      "D": 54,
+      "I": 22,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_mismatch": {
+      "S": 18550,
+      "D": 1569,
+      "I": 1492,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 862,
+      "errors_on_correct_inputs": 13881,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "C_text": {
+      "S": 628,
+      "D": 47,
+      "I": 27,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 133,
+      "errors_on_correct_inputs": 185,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "D_text": {
+      "S": 584,
+      "D": 59,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 117,
+      "errors_on_correct_inputs": 164,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "B_true_minus_control_95ci": {
+    "D_text": {
+      "cer_delta_pp_95ci": [
+        -0.2814559264161358,
+        0.12353328822405946
+      ],
+      "recall_delta_pp_95ci": [
+        -4.745220787120146,
+        -0.3471921856978087
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "A_text": {
+      "cer_delta_pp_95ci": [
+        -0.2814559264161358,
+        0.12353328822405946
+      ],
+      "recall_delta_pp_95ci": [
+        -4.745220787120146,
+        -0.3471921856978087
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "A_true": {
+      "cer_delta_pp_95ci": [
+        -0.31686542199794304,
+        -0.11407765927010485
+      ],
+      "recall_delta_pp_95ci": [
+        1.0305353498351562,
+        3.8143600180913606
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_text": {
+      "cer_delta_pp_95ci": [
+        -0.07599233858838092,
+        0.30698359829859323
+      ],
+      "recall_delta_pp_95ci": [
+        -5.141175352473513,
+        -0.9867612165660056
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_zero": {
+      "cer_delta_pp_95ci": [
+        -0.11805793949636549,
+        0.26433393880910333
+      ],
+      "recall_delta_pp_95ci": [
+        -5.076496378351796,
+        -0.5075927767869393
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_mismatch": {
+      "cer_delta_pp_95ci": [
+        -100.45579580133199,
+        -98.20647141130546
+      ],
+      "recall_delta_pp_95ci": [
+        67.63174535935124,
+        75.04188310862914
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "C_text": {
+      "cer_delta_pp_95ci": [
+        -0.4460921622062829,
+        -0.08666913697010396
+      ],
+      "recall_delta_pp_95ci": [
+        -1.3606021625004345,
+        2.581866876372484
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "protocol_sha256": "f09a6ba0159cfaab8a436a247ff935176fe726661de6ab18429e14555d44d6ab",
+  "prediction_hashes": {
+    "A_text": "977d9ceaf79cd811f7fe4944b682110cbe9e6b1c9038b1267b842af1d70024e8",
+    "A_true": "de20e470a1e2166655123dc58bc4187393153f510cd993a5eb75bb11c0711ec9",
+    "A_zero": "cd19b16476a6b2250383cf617829104da2ca38c5c5822c60146e4ed973059e60",
+    "A_mismatch": "4d3af1fc565a5eb6baa96d416f758988965149c6223b74b47e57c5c67c00246a",
+    "B_text": "1ae96f4b0c46314017efcf5db5f3fdafe619c9bde04e4d89a3da4c76563c392d",
+    "B_true": "e7213fb537e8eccb5217f6b550d72629a681bc86a420bbd353ec2c6449273dfc",
+    "B_zero": "ec0e4b94ba57934d0bca9accc7571e15454e429788ae9ddb59148fbc1cc30387",
+    "B_mismatch": "e7bc5f11302188761407acaae79c37edd7f293d7bc7bb491bede8f6fd27c0601",
+    "C_text": "e3139b98ac8187243b71b76e690fa602cadb4f6355e952b6747564e7f5d8a7bf",
+    "D_text": "977d9ceaf79cd811f7fe4944b682110cbe9e6b1c9038b1267b842af1d70024e8"
+  },
+  "no_output_repairs": true,
+  "limitations": [
+    "Previously examined 1334 contextual dev, not official full dev or held-out test",
+    "Historical frontend/context inherited; Afull was pretrained with checkpoint625, now transferred to30022 equally in A/B",
+    "Historical dev-CER selection of30022 is not evidence of optimal contextual recall",
+    "Error-enriched training retained to isolate adaptation; no causal architecture claim",
+    "Single seed; mismatch has imperfect frame-length matching",
+    "Point non-degradation is not a statistical noninferiority guarantee"
+  ]
+}

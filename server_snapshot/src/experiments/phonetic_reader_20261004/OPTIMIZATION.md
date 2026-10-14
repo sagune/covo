@@ -1,0 +1,19 @@
+# Execution-only throughput amendment, 2026-10-04
+
+User requested higher system utilization. Original reader.py,connector.py,PLAN.md,protocol.json and source hashes remain unchanged. Preserve original logs and any complete checkpoints. New fast.py is a separately hashed runtime amendment, not a new accuracy-driven model search.
+
+Observed original: microbatch1 with accumulation8; roughly19seconds/update,20GB/32GB GPU memory, snapshot28%GPU utilization. Installed torch2.10.0+cu128,transformers5.4.0,triton available. Qwen3.5 warns linear-attention fast dependencies absent. Existing LM forward projected vocabulary logits for entire prefix despite prefix labels ignored.
+
+Changes permitted:
+
+- Right-padded microbatches with independent attention masks, same data order and optimizer chunk of8 (final6). Compute FP32 cross entropy mean PER EXAMPLE, then sum/divide by original chunk size; auxiliary0.2 uses same denominator and same selected4274 examples. Never change to length-weighted token batch mean.
+- Project only hidden positions predicting answer tokens via inspected Qwen3.5 logits_to_keep tensor API. No supervised token is removed,including EOS/JSON. CPU toy test compares losses AND gradients including unequal target lengths and padding.
+- Pin fla-core/flash-linear-attention0.5.2 in isolated accelerator_packages with --no-deps; do not update original environment or torch. Import FLA only AFTER original9B construction to preserve original normalization/convolution modules. Swap ONLY delta-rule chunk/recurrent operators on audio routes. Text ALWAYS uses original operators to preserve oldB/text identity. No new FlashAttention/TF32/precision/normalization change. Primary docs: https://github.com/fla-org/flash-linear-attention/blob/main/INSTALL.md and https://github.com/fla-org/flash-linear-attention .
+
+Before formal optimized training, original GPU worker must stop; no concurrent benchmark/training. Record last completed update and interrupted PIDs. If no complete formal checkpoint exists, restart same seeded initial state and replay unsaved updates, preserving prior partial-run logs. Smoke checkpoint is ONLY for execution tests, never a formal training initializer.
+
+Predeclared hardware choices: FLA micro4,FLA micro2,original micro4,original micro2,original micro1 with target-only projection. Choose first numerically verified faster configuration, not by dev. Real9B benchmark uses train first/longest+two train rows, compares full sequential original forward/backward at identical smoke weights versus padded/fast execution. Requirements: objective difference <=0.01+1%reference, reader/connector gradient cosine>=0.99 and relativeL2<=0.15, peak allocated<=30GB. Retain all failures/OOM results; do not silently alter training protocol. Kernel/batch roundoff can differ, so do not call bitwise-identical optimization. Warm compilation before timed comparisons. Longest-train repetition checks memory; training/dev rows never dropped.
+
+Fresh-process save/reload smoke verifies exact new adapter/connector weights,optimizer/scheduler steps,true/text generation and resumed update. Hash amendment code,tests,plan and installed package source/METADATA/RECORD. Store optimization.json and tag new checkpoints/summary with its hash. Original protocol SHA remains parent identity, not evidence code stayed identical across execution variants.
+
+After pass, run SAME2162 updates on17294 examples then SAME six1334-row dev groups,21102characters/599mentions. Existing malformed-output scoring,oldB/text raw-output equality check,original normalization,paired CIs and limitations unchanged. No protection,extra epochs or hyperparameter tuning. Restore parent fallback if optimization cannot be validated. Re-estimate ETA from steady training throughput, not compilation or utilization snapshots.

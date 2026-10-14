@@ -1,0 +1,109 @@
+{
+  "experiment": "Frozen9B evidence-conditioned local review without connector",
+  "created": "2026-10-05T14:02:45+0800",
+  "sources": {
+    "/root/autodl-tmp/src/experiments/acoustic_rereview_20261005/rereview.py": "8c931b67cd32f75388ad5ac0ed6949fc4f399c95138b6fae4b5ef50f339c85a3",
+    "/root/autodl-tmp/src/experiments/acoustic_rereview_20261005/test_rereview.py": "9e46e0a5f005e58282682a8bbdff842806ab41f800c773cf34ee90e5c753e85c",
+    "/root/autodl-tmp/src/experiments/acoustic_rereview_20261005/PLAN.md": "c830be108341fdf9b1f951e4694f15f1c9261dc0adc5c55bde873966aa0319ff",
+    "/root/autodl-tmp/src/experiments/acoustic_rereview_20261005/queries.jsonl": "1dc00c2d03f6e2682847c44bedbb95b425b46231ac303df8d47b6b6f78b93f3c",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/protocol.json": "c938b294532d75dd44a22d4909208781473a20512225bbff3804d729116955d0",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/input_edits.jsonl": "da9c251797d08eaddad80d9b64f18806338f9e30694399adb2fe0c056ad7e42f",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/evidence_seal.json": "b51cb82211362728e2c4a58b33b839f05c2d079cfb969bca931d41181f1c4f7e",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/review.py": "2899c93d52e66f8093ff19aa19dab4374cbac6aabbbf497df64a4a11987c354a",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/true.evidence.jsonl": "bad7e7e71141dcd52ab15c4c2a93692aaecc006cad810fa47db4a22ee61f13e0",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/zero.evidence.jsonl": "ce86da3abdbedb641d0d0bbe69fc95db00996449421f52252e98be5dfbc6ce96",
+    "/root/autodl-tmp/src/experiments/acoustic_review_20261005/mismatch.evidence.jsonl": "4e5a7914ebfc6a4a755cc7eb48926c667801fb3cfa540efa24dfccada540e4ae",
+    "/root/autodl-tmp/src/experiments/full_aishell_coupling_20260922/shard_data/dev.jsonl": "7570c5b19a75f7be3c250b83a9a2844a8e4810d58d86c377ac33d5b44f234497",
+    "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/dev/text.predictions.jsonl": "1ae96f4b0c46314017efcf5db5f3fdafe619c9bde04e4d89a3da4c76563c392d",
+    "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195/metadata.json": "411746cf4fa6623d20f384b8542fa9e9bbf094cb806b9e1de087b1ece1cd354b",
+    "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195/adapter/adapter_config.json": "494c9ba67105ecfc4a3f6271dcb1e08075f008ef242185050f1a7ad77b52dbb7",
+    "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195/adapter/adapter_model.safetensors": "745ebb17882dfdd6dcb43ffb9d34f00b87ade7e3405a5917c2d871f952e4585a",
+    "/root/autodl-tmp/src/experiments/staged_coupling_20260917/run.py": "b619c067d9581a11d35276304d77d6907368966edd0d72167c02d253909b44e1",
+    "/root/autodl-tmp/datasets/aishell/data_aishell_sensevoice/hotword/dev/aligned.txt": "a3f44586fc047f85e3086f94d03b04656fcb4dd73901a65cd57c94888f68e4c7",
+    "/root/autodl-tmp/src/experiments/text_residual_coupling_20260920/diagnostics.py": "5fc43187523413c553178fc0fc1de3f12a5197fa36b18469b3d5c6f56d39fd76",
+    "/root/autodl-tmp/src/experiments/text_residual_coupling_20260920/workflow.py": "b74222bb4cfb41c5f21bc2fd343aa1d6f59d12759c53dd76a760ef075c62c44a",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/config.json": "d0883072e01861ed0b2d47be3c16c36a8e81c224c7ffaa310c6558fb3f932b05",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/tokenizer_config.json": "316230d6a809701f4db5ea8f8fc862bc3a6f3229c937c174e674ff3ca0a64ac8",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/chat_template.jinja": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/model.safetensors.index.json": "26d3539b516be613f39563617cb9d33b3f83d401298125be392c80cefb8f7fe5",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/model.safetensors-00001-of-00004.safetensors": "db6f444b43d318c92f360a13a25561a6a65b10c0631b8ed305a426dbaa6c380e",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/model.safetensors-00002-of-00004.safetensors": "31c7d7e2dd5d207840b31cc59083c8f4c4718959149e0358c0364052bb9a0330",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/model.safetensors-00003-of-00004.safetensors": "7ec36ba3a4176a44c3c0876ad80c56a2f70c84bf008d82e9501df642f17dadec",
+    "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B/model.safetensors-00004-of-00004.safetensors": "b62b0c4cd7e44edee103ee8f4fe225f246d5e768e07bfd5f25b63a8aa1fdd0c6"
+  },
+  "base": "/root/autodl-tmp/cbwhisper_covo_migration_20260609_tar_extracted/models/Qwen3.5-9B",
+  "checkpoint": "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195",
+  "dev": "/root/autodl-tmp/src/experiments/full_aishell_coupling_20260922/shard_data/dev.jsonl",
+  "baseline": "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/dev/text.predictions.jsonl",
+  "modes": [
+    "none",
+    "true",
+    "zero",
+    "mismatch"
+  ],
+  "n": 1334,
+  "chars": 21102,
+  "mentions": 599,
+  "queries": 190,
+  "reviewed_utterances": 180,
+  "batch_size": 4,
+  "max_new_tokens": 96,
+  "max_sequence": 4096,
+  "seed": 917,
+  "do_sample": false,
+  "dtype": "bfloat16",
+  "backend": "Historical unpatched Transformers text route; no FLA/audio modules",
+  "no_training": true,
+  "no_connector": true,
+  "prompt_lengths": {
+    "none": {
+      "min": 454,
+      "max": 628,
+      "mean": 534.9736842105264
+    },
+    "true": {
+      "min": 471,
+      "max": 643,
+      "mean": 550.6789473684211
+    },
+    "zero": {
+      "min": 477,
+      "max": 651,
+      "mean": 557.8210526315789
+    },
+    "mismatch": {
+      "min": 476,
+      "max": 651,
+      "mean": 557.4578947368421
+    }
+  },
+  "baseline_replay_ids": [
+    "BAC009S0724W0121",
+    "BAC009S0724W0122",
+    "BAC009S0724W0135",
+    "BAC009S0748W0126"
+  ],
+  "primary": "Corpus CER versus frozen old B/text and none; hotword recall, newly wrong/correct repaired errors, paired95%CI",
+  "controls": "All modes same prompt and candidate order; none fields unprovided, others sealed native scores; no reference in model query",
+  "candidate_order": "sha256(917|candidate_order|edit_id) bit, identical across modes; not reference based",
+  "output_contract": "Old JSON text schema: A/B fragment or corresponding full sentence, A/B labels accepted; explicit U/证据不足 keeps draft; malformed/off-contract response scores entire affected utterance empty",
+  "routing": "190 input/output-only different-phone substitution blocks; all1334 outputs evaluated. Other edits untouched. No references or error labels used for routing.",
+  "scope": "Candidate-selection local review, NOT unconstrained second-pass transcription; cannot introduce new words outside candidates or fix untouched positions",
+  "success": "Real evidence must reduce harmful edits while preserve correct repairs and not worsen corpusCER; compare none/erased/mismatch, no checkpoint or threshold selection",
+  "stopping": "Hash/ID/weights/backend replay/batch equivalence/OOM failure stops, preserves artifacts; no protocol reduction or new training",
+  "limitations": [
+    "Repeated historical contextual1334 dev, not official14326 full dev or new heldout",
+    "Native character CTC includes orthographic/context bias, not pure pronunciation or calibrated confidence",
+    "Toneless dictionary pronunciation is not waveform-verified; tone/polyphone/same-phone spelling limitations",
+    "Phonetic token aggregation changes repeat-collapse semantics and excludes non-Han tokens; exploratory fixed auxiliary",
+    "Single-edit same-context whole-utterance CTC marginal avoids reference boundaries but is not an independent local audio judge",
+    "Existing float16 cached encoder frames; no hotword bonus in these acoustic scores",
+    "Detecting damaging edits is not proof that 9B can use evidence or that end-to-end CER improves",
+    "Evidence-score task differs from old correction training; a failure can reflect task/format shift",
+    "none changes evidence availability; zero/mismatch have OOD score magnitudes, so comparisons do not prove raw auditory understanding",
+    "Both native and predefined phonetic scores included; this is evidence-interface pilot, not isolated-score ablation",
+    "Abstention retention is an explicit model decision, not score-threshold recovery; invalid responses are NOT copied from draft",
+    "Review edits constructed from previously examined dev predictions; retrospective diagnostic, no new heldout claim"
+  ]
+}

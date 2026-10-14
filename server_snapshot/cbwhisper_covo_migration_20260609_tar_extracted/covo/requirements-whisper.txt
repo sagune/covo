@@ -1,0 +1,4 @@
+torch
+transformers>=4.45.0
+librosa>=0.10.0
+soundfile>=0.12.0

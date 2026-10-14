@@ -1,0 +1,290 @@
+{
+  "protocol_sha256": "3192f303df9860313effee38500dd9b5d907558492853db3291e2fa4648daeaa",
+  "summaries": {
+    "text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 622,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 136,
+      "unchanged": 933,
+      "exact": 983,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029475879063595868,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8624774902852808,
+      "relative_cer_change": -0.2263681592039801
+    },
+    "true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 689,
+      "input_errors": 804,
+      "hits": 449,
+      "mentions": 599,
+      "lost": 108,
+      "gained": 17,
+      "improved": 270,
+      "worsened": 201,
+      "unchanged": 863,
+      "exact": 940,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03265093356079993,
+      "recall": 0.7495826377295493,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5449720405648749,
+      "relative_cer_change": -0.14303482587064675
+    },
+    "zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 640,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 263,
+      "worsened": 147,
+      "unchanged": 924,
+      "exact": 974,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03032887877926263,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.7771775187186046,
+      "relative_cer_change": -0.20398009950248755
+    },
+    "mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 7226,
+      "input_errors": 804,
+      "hits": 312,
+      "mentions": 599,
+      "lost": 239,
+      "gained": 11,
+      "improved": 155,
+      "worsened": 584,
+      "unchanged": 595,
+      "exact": 635,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.34243199696711213,
+      "recall": 0.5208681135225376,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 30.433134300066346,
+      "relative_cer_change": 7.987562189054726
+    },
+    "no_phonetic": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 689,
+      "input_errors": 804,
+      "hits": 448,
+      "mentions": 599,
+      "lost": 109,
+      "gained": 17,
+      "improved": 270,
+      "worsened": 200,
+      "unchanged": 864,
+      "exact": 940,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03265093356079993,
+      "recall": 0.7479131886477463,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5449720405648749,
+      "relative_cer_change": -0.14303482587064675
+    },
+    "frozen_reader": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 657,
+      "input_errors": 804,
+      "hits": 454,
+      "mentions": 599,
+      "lost": 103,
+      "gained": 17,
+      "improved": 272,
+      "worsened": 181,
+      "unchanged": 881,
+      "exact": 945,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03113448962183679,
+      "recall": 0.7579298831385642,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.6966164344611885,
+      "relative_cer_change": -0.1828358208955224
+    }
+  },
+  "diagnostics": {
+    "text": {
+      "S": 548,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "true": {
+      "S": 629,
+      "D": 34,
+      "I": 26,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 147,
+      "errors_on_correct_inputs": 202,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "zero": {
+      "S": 560,
+      "D": 59,
+      "I": 21,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 104,
+      "errors_on_correct_inputs": 142,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "mismatch": {
+      "S": 6150,
+      "D": 574,
+      "I": 502,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 372,
+      "errors_on_correct_inputs": 4078,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "no_phonetic": {
+      "S": 627,
+      "D": 37,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 146,
+      "errors_on_correct_inputs": 202,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "frozen_reader": {
+      "S": 599,
+      "D": 33,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 139,
+      "errors_on_correct_inputs": 193,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "prediction_hashes": {
+    "text": "2fc1338a2cf6eff1cb9749adc8c11b4c750b751322bbb44f14eda74d197243cb",
+    "true": "b307c558aa07bdc52c8277f72beded6fd708ef9fe272ac4400965f930824f287",
+    "zero": "54c10ca94c7665724d6316e7966caee87445ee6e828d56e23a345445d2af8d24",
+    "mismatch": "345f65193b94ea85bc196001890de1e7d0114e292a9531a592b687c0abc947c5",
+    "no_phonetic": "75767c00a3cb594b933ebb1a452346e859e9f4cc5ec1bb2dce89073acc637270",
+    "frozen_reader": "a1df04b38c4968018a1127a6cd46c7bc9915454994a484e6fb2560b4fddb7b7d"
+  },
+  "true_minus_controls_95ci": {
+    "text": {
+      "cer_delta_pp_95ci": [
+        0.11842841428280311,
+        0.5323785185163528
+      ],
+      "recall_delta_pp_95ci": [
+        -5.496541997104928,
+        -1.5332197614991483
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "zero": {
+      "cer_delta_pp_95ci": [
+        0.04688399372637681,
+        0.4164781856604779
+      ],
+      "recall_delta_pp_95ci": [
+        -5.379933299237097,
+        -1.4559389486573973
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "mismatch": {
+      "cer_delta_pp_95ci": [
+        -33.41396588067079,
+        -28.462971505325203
+      ],
+      "recall_delta_pp_95ci": [
+        18.99143847391657,
+        26.863538893818394
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "no_phonetic": {
+      "cer_delta_pp_95ci": [
+        -0.046652651687800265,
+        0.04713462722540098
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5181796140480057
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "frozen_reader": {
+      "cer_delta_pp_95ci": [
+        0.047468787246586444,
+        0.26367930214318214
+      ],
+      "recall_delta_pp_95ci": [
+        -1.7976812435500515,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "no_protection": true,
+  "text_route_exactly_matches_old_B": true,
+  "limitations": [
+    "Repeated historical contextualdev, not official full dev or new heldout test",
+    "Dictionary pronunciations are not waveform-verified; polyphones and numeral readings need separate checks",
+    "Same-phoneme spellings cannot be identified by this target; tone-only errors deliberately outside first probe",
+    "Simple probes can underfit; failure does not prove features contain no information",
+    "Full greedy transcription and reference-aware CTC pair preference are different diagnostic tasks",
+    "Zero is erased cached encoder frames, not re-encoded silence; mismatch has imperfect duration matching",
+    "One seed, both heads use all17294 train rows repeatedly; no train-size model search",
+    "This first version has audio-local segmentation and linguistic anchors, NOT explicit text-token forced time alignment",
+    "Local weak timestamps derive from train reference/dictionary and CTC, not manually annotated boundaries",
+    "Composite architecture+prompt+auxiliary change, not a causal training-objective ablation",
+    "no_phonetic removes soft semantic values, but retains phonetic-head-derived segmentation",
+    "Audio-only evidence adapter freezes old text route, but does not guarantee audio-route CER non-degradation",
+    "Zero erases raw cached frames and resegments; duration/segmentation counts differ from true"
+  ],
+  "optimization_sha256": "1d82fba7133ce110dc0bd22fdcf90fc16de5dca5c67588b36954bf9d9fd3f8a5",
+  "execution_acceleration": {
+    "fla": true,
+    "microbatch": 4,
+    "seconds": 3.551963089965284,
+    "reference_seconds": 10.643313252949156,
+    "speedup": 2.996459417897043,
+    "loss_difference": 0.003938767686486266,
+    "gradients": [
+      {
+        "cosine": 1.0004637241363525,
+        "relative_l2": 0.05058087408542633
+      },
+      {
+        "cosine": 0.9986546039581299,
+        "relative_l2": 0.05620071664452553
+      }
+    ],
+    "peak_gpu_gb": 20.407019008,
+    "passed": true
+  }
+}

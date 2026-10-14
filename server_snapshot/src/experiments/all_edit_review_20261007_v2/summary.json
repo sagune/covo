@@ -1,0 +1,1617 @@
+{
+  "status": "COMPLETE",
+  "protocol_sha256": "6deda31b3afcbd6851ec6b9bf1bf031ee64e0a2366dccae91311a31484f9e39c",
+  "data_lock_sha256": "bb978f8dcb21db38c643c351da35936e12ef233ccd24af58ae2ddead210d9725",
+  "baseline": {
+    "n": 1334,
+    "chars": 21102,
+    "errors": 622,
+    "input_errors": 804,
+    "hits": 469,
+    "mentions": 599,
+    "lost": 87,
+    "gained": 16,
+    "improved": 265,
+    "worsened": 136,
+    "unchanged": 933,
+    "exact": 983,
+    "empty": 0,
+    "parse_failures": 0,
+    "cer": 0.029475879063595868,
+    "recall": 0.7829716193656093,
+    "input_cer": 0.038100653966448676,
+    "cer_delta_pp": -0.8624774902852808,
+    "relative_cer_change": -0.2263681592039801
+  },
+  "summaries": {
+    "UNADAPTED__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 711,
+      "input_errors": 804,
+      "hits": 510,
+      "mentions": 599,
+      "lost": 34,
+      "gained": 4,
+      "improved": 151,
+      "worsened": 77,
+      "unchanged": 1106,
+      "exact": 936,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03369348876883708,
+      "recall": 0.8514190317195326,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.44071651976115983,
+      "relative_cer_change": -0.11567164179104478
+    },
+    "UNADAPTED__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 694,
+      "input_errors": 804,
+      "hits": 512,
+      "mentions": 599,
+      "lost": 32,
+      "gained": 4,
+      "improved": 151,
+      "worsened": 70,
+      "unchanged": 1113,
+      "exact": 941,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.032887877926262916,
+      "recall": 0.8547579298831386,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.521277604018576,
+      "relative_cer_change": -0.13681592039800994
+    },
+    "UNADAPTED__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 704,
+      "input_errors": 804,
+      "hits": 510,
+      "mentions": 599,
+      "lost": 34,
+      "gained": 4,
+      "improved": 149,
+      "worsened": 71,
+      "unchanged": 1114,
+      "exact": 939,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.033361766657188895,
+      "recall": 0.8514190317195326,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.47388873092597816,
+      "relative_cer_change": -0.12437810945273632
+    },
+    "UNADAPTED__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 684,
+      "input_errors": 804,
+      "hits": 514,
+      "mentions": 599,
+      "lost": 30,
+      "gained": 4,
+      "improved": 154,
+      "worsened": 63,
+      "unchanged": 1117,
+      "exact": 947,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03241398919533694,
+      "recall": 0.8580968280467446,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5686664771111738,
+      "relative_cer_change": -0.14925373134328357
+    },
+    "AUDIO__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 618,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 133,
+      "unchanged": 936,
+      "exact": 985,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029286323571225476,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.88143303952232,
+      "relative_cer_change": -0.23134328358208955
+    },
+    "AUDIO__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 582,
+      "input_errors": 804,
+      "hits": 477,
+      "mentions": 599,
+      "lost": 76,
+      "gained": 13,
+      "improved": 267,
+      "worsened": 115,
+      "unchanged": 952,
+      "exact": 1002,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.027580324139891952,
+      "recall": 0.7963272120200334,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -1.0520329826556725,
+      "relative_cer_change": -0.27611940298507465
+    },
+    "AUDIO__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 614,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 267,
+      "worsened": 133,
+      "unchanged": 934,
+      "exact": 987,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029096768078855084,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9003885887593592,
+      "relative_cer_change": -0.236318407960199
+    },
+    "AUDIO__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 623,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 261,
+      "worsened": 133,
+      "unchanged": 940,
+      "exact": 985,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029523267936688465,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8577386029760211,
+      "relative_cer_change": -0.22512437810945274
+    },
+    "TEXT__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 613,
+      "input_errors": 804,
+      "hits": 471,
+      "mentions": 599,
+      "lost": 85,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 129,
+      "unchanged": 940,
+      "exact": 988,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029049379205762487,
+      "recall": 0.7863105175292153,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9051274760686189,
+      "relative_cer_change": -0.23756218905472637
+    },
+    "TEXT__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 602,
+      "input_errors": 804,
+      "hits": 478,
+      "mentions": 599,
+      "lost": 77,
+      "gained": 15,
+      "improved": 266,
+      "worsened": 123,
+      "unchanged": 945,
+      "exact": 996,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.028528101601743912,
+      "recall": 0.7979966611018364,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9572552364704765,
+      "relative_cer_change": -0.2512437810945274
+    },
+    "TEXT__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 609,
+      "input_errors": 804,
+      "hits": 471,
+      "mentions": 599,
+      "lost": 85,
+      "gained": 16,
+      "improved": 267,
+      "worsened": 128,
+      "unchanged": 939,
+      "exact": 988,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.028859823713392095,
+      "recall": 0.7863105175292153,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9240830253056581,
+      "relative_cer_change": -0.24253731343283583
+    },
+    "TEXT__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 610,
+      "input_errors": 804,
+      "hits": 472,
+      "mentions": 599,
+      "lost": 84,
+      "gained": 16,
+      "improved": 266,
+      "worsened": 128,
+      "unchanged": 940,
+      "exact": 988,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.028907212586484692,
+      "recall": 0.7879799666110183,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9193441379963984,
+      "relative_cer_change": -0.24129353233830847
+    }
+  },
+  "diagnostics": {
+    "UNADAPTED__none": {
+      "S": 640,
+      "D": 56,
+      "I": 15,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 51,
+      "errors_on_correct_inputs": 65,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__true": {
+      "S": 627,
+      "D": 53,
+      "I": 14,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 46,
+      "errors_on_correct_inputs": 56,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__zero": {
+      "S": 634,
+      "D": 56,
+      "I": 14,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 47,
+      "errors_on_correct_inputs": 59,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__mismatch": {
+      "S": 615,
+      "D": 56,
+      "I": 13,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 41,
+      "errors_on_correct_inputs": 48,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__none": {
+      "S": 545,
+      "D": 54,
+      "I": 19,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 133,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__true": {
+      "S": 524,
+      "D": 42,
+      "I": 16,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 83,
+      "errors_on_correct_inputs": 106,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__zero": {
+      "S": 539,
+      "D": 56,
+      "I": 19,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 96,
+      "errors_on_correct_inputs": 132,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__mismatch": {
+      "S": 545,
+      "D": 62,
+      "I": 16,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 133,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__none": {
+      "S": 539,
+      "D": 58,
+      "I": 16,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 131,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__true": {
+      "S": 528,
+      "D": 59,
+      "I": 15,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 91,
+      "errors_on_correct_inputs": 123,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__zero": {
+      "S": 536,
+      "D": 56,
+      "I": 17,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 131,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__mismatch": {
+      "S": 536,
+      "D": 56,
+      "I": 18,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 96,
+      "errors_on_correct_inputs": 130,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "decisions": {
+    "UNADAPTED__none": {
+      "harmful": {
+        "n": 185,
+        "original": 99,
+        "modified": 86
+      },
+      "helpful": {
+        "n": 345,
+        "original": 175,
+        "modified": 170
+      },
+      "neutral": {
+        "n": 74,
+        "original": 39,
+        "modified": 35
+      }
+    },
+    "UNADAPTED__true": {
+      "harmful": {
+        "n": 185,
+        "original": 110,
+        "modified": 75
+      },
+      "helpful": {
+        "n": 345,
+        "original": 178,
+        "modified": 167
+      },
+      "neutral": {
+        "n": 74,
+        "original": 41,
+        "modified": 33
+      }
+    },
+    "UNADAPTED__zero": {
+      "harmful": {
+        "n": 185,
+        "original": 107,
+        "modified": 78
+      },
+      "helpful": {
+        "n": 345,
+        "original": 179,
+        "modified": 166
+      },
+      "neutral": {
+        "n": 74,
+        "original": 43,
+        "modified": 31
+      }
+    },
+    "UNADAPTED__mismatch": {
+      "harmful": {
+        "n": 185,
+        "original": 116,
+        "modified": 69
+      },
+      "helpful": {
+        "n": 345,
+        "original": 176,
+        "modified": 169
+      },
+      "neutral": {
+        "n": 74,
+        "original": 42,
+        "modified": 32
+      }
+    },
+    "AUDIO__none": {
+      "harmful": {
+        "n": 185,
+        "original": 5,
+        "modified": 180
+      },
+      "helpful": {
+        "n": 345,
+        "original": 1,
+        "modified": 344
+      },
+      "neutral": {
+        "n": 74,
+        "original": 0,
+        "modified": 74
+      }
+    },
+    "AUDIO__true": {
+      "harmful": {
+        "n": 185,
+        "original": 38,
+        "modified": 147
+      },
+      "helpful": {
+        "n": 345,
+        "original": 11,
+        "modified": 334
+      },
+      "neutral": {
+        "n": 74,
+        "original": 15,
+        "modified": 59
+      }
+    },
+    "AUDIO__zero": {
+      "harmful": {
+        "n": 185,
+        "original": 10,
+        "modified": 175
+      },
+      "helpful": {
+        "n": 345,
+        "original": 2,
+        "modified": 343
+      },
+      "neutral": {
+        "n": 74,
+        "original": 0,
+        "modified": 74
+      }
+    },
+    "AUDIO__mismatch": {
+      "harmful": {
+        "n": 185,
+        "original": 10,
+        "modified": 175
+      },
+      "helpful": {
+        "n": 345,
+        "original": 7,
+        "modified": 338
+      },
+      "neutral": {
+        "n": 74,
+        "original": 0,
+        "modified": 74
+      }
+    },
+    "TEXT__none": {
+      "harmful": {
+        "n": 185,
+        "original": 14,
+        "modified": 171
+      },
+      "helpful": {
+        "n": 345,
+        "original": 3,
+        "modified": 342
+      },
+      "neutral": {
+        "n": 74,
+        "original": 0,
+        "modified": 74
+      }
+    },
+    "TEXT__true": {
+      "harmful": {
+        "n": 185,
+        "original": 26,
+        "modified": 159
+      },
+      "helpful": {
+        "n": 345,
+        "original": 8,
+        "modified": 337
+      },
+      "neutral": {
+        "n": 74,
+        "original": 7,
+        "modified": 67
+      }
+    },
+    "TEXT__zero": {
+      "harmful": {
+        "n": 185,
+        "original": 16,
+        "modified": 169
+      },
+      "helpful": {
+        "n": 345,
+        "original": 3,
+        "modified": 342
+      },
+      "neutral": {
+        "n": 74,
+        "original": 1,
+        "modified": 73
+      }
+    },
+    "TEXT__mismatch": {
+      "harmful": {
+        "n": 185,
+        "original": 15,
+        "modified": 170
+      },
+      "helpful": {
+        "n": 345,
+        "original": 3,
+        "modified": 342
+      },
+      "neutral": {
+        "n": 74,
+        "original": 1,
+        "modified": 73
+      }
+    }
+  },
+  "decisions_by_type": {
+    "UNADAPTED__none": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 61,
+          "modified": 52
+        },
+        "helpful": {
+          "n": 225,
+          "original": 113,
+          "modified": 112
+        },
+        "neutral": {
+          "n": 30,
+          "original": 16,
+          "modified": 14
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 28,
+          "modified": 26
+        },
+        "helpful": {
+          "n": 98,
+          "original": 49,
+          "modified": 49
+        },
+        "neutral": {
+          "n": 38,
+          "original": 21,
+          "modified": 17
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        },
+        "helpful": {
+          "n": 9,
+          "original": 6,
+          "modified": 3
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 9,
+          "modified": 6
+        },
+        "helpful": {
+          "n": 13,
+          "original": 7,
+          "modified": 6
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      }
+    },
+    "UNADAPTED__true": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 68,
+          "modified": 45
+        },
+        "helpful": {
+          "n": 225,
+          "original": 116,
+          "modified": 109
+        },
+        "neutral": {
+          "n": 30,
+          "original": 16,
+          "modified": 14
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 30,
+          "modified": 24
+        },
+        "helpful": {
+          "n": 98,
+          "original": 51,
+          "modified": 47
+        },
+        "neutral": {
+          "n": 38,
+          "original": 23,
+          "modified": 15
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 2,
+          "modified": 1
+        },
+        "helpful": {
+          "n": 9,
+          "original": 5,
+          "modified": 4
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 10,
+          "modified": 5
+        },
+        "helpful": {
+          "n": 13,
+          "original": 6,
+          "modified": 7
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      }
+    },
+    "UNADAPTED__zero": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 66,
+          "modified": 47
+        },
+        "helpful": {
+          "n": 225,
+          "original": 115,
+          "modified": 110
+        },
+        "neutral": {
+          "n": 30,
+          "original": 16,
+          "modified": 14
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 29,
+          "modified": 25
+        },
+        "helpful": {
+          "n": 98,
+          "original": 51,
+          "modified": 47
+        },
+        "neutral": {
+          "n": 38,
+          "original": 25,
+          "modified": 13
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        },
+        "helpful": {
+          "n": 9,
+          "original": 5,
+          "modified": 4
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 11,
+          "modified": 4
+        },
+        "helpful": {
+          "n": 13,
+          "original": 8,
+          "modified": 5
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      }
+    },
+    "UNADAPTED__mismatch": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 71,
+          "modified": 42
+        },
+        "helpful": {
+          "n": 225,
+          "original": 114,
+          "modified": 111
+        },
+        "neutral": {
+          "n": 30,
+          "original": 16,
+          "modified": 14
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 32,
+          "modified": 22
+        },
+        "helpful": {
+          "n": 98,
+          "original": 50,
+          "modified": 48
+        },
+        "neutral": {
+          "n": 38,
+          "original": 24,
+          "modified": 14
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 2,
+          "modified": 1
+        },
+        "helpful": {
+          "n": 9,
+          "original": 5,
+          "modified": 4
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 11,
+          "modified": 4
+        },
+        "helpful": {
+          "n": 13,
+          "original": 7,
+          "modified": 6
+        },
+        "neutral": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        }
+      }
+    },
+    "AUDIO__none": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 3,
+          "modified": 110
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 0,
+          "modified": 30
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 0,
+          "modified": 54
+        },
+        "helpful": {
+          "n": 98,
+          "original": 0,
+          "modified": 98
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 0,
+          "modified": 9
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 2,
+          "modified": 13
+        },
+        "helpful": {
+          "n": 13,
+          "original": 1,
+          "modified": 12
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "AUDIO__true": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 4,
+          "modified": 109
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 1,
+          "modified": 29
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 21,
+          "modified": 33
+        },
+        "helpful": {
+          "n": 98,
+          "original": 7,
+          "modified": 91
+        },
+        "neutral": {
+          "n": 38,
+          "original": 12,
+          "modified": 26
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 13,
+          "modified": 2
+        },
+        "helpful": {
+          "n": 13,
+          "original": 3,
+          "modified": 10
+        },
+        "neutral": {
+          "n": 3,
+          "original": 2,
+          "modified": 1
+        }
+      }
+    },
+    "AUDIO__zero": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 6,
+          "modified": 107
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 0,
+          "modified": 30
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 3,
+          "modified": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original": 0,
+          "modified": 98
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 0,
+          "modified": 9
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 1,
+          "modified": 14
+        },
+        "helpful": {
+          "n": 13,
+          "original": 2,
+          "modified": 11
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "AUDIO__mismatch": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 3,
+          "modified": 110
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 0,
+          "modified": 30
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 3,
+          "modified": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original": 1,
+          "modified": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 4,
+          "modified": 11
+        },
+        "helpful": {
+          "n": 13,
+          "original": 5,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "TEXT__none": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 8,
+          "modified": 105
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 0,
+          "modified": 30
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 2,
+          "modified": 52
+        },
+        "helpful": {
+          "n": 98,
+          "original": 1,
+          "modified": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 4,
+          "modified": 11
+        },
+        "helpful": {
+          "n": 13,
+          "original": 1,
+          "modified": 12
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "TEXT__true": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 11,
+          "modified": 102
+        },
+        "helpful": {
+          "n": 225,
+          "original": 2,
+          "modified": 223
+        },
+        "neutral": {
+          "n": 30,
+          "original": 1,
+          "modified": 29
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 9,
+          "modified": 45
+        },
+        "helpful": {
+          "n": 98,
+          "original": 3,
+          "modified": 95
+        },
+        "neutral": {
+          "n": 38,
+          "original": 6,
+          "modified": 32
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 5,
+          "modified": 10
+        },
+        "helpful": {
+          "n": 13,
+          "original": 2,
+          "modified": 11
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "TEXT__zero": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 9,
+          "modified": 104
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 1,
+          "modified": 29
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 3,
+          "modified": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original": 1,
+          "modified": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 1,
+          "modified": 2
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 3,
+          "modified": 12
+        },
+        "helpful": {
+          "n": 13,
+          "original": 1,
+          "modified": 12
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    },
+    "TEXT__mismatch": {
+      "same_phone_substitution": {
+        "harmful": {
+          "n": 113,
+          "original": 10,
+          "modified": 103
+        },
+        "helpful": {
+          "n": 225,
+          "original": 0,
+          "modified": 225
+        },
+        "neutral": {
+          "n": 30,
+          "original": 1,
+          "modified": 29
+        }
+      },
+      "different_phone_substitution": {
+        "harmful": {
+          "n": 54,
+          "original": 3,
+          "modified": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original": 1,
+          "modified": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original": 0,
+          "modified": 38
+        }
+      },
+      "unsupported_pronunciation": {
+        "harmful": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        },
+        "helpful": {
+          "n": 9,
+          "original": 1,
+          "modified": 8
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      },
+      "insertion_deletion_or_mixed": {
+        "harmful": {
+          "n": 15,
+          "original": 2,
+          "modified": 13
+        },
+        "helpful": {
+          "n": 13,
+          "original": 1,
+          "modified": 12
+        },
+        "neutral": {
+          "n": 3,
+          "original": 0,
+          "modified": 3
+        }
+      }
+    }
+  },
+  "paired95ci": {
+    "AUDIO__true_vs_old": {
+      "cer_delta_pp_95ci": [
+        -0.2926360747476342,
+        -0.08994881214755507
+      ],
+      "recall_delta_pp_95ci": [
+        0.16285982892402212,
+        2.6041666666666665
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__none": {
+      "cer_delta_pp_95ci": [
+        -0.2711350533313402,
+        -0.07209071447371174
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.392673342212136
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__zero": {
+      "cer_delta_pp_95ci": [
+        -0.2531203738488759,
+        -0.05680361999817687
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.392673342212136
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.29691387670425734,
+        -0.09452477266331359
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.392673342212136
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_old": {
+      "cer_delta_pp_95ci": [
+        -0.17219998645394624,
+        -0.023221064301919864
+      ],
+      "recall_delta_pp_95ci": [
+        0.48933682549098534,
+        2.7120677966101683
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__none": {
+      "cer_delta_pp_95ci": [
+        -0.10411049401897483,
+        -0.004795042255322417
+      ],
+      "recall_delta_pp_95ci": [
+        0.1694700888901592,
+        2.3103264871941733
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__zero": {
+      "cer_delta_pp_95ci": [
+        -0.09474777637634431,
+        0.023647906162843967
+      ],
+      "recall_delta_pp_95ci": [
+        0.1694700888901592,
+        2.3103264871941733
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.10004276480105591,
+        0.019068913009295974
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.192335410874618
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__none_vs_old": {
+      "cer_delta_pp_95ci": [
+        -0.09958411854230272,
+        0.014276366743524739
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.8532423208191127
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_TEXT__none": {
+      "cer_delta_pp_95ci": [
+        -0.25087837125294155,
+        -0.04746720918634036
+      ],
+      "recall_delta_pp_95ci": [
+        -0.16978650543409213,
+        2.2491349480968856
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_TEXT__true": {
+      "cer_delta_pp_95ci": [
+        -0.18618126156920034,
+        -0.004728127231199939
+      ],
+      "recall_delta_pp_95ci": [
+        -1.4901280023722447,
+        1.1058743288854689
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_UNADAPTED__true": {
+      "cer_delta_pp_95ci": [
+        -0.7213886985741882,
+        -0.3362318596280393
+      ],
+      "recall_delta_pp_95ci": [
+        -8.514605701445538,
+        -3.3609229645035295
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_UNADAPTED__none": {
+      "cer_delta_pp_95ci": [
+        -0.8048309018542069,
+        -0.42296090314531615
+      ],
+      "recall_delta_pp_95ci": [
+        -8.17411067193676,
+        -3.0797028045944614
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "true_order_agreement_of604": {
+    "UNADAPTED": 60,
+    "AUDIO": 563,
+    "TEXT": 551
+  },
+  "prediction_hashes": {
+    "UNADAPTED__none": "3bdb6ef14219fb797e8c89934e558a7dc6dd772a402f64022d18bce7ca6c0d34",
+    "UNADAPTED__true": "756af144d5e5b25638aeba3b025dfd3622858df0443cb76e249de28960eb82f2",
+    "UNADAPTED__zero": "9975a9e40efedd3d7369abca986a94efad5734d00dc7b4c2edf637a67179e16f",
+    "UNADAPTED__mismatch": "0a08a925b230164efb2e874ed3fe891b8f2272fb9b28c85a6d761d33d74015af",
+    "AUDIO__none": "d6a0ed772b2ca6eeb41bab79aaca491ac1b4ce90efa22fc8d53d2f785cb49b45",
+    "AUDIO__true": "76b84eed2fe67b32e76d92e570b11cbebd4b0659190479460fbaa14985d94b38",
+    "AUDIO__zero": "756459b1e648682fd883e143d71da6c352496b04871ef4ab98fe131804cb6c46",
+    "AUDIO__mismatch": "252185d178d5521f703d47d5abb9487215b94e7f9514035d63881b1580876bdf",
+    "TEXT__none": "60307ec78516f1b6a9b2fae82d3f984ed85e80b3e233d8626a2a2ab3b9a8c4f1",
+    "TEXT__true": "53a26b0e520cce922cb40252b80888b720eac7644dcdfa9b6e73ce06c6e813e8",
+    "TEXT__zero": "567d5f8e2343c5ebc9440c332ea40a1dffe8029bf16218e7406765776abe2792",
+    "TEXT__mismatch": "36f59c3240161b52a9f815be634915b4542beb03a4cab242ca59064768c7a8ac"
+  },
+  "limitations": [
+    "Repeated historical contextual1334 dev, not official14326dev or new heldout",
+    "Cached512D float16 native frames; dictionary toneless phones and polyphone/same-phone/orthography issues",
+    "NativeCTC contains recognizer prior, not calibrated acoustic confidence; LOCAL hides text context but evidence is whole-utterance CTC",
+    "Supervised CE plus local auxiliary encourages but does not prove evidence necessity; no fabricated counterfactual score flips",
+    "Generated train drafts are in-sample for initializer; fixed train-only labels, historical error-enriched distribution",
+    "Forced candidate decisions not open-vocabulary correction, no claim of raw waveform understanding",
+    "Zero/mismatch scores can beOOD; no dev checkpoint/threshold/weight search",
+    "Fused attention/norm kernels can round differently from historical fallback; UNADAPTED A/B controls rerun with the identical new backend, old ASR drafts unchanged.",
+    "Both all-edit coverage and FULL-only objective changed vs historical v3; not single-factor historical ablation",
+    "Same-phone evidence cannot establish intended spelling; phonetic dictionary is not gold pronunciation",
+    "49 failed frozen train drafts retained; independent local selections may interact when composed",
+    "Activation recomputation can change floating-point trajectory vs failedv1; both newarms use identical newbackend",
+    "Stress establishes headroom on this GPU/data, not a mathematical guarantee against external GPU use or hardware faults"
+  ]
+}

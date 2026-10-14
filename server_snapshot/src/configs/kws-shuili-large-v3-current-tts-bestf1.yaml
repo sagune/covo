@@ -1,0 +1,140 @@
+# KWS-only evaluation on the current Shuili large-v3 package with the
+# true large-v3 TCResNet checkpoint. This operating point uses the TTS
+# keyword representation and the threshold selected by the Shuili
+# threshold sweep for best F1.
+seed_everything: 123
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: 1
+  num_nodes: 1
+  precision: 32-true
+  logger: null
+  callbacks: null
+  fast_dev_run: false
+  inference_mode: true
+  default_root_dir: ./outputs/kws_shuili_large_v3_current_tts_bestf1_eval
+f1_checkpoint:
+  dirpath: ./outputs/kws_shuili_large_v3_current_tts_bestf1_eval/checkpoints/f1
+  filename: f1-{epoch}-{step}
+  monitor: metrics/f1
+  verbose: false
+  save_last: false
+  save_top_k: 1
+  save_weights_only: false
+  mode: max
+  auto_insert_metric_name: true
+  every_n_train_steps: null
+  train_time_interval: null
+  every_n_epochs: 1
+  save_on_train_epoch_end: null
+f1_generalization_checkpoint:
+  dirpath: ./outputs/kws_shuili_large_v3_current_tts_bestf1_eval/checkpoints/f1G
+  filename: f1G-{epoch}-{step}
+  monitor: metrics/f1_zh
+  verbose: false
+  save_last: false
+  save_top_k: 1
+  save_weights_only: false
+  mode: max
+  auto_insert_metric_name: true
+  every_n_train_steps: null
+  train_time_interval: null
+  every_n_epochs: 1
+  save_on_train_epoch_end: null
+checkpoint_final:
+  dirpath: ./outputs/kws_shuili_large_v3_current_tts_bestf1_eval/checkpoints/final
+  filename: final-{epoch}-{step}
+  monitor: null
+  verbose: true
+  save_last: false
+  save_top_k: 1
+  save_weights_only: false
+  mode: min
+  auto_insert_metric_name: true
+  every_n_train_steps: null
+  train_time_interval: null
+  every_n_epochs: 1
+  save_on_train_epoch_end: true
+early_stopping:
+  monitor: metrics/f1_zh
+  min_delta: 0.0
+  patience: 5
+  verbose: false
+  mode: max
+  strict: true
+  check_finite: true
+  stopping_threshold: null
+  divergence_threshold: null
+  check_on_train_epoch_end: null
+  log_rank_zero_only: false
+data:
+  class_path: data.data_module.KWSDataMod
+  init_args:
+    train_info:
+      - name: aishell
+        root: ../datasets/aishell/data_aishell
+        kw_type: natural
+    val_info:
+      - name: aishell
+        root: ../datasets/aishell/data_aishell
+        kw_type: natural
+    test_info:
+      name: shuili
+      root: ../datasets/shuili/data_shuil_largev3
+      kw_type: tts
+    test_split: test
+    features_size:
+      - 150
+      - 750
+    batch_size: 1
+    sampling: random
+    num_workers: 8
+    hotwords_per_group: 100
+    whisper_ckpt: openai/whisper-large-v3
+ckpt_path: /root/autodl-tmp/src/outputs/aishell_large_v3_kws_true/checkpoints/f1G/f1G-epoch=11-step=72060.ckpt
+verbose: true
+model:
+  class_path: model.model.KWSModel
+  init_args:
+    backbone: tcresnet
+    tcresnet_channels: 96
+    tcresnet_blocks: 8
+    tcresnet_dropout: 0.15
+    subsequence_aux: true
+    subsequence_aux_weight: 0.02
+    subsequence_aux_temperature: 0.5
+    decision_threshold_override: 0.838
+    decision_threshold_mode: max_precision_at_min_recall
+    decision_threshold_fixed: 0.5
+    decision_threshold_fbeta: 0.7
+    decision_threshold_min_recall: 0.82
+    decision_threshold_min_precision: 0.0
+    decision_threshold_grid_size: 501
+    large_heads: true
+    adversarial_training: false
+    dannce: false
+    adversarial_examples_ratio: 0.5
+    adversarial_examples_lr: 1.0e-6
+    adversarial_train_steps: 5
+    adv_kl_weight: 1.0
+    entropy: false
+    domain_adversary_weight: 0.1
+    entropy_weight: 0.1
+    supression_decay: 0.1
+    early_adversary_supression: true
+    num_domains: 2
+    sampling: random
+    resample_every_epoch: true
+    kw_type: all
+    kw_p: 0.5
+    batch_size: 20
+    accumulate_grad_batches: 4
+    learning_rate: 2.0e-05
+    features_lr: 2.0e-05
+    classifier_lr: 2.0e-05
+    discriminator_lr: 2.0e-05
+    lr_step: 12
+    weight_decay: 1.0e-04
+    beta_1: 0.9
+    beta_2: 0.98

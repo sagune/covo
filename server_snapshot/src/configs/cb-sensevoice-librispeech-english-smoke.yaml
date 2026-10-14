@@ -1,0 +1,90 @@
+seed_everything: 123
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: 1
+  num_nodes: 1
+  precision: 32-true
+  logger: null
+  callbacks: null
+  max_steps: -1
+  limit_test_batches: 10
+  inference_mode: true
+  deterministic: true
+  default_root_dir: ./outputs/cb_sensevoice_librispeech_english_smoke
+f1_checkpoint:
+  dirpath: ./outputs/cb_sensevoice_librispeech_english_smoke/checkpoints/f1
+  monitor: metrics/f1
+f1_generalization_checkpoint:
+  dirpath: ./outputs/cb_sensevoice_librispeech_english_smoke/checkpoints/f1G
+  monitor: metrics/f1_zh
+checkpoint_final:
+  dirpath: ./outputs/cb_sensevoice_librispeech_english_smoke/checkpoints/final
+  monitor: null
+early_stopping:
+  monitor: metrics/f1_zh
+data:
+  class_path: data.data_module.KWSDataMod
+  init_args:
+    train_info:
+      - name: aishell
+        root: ../datasets/aishell/data_aishell_sensevoice
+        kw_type: tts
+    val_info:
+      - name: aishell
+        root: ../datasets/aishell/data_aishell_sensevoice
+        kw_type: tts
+    test_info:
+      name: thchs30
+      root: ../datasets/librispeech/cb_sensevoice_english_kws_20260813
+      kw_type: tts
+    test_split: dev-clean
+    features_size: [150, 750]
+    batch_size: 1
+    sampling: random
+    num_workers: 0
+    hotwords_per_group: 29
+    asr_backend: sensevoice
+    whisper_ckpt: ""
+ckpt_path: null
+verbose: true
+model:
+  class_path: model.cb_sensevoice.CBSenseVoice
+  init_args:
+    dataset: thchs30
+    split: dev-clean
+    root: ../datasets/librispeech/cb_sensevoice_english_kws_20260813/hotword
+    kw_type: tts
+    encoder_ckpt: ""
+    whisper_ckpt: ""
+    kws_ckpt: ../cbwhisper_covo_migration_20260609_tar_extracted/models/current_kws/f1G-epoch=7-step=48040.ckpt
+    language: english
+    asr_backend: sensevoice
+    sensevoice_ckpt: iic/SenseVoiceSmall
+    sensevoice_language: en
+    sensevoice_use_itn: false
+    sensevoice_beam_size: 16
+    sensevoice_token_topk: 32
+    sensevoice_hotword_token_weight: 1.2
+    sensevoice_hotword_completion_weight: 0.8
+    sensevoice_context_adapter_path: ""
+    sensevoice_use_adapter_phrase_confidence: false
+    use_precomputed_kws_features: true
+    prompt: true
+    oracle: kws
+    kws_features_size: [150, 750]
+    keywords_per_group: 29
+    kws_positive_threshold: 0.60
+    kws_topk_per_group: 4
+    kws_max_prompt_keywords: 8
+    kws_infer_chunk_size: 32
+    kws_prefilter_per_group: 29
+    prompt_max_injected_keywords: 4
+    prompt_score_threshold: 0.55
+    prompt_relative_threshold: 0.80
+    enable_nested_keyword_promotion: false
+    enable_phonetic_rescore: false
+    enable_consensus_rerank: false
+    enable_insertion_penalty: true
+    insertion_penalty_weight: 0.25
+    insertion_penalty_free_chars: 1

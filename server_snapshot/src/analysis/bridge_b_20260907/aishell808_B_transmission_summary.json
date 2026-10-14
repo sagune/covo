@@ -1,0 +1,14 @@
+{
+  "kind": "B transmission-only cached-message replay; no model inference",
+  "samples": 808,
+  "changed_samples": 807,
+  "added_unique_per_utterance": 2308,
+  "recorded_unique_per_utterance": 3304,
+  "visible_before": 996,
+  "visible_after": 3304,
+  "total_added_characters": 120386,
+  "max_added_characters": 158,
+  "source": "src/logs/cb_sensevoice_acoustic_phrase_w14_covo_predictions_dpo30_aishell808_20260724.jsonl",
+  "source_sha256": "6cc7df0165a2f427312fdaf28a8642b4cdb1087ed019a4ec0fd7323c75d62732",
+  "output_sha256": "d12a060a9eb37601e18fb53fc08c33979b7dd7314e2314dca4bcbd50f55ea8ce"
+}

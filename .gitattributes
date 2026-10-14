@@ -1,0 +1,4 @@
+# Keep exported server bytes identical to SOURCE_MANIFEST hashes.
+server_snapshot/** -text
+*.png binary
+*.xlsx binary

@@ -1,0 +1,715 @@
+{
+  "status": "COMPLETE",
+  "baseline": {
+    "n": 1334,
+    "chars": 21102,
+    "errors": 622,
+    "input_errors": 804,
+    "hits": 469,
+    "mentions": 599,
+    "lost": 87,
+    "gained": 16,
+    "improved": 265,
+    "worsened": 136,
+    "unchanged": 933,
+    "exact": 983,
+    "empty": 0,
+    "parse_failures": 0,
+    "cer": 0.029475879063595868,
+    "recall": 0.7829716193656093,
+    "input_cer": 0.038100653966448676,
+    "cer_delta_pp": -0.8624774902852808,
+    "relative_cer_change": -0.2263681592039801
+  },
+  "summaries": {
+    "none__original_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    },
+    "true__original_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    },
+    "zero__original_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    },
+    "mismatch__original_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    },
+    "none__reversed_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 618,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 133,
+      "unchanged": 937,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029286323571225476,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.88143303952232,
+      "relative_cer_change": -0.23134328358208955
+    },
+    "true__reversed_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 618,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 133,
+      "unchanged": 937,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029286323571225476,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.88143303952232,
+      "relative_cer_change": -0.23134328358208955
+    },
+    "zero__reversed_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 618,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 133,
+      "unchanged": 937,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029286323571225476,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.88143303952232,
+      "relative_cer_change": -0.23134328358208955
+    },
+    "mismatch__reversed_order": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 470,
+      "mentions": 599,
+      "lost": 86,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 984,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7846410684474123,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    }
+  },
+  "diagnostics": {
+    "none__original_order": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "true__original_order": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "zero__original_order": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "mismatch__original_order": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "none__reversed_order": {
+      "S": 544,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "true__reversed_order": {
+      "S": 544,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "zero__reversed_order": {
+      "S": 544,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "mismatch__reversed_order": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "decisions": {
+    "none__original_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 4,
+          "modified_selected": 50
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 5,
+        "better": 4,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 6,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "true__original_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 4,
+          "modified_selected": 50
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 5,
+        "better": 4,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 6,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "zero__original_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 4,
+          "modified_selected": 50
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 5,
+        "better": 4,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 6,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "mismatch__original_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 4,
+          "modified_selected": 50
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 5,
+        "better": 4,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 6,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "none__reversed_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 3,
+          "modified_selected": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 4,
+        "better": 3,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 5,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "true__reversed_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 3,
+          "modified_selected": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 4,
+        "better": 3,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 5,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "zero__reversed_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 3,
+          "modified_selected": 51
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 4,
+        "better": 3,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 5,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    },
+    "mismatch__reversed_order": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 4,
+          "modified_selected": 50
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 97
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 38
+        }
+      },
+      "utterance_changes": {
+        "changed": 5,
+        "better": 4,
+        "worse": 1,
+        "equal": 0,
+        "removed_errors": 6,
+        "added_errors": 1
+      },
+      "exact_ties": 0,
+      "unequal_target_token_counts": 83
+    }
+  },
+  "paired95ci_vs_old": {
+    "none__original_order": {
+      "cer_delta_pp_95ci": [
+        -0.061261011343841,
+        0.004706690968307454
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "true__original_order": {
+      "cer_delta_pp_95ci": [
+        -0.061261011343841,
+        0.004706690968307454
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "zero__original_order": {
+      "cer_delta_pp_95ci": [
+        -0.061261011343841,
+        0.004706690968307454
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "mismatch__original_order": {
+      "cer_delta_pp_95ci": [
+        -0.061261011343841,
+        0.004706690968307454
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "none__reversed_order": {
+      "cer_delta_pp_95ci": [
+        -0.05277953201195644,
+        0.004774887913752842
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "true__reversed_order": {
+      "cer_delta_pp_95ci": [
+        -0.05248843335668099,
+        0.004776467301167551
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "zero__reversed_order": {
+      "cer_delta_pp_95ci": [
+        -0.05248843335668099,
+        0.004776467301167551
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "mismatch__reversed_order": {
+      "cer_delta_pp_95ci": [
+        -0.061261011343841,
+        0.004706690968307454
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.5172413793103449
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "true_minus_controls95ci": {
+    "original_order": {
+      "none": {
+        "cer_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      },
+      "zero": {
+        "cer_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      },
+      "mismatch": {
+        "cer_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      }
+    },
+    "reversed_order": {
+      "none": {
+        "cer_delta_pp_95ci": [
+          -0.01419797424852852,
+          0.0141672995541866
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      },
+      "zero": {
+        "cer_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      },
+      "mismatch": {
+        "cer_delta_pp_95ci": [
+          0.0,
+          0.014418969603709163
+        ],
+        "recall_delta_pp_95ci": [
+          0.0,
+          0.0
+        ],
+        "warning": "point noninferiority is not a statistical noninferiority guarantee"
+      }
+    }
+  },
+  "order_role_agreement_of190": {
+    "none": 187,
+    "true": 189,
+    "zero": 189,
+    "mismatch": 190
+  },
+  "protocol_sha256": "78f1caacba32c768b52b24b756ab575a9aa4e36c4c58d02858464f078f29ec25",
+  "score_hashes": {
+    "none__original_order": "e4aab00a64b2ea213edbcf8fad80466651cb64bacf69440475eac922cd2eb1c7",
+    "true__original_order": "18310e804db8df7b3bb2c92f6e482cf7f71fd7649e2d9692e4e91b378c58b100",
+    "zero__original_order": "286b3195c32d8dace6f7d07b22dc2630e900aed2d0553e7a76ccae410d9bae6f",
+    "mismatch__original_order": "f4774eb837530137b9457267fee4f5d1ab7d3be3d7da96bdd123710656089768",
+    "none__reversed_order": "5b2a56b8d85baca08b112314cbf8da6ef83d96991ab5e3f0ec8358e62b3dab8c",
+    "true__reversed_order": "96a33c90dfa2206bf2448c75ff51b3ba664850c74e87cf1f70acb664892c3ef0",
+    "zero__reversed_order": "251f15ad2b92515e23aedd739e0f7b33dc9d5a5fb7aaf57467d8467ef50b1ef6",
+    "mismatch__reversed_order": "ee750032b056e318887579a033f12047c20151f581d825050ac3904ca3258246"
+  },
+  "prediction_hashes": {
+    "none__original_order": "ad69f2d56cf771055c3358a7c92010b637f2010d378bc9a8df759055f2597886",
+    "true__original_order": "7921f0e3bcb89fd00e8b932d352e3b43e327d999281c1c072983de1e919f2784",
+    "zero__original_order": "ac3e2605ba8fe0852648bf0ecc9f5fe94a40d121790c130525cb11acd7aec177",
+    "mismatch__original_order": "d5bcb0c335260933f31a0a158227b1898ea9c9df4fe65b1188478f8957992077",
+    "none__reversed_order": "bdf6dc8d8fa07bb888a78685b4af1b13bcfa49c31b0a144b8400bc5172a814ce",
+    "true__reversed_order": "abe4bd6d3dd867f6d1a732f1bb657e18e01e77ccc6e2058dc3f24a7a09fd460a",
+    "zero__reversed_order": "7643dea1275d177a39e74a3cd689c92107e3ea3e1919bb6af667605c6102a7f4",
+    "mismatch__reversed_order": "fcdc4cc42b1209d45768a1656b61305c4ce8c536974519e5abdc4b06ba244f62"
+  },
+  "limitations": [
+    "Repeated historical contextual1334 dev, not official14326 full dev or new heldout",
+    "Native character CTC includes orthographic/context bias, not pure pronunciation or calibrated confidence",
+    "Toneless dictionary pronunciation is not waveform-verified; tone/polyphone/same-phone spelling limitations",
+    "Phonetic token aggregation changes repeat-collapse semantics and excludes non-Han tokens; exploratory fixed auxiliary",
+    "Single-edit same-context whole-utterance CTC marginal avoids reference boundaries but is not an independent local audio judge",
+    "Existing float16 cached encoder frames; no hotword bonus in these acoustic scores",
+    "Detecting damaging edits is not proof that 9B can use evidence or that end-to-end CER improves",
+    "Evidence-score task differs from old correction training; a failure can reflect task/format shift",
+    "none changes evidence availability; zero/mismatch have OOD score magnitudes, so comparisons do not prove raw auditory understanding",
+    "Both native and predefined phonetic scores included; this is evidence-interface pilot, not isolated-score ablation",
+    "Abstention retention is an explicit model decision, not score-threshold recovery; invalid responses are NOT copied from draft",
+    "Review edits constructed from previously examined dev predictions; retrospective diagnostic, no new heldout claim",
+    "Forced binary selection eliminates free generation failures but also removes explicit abstention; not a same-task accuracy estimate",
+    "Autoregressive full target probability combines language/orthography/tokenization with evidence; not acoustic-only confidence",
+    "Equal candidate character length does not ensure equal tokenizer length; token-count asymmetry recorded, mean logp diagnostic only",
+    "Full-target probability contains downstream context effects; not a pure target-span classifier",
+    "Candidate scoring of the same repeated dev is diagnostic; no trained model or unseen test claim",
+    "Cross-batch/padding numerical disagreement remains documented in prior audits; all current targets use one fixed unpadded single path",
+    "No process-local padding patch is needed or loaded: all attention-mask elements equal one"
+  ],
+  "no_training": true,
+  "no_connector": true,
+  "no_threshold_or_restore": true
+}

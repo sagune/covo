@@ -1,0 +1,17 @@
+{
+  "parent_protocol_sha256": "a1b8bb836a2b2bb9403e68988f57ab49d0d2f9a5263d0e4846d1486d15b95311",
+  "source_sha256": "9ada3b02b687e80d4503054817bb0dcc8ecd850970b29df1d9a479bfe4f97072",
+  "pairs": 5325,
+  "cells": 8,
+  "hashes": {
+    "AUDIO__full__true": "33ff9dedf1b66b0552085226629a2c5a8d7de592c8e2791c77ba375b74a63c6a",
+    "AUDIO__full__none": "5ec04691641f7318fbd4e19b6744cd3843486548371ffadb4614272cd1dee2c3",
+    "AUDIO__local__true": "249305c69433bcda5e3d5e18d178f6189a3b25c2d6f17407c2d74ba3de1bad43",
+    "AUDIO__local__none": "af102bb2de3ee59f7efa1a517613e955457d85648b496753aa8435b30aefcd19",
+    "TEXT__full__true": "a2289663da96d2bcf6432541a6d1488e49405bd61e18e1d3559724799af04f7d",
+    "TEXT__full__none": "9f7dd3d8b14d1b95182a1cb65a85c888a854f108fda936a7224838b39c53f752",
+    "TEXT__local__true": "97b249ca498427dbbd94643b7ffebdb1773abedffd63372b7af26ad0e3a29a97",
+    "TEXT__local__none": "945f51cc79aa4ac440d67d3cb5dbe59f47e4ea281aba53a5fcfcef689100996c"
+  },
+  "reference_used": false
+}

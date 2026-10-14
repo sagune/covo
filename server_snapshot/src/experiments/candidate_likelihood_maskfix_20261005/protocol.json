@@ -1,0 +1,23 @@
+{
+  "created": "2026-10-05T15:13:40+0800",
+  "no_training": true,
+  "no_reference": true,
+  "no_formal_predictions": true,
+  "first4_inputs": [
+    "BAC009S0724W0135:2",
+    "BAC009S0724W0135:4",
+    "BAC009S0724W0190:1",
+    "BAC009S0724W0225:0"
+  ],
+  "source_protocol_sha256": "d4488b41aec6239f0f0c04bd6c1a1ac4e38f566cdfd1500e3c1da8cec2a67e2b",
+  "queries_sha256": "1dc00c2d03f6e2682847c44bedbb95b425b46231ac303df8d47b6b6f78b93f3c",
+  "source_hashes": {
+    "padding_fix.py": "6e9446045949880e49fc90d2a7953a6987937ad4ac1f00d6e33d0652ee4d33a0",
+    "test_padding_fix.py": "1f2ae9ace5f0406c2bb4682824638525b32358ce2328ba56280186580caba893",
+    "check_maskfix.py": "904c10d9ad1c836a7531a6771c1a5e1ef6353944a4f2217ac8f9682e6122561e",
+    "PLAN.md": "f61f4646ab158356b3c41c5dd01f77f371a6398484c0599cef047a044328e328"
+  },
+  "intervention": "Only remove batch>1 guard for padding hidden-state masking in current process",
+  "evaluation": "Exact same jobs and weights before/after; original package unchanged",
+  "scope": "Numerical patch audit only; not an ASR effect evaluation"
+}

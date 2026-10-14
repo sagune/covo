@@ -1,0 +1,1024 @@
+{
+  "n_pos": 55888,
+  "n_err": 2625,
+  "base_cer_pct": 5.251629447590554,
+  "tot_chars": 56154,
+  "logp": {
+    "best": {
+      "thr": -5.25,
+      "acted": 61,
+      "fixed": 51,
+      "failed": 7,
+      "damaged": 3,
+      "net": 48,
+      "cer_pct": 5.166150229725398,
+      "feature": "logp"
+    },
+    "curve": [
+      {
+        "thr": -14.0,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -13.75,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -13.5,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -13.25,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -13.0,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -12.75,
+        "acted": 4,
+        "fixed": 0,
+        "failed": 2,
+        "damaged": 2,
+        "net": -2,
+        "cer_pct": 5.255191081668269
+      },
+      {
+        "thr": -12.5,
+        "acted": 5,
+        "fixed": 1,
+        "failed": 2,
+        "damaged": 2,
+        "net": -1,
+        "cer_pct": 5.253410264629412
+      },
+      {
+        "thr": -12.25,
+        "acted": 5,
+        "fixed": 1,
+        "failed": 2,
+        "damaged": 2,
+        "net": -1,
+        "cer_pct": 5.253410264629412
+      },
+      {
+        "thr": -12.0,
+        "acted": 5,
+        "fixed": 1,
+        "failed": 2,
+        "damaged": 2,
+        "net": -1,
+        "cer_pct": 5.253410264629412
+      },
+      {
+        "thr": -11.75,
+        "acted": 5,
+        "fixed": 1,
+        "failed": 2,
+        "damaged": 2,
+        "net": -1,
+        "cer_pct": 5.253410264629412
+      },
+      {
+        "thr": -11.5,
+        "acted": 7,
+        "fixed": 3,
+        "failed": 2,
+        "damaged": 2,
+        "net": 1,
+        "cer_pct": 5.249848630551697
+      },
+      {
+        "thr": -11.25,
+        "acted": 9,
+        "fixed": 4,
+        "failed": 3,
+        "damaged": 2,
+        "net": 2,
+        "cer_pct": 5.24806781351284
+      },
+      {
+        "thr": -11.0,
+        "acted": 9,
+        "fixed": 4,
+        "failed": 3,
+        "damaged": 2,
+        "net": 2,
+        "cer_pct": 5.24806781351284
+      },
+      {
+        "thr": -10.75,
+        "acted": 11,
+        "fixed": 5,
+        "failed": 4,
+        "damaged": 2,
+        "net": 3,
+        "cer_pct": 5.246286996473982
+      },
+      {
+        "thr": -10.5,
+        "acted": 12,
+        "fixed": 6,
+        "failed": 4,
+        "damaged": 2,
+        "net": 4,
+        "cer_pct": 5.244506179435125
+      },
+      {
+        "thr": -10.25,
+        "acted": 15,
+        "fixed": 9,
+        "failed": 4,
+        "damaged": 2,
+        "net": 7,
+        "cer_pct": 5.239163728318553
+      },
+      {
+        "thr": -10.0,
+        "acted": 16,
+        "fixed": 10,
+        "failed": 4,
+        "damaged": 2,
+        "net": 8,
+        "cer_pct": 5.2373829112796955
+      },
+      {
+        "thr": -9.75,
+        "acted": 18,
+        "fixed": 12,
+        "failed": 4,
+        "damaged": 2,
+        "net": 10,
+        "cer_pct": 5.23382127720198
+      },
+      {
+        "thr": -9.5,
+        "acted": 22,
+        "fixed": 16,
+        "failed": 4,
+        "damaged": 2,
+        "net": 14,
+        "cer_pct": 5.226698009046551
+      },
+      {
+        "thr": -9.25,
+        "acted": 25,
+        "fixed": 19,
+        "failed": 4,
+        "damaged": 2,
+        "net": 17,
+        "cer_pct": 5.221355557929979
+      },
+      {
+        "thr": -9.0,
+        "acted": 28,
+        "fixed": 22,
+        "failed": 4,
+        "damaged": 2,
+        "net": 20,
+        "cer_pct": 5.216013106813406
+      },
+      {
+        "thr": -8.75,
+        "acted": 32,
+        "fixed": 26,
+        "failed": 4,
+        "damaged": 2,
+        "net": 24,
+        "cer_pct": 5.208889838657976
+      },
+      {
+        "thr": -8.5,
+        "acted": 35,
+        "fixed": 29,
+        "failed": 4,
+        "damaged": 2,
+        "net": 27,
+        "cer_pct": 5.203547387541404
+      },
+      {
+        "thr": -8.25,
+        "acted": 40,
+        "fixed": 34,
+        "failed": 4,
+        "damaged": 2,
+        "net": 32,
+        "cer_pct": 5.194643302347117
+      },
+      {
+        "thr": -8.0,
+        "acted": 42,
+        "fixed": 36,
+        "failed": 4,
+        "damaged": 2,
+        "net": 34,
+        "cer_pct": 5.191081668269402
+      },
+      {
+        "thr": -7.75,
+        "acted": 47,
+        "fixed": 40,
+        "failed": 5,
+        "damaged": 2,
+        "net": 38,
+        "cer_pct": 5.183958400113973
+      },
+      {
+        "thr": -7.5,
+        "acted": 51,
+        "fixed": 43,
+        "failed": 6,
+        "damaged": 2,
+        "net": 41,
+        "cer_pct": 5.1786159489974
+      },
+      {
+        "thr": -7.25,
+        "acted": 53,
+        "fixed": 45,
+        "failed": 6,
+        "damaged": 2,
+        "net": 43,
+        "cer_pct": 5.175054314919685
+      },
+      {
+        "thr": -7.0,
+        "acted": 53,
+        "fixed": 45,
+        "failed": 6,
+        "damaged": 2,
+        "net": 43,
+        "cer_pct": 5.175054314919685
+      },
+      {
+        "thr": -6.75,
+        "acted": 56,
+        "fixed": 47,
+        "failed": 7,
+        "damaged": 2,
+        "net": 45,
+        "cer_pct": 5.17149268084197
+      },
+      {
+        "thr": -6.5,
+        "acted": 57,
+        "fixed": 48,
+        "failed": 7,
+        "damaged": 2,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -6.25,
+        "acted": 57,
+        "fixed": 48,
+        "failed": 7,
+        "damaged": 2,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -6.0,
+        "acted": 57,
+        "fixed": 48,
+        "failed": 7,
+        "damaged": 2,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -5.75,
+        "acted": 58,
+        "fixed": 48,
+        "failed": 7,
+        "damaged": 3,
+        "net": 45,
+        "cer_pct": 5.17149268084197
+      },
+      {
+        "thr": -5.5,
+        "acted": 58,
+        "fixed": 48,
+        "failed": 7,
+        "damaged": 3,
+        "net": 45,
+        "cer_pct": 5.17149268084197
+      },
+      {
+        "thr": -5.25,
+        "acted": 61,
+        "fixed": 51,
+        "failed": 7,
+        "damaged": 3,
+        "net": 48,
+        "cer_pct": 5.166150229725398
+      },
+      {
+        "thr": -5.0,
+        "acted": 64,
+        "fixed": 51,
+        "failed": 7,
+        "damaged": 6,
+        "net": 45,
+        "cer_pct": 5.17149268084197
+      },
+      {
+        "thr": -4.75,
+        "acted": 69,
+        "fixed": 55,
+        "failed": 7,
+        "damaged": 7,
+        "net": 48,
+        "cer_pct": 5.166150229725398
+      },
+      {
+        "thr": -4.5,
+        "acted": 74,
+        "fixed": 57,
+        "failed": 7,
+        "damaged": 10,
+        "net": 47,
+        "cer_pct": 5.167931046764256
+      },
+      {
+        "thr": -4.25,
+        "acted": 83,
+        "fixed": 57,
+        "failed": 7,
+        "damaged": 19,
+        "net": 38,
+        "cer_pct": 5.183958400113973
+      },
+      {
+        "thr": -4.0,
+        "acted": 90,
+        "fixed": 59,
+        "failed": 7,
+        "damaged": 24,
+        "net": 35,
+        "cer_pct": 5.189300851230545
+      },
+      {
+        "thr": -3.75,
+        "acted": 97,
+        "fixed": 62,
+        "failed": 7,
+        "damaged": 28,
+        "net": 34,
+        "cer_pct": 5.191081668269402
+      },
+      {
+        "thr": -3.5,
+        "acted": 106,
+        "fixed": 64,
+        "failed": 7,
+        "damaged": 35,
+        "net": 29,
+        "cer_pct": 5.1999857534636895
+      },
+      {
+        "thr": -3.25,
+        "acted": 113,
+        "fixed": 64,
+        "failed": 7,
+        "damaged": 42,
+        "net": 22,
+        "cer_pct": 5.212451472735691
+      },
+      {
+        "thr": -3.0,
+        "acted": 124,
+        "fixed": 64,
+        "failed": 7,
+        "damaged": 53,
+        "net": 11,
+        "cer_pct": 5.232040460163123
+      },
+      {
+        "thr": -2.75,
+        "acted": 136,
+        "fixed": 68,
+        "failed": 7,
+        "damaged": 61,
+        "net": 7,
+        "cer_pct": 5.239163728318553
+      },
+      {
+        "thr": -2.5,
+        "acted": 152,
+        "fixed": 73,
+        "failed": 7,
+        "damaged": 72,
+        "net": 1,
+        "cer_pct": 5.249848630551697
+      },
+      {
+        "thr": -2.25,
+        "acted": 176,
+        "fixed": 73,
+        "failed": 9,
+        "damaged": 94,
+        "net": -21,
+        "cer_pct": 5.28902660540656
+      },
+      {
+        "thr": -2.0,
+        "acted": 198,
+        "fixed": 81,
+        "failed": 11,
+        "damaged": 106,
+        "net": -25,
+        "cer_pct": 5.2961498735619905
+      },
+      {
+        "thr": -1.75,
+        "acted": 239,
+        "fixed": 92,
+        "failed": 17,
+        "damaged": 130,
+        "net": -38,
+        "cer_pct": 5.319300495067137
+      },
+      {
+        "thr": -1.5,
+        "acted": 300,
+        "fixed": 113,
+        "failed": 27,
+        "damaged": 160,
+        "net": -47,
+        "cer_pct": 5.335327848416854
+      },
+      {
+        "thr": -1.25,
+        "acted": 415,
+        "fixed": 168,
+        "failed": 49,
+        "damaged": 198,
+        "net": -30,
+        "cer_pct": 5.305053958756277
+      },
+      {
+        "thr": -1.0,
+        "acted": 647,
+        "fixed": 271,
+        "failed": 72,
+        "damaged": 304,
+        "net": -33,
+        "cer_pct": 5.310396409872849
+      },
+      {
+        "thr": -0.75,
+        "acted": 1113,
+        "fixed": 495,
+        "failed": 116,
+        "damaged": 502,
+        "net": -7,
+        "cer_pct": 5.264095166862557
+      },
+      {
+        "thr": -0.5,
+        "acted": 2202,
+        "fixed": 962,
+        "failed": 158,
+        "damaged": 1082,
+        "net": -120,
+        "cer_pct": 5.465327492253446
+      },
+      {
+        "thr": -0.25,
+        "acted": 3910,
+        "fixed": 1457,
+        "failed": 202,
+        "damaged": 2251,
+        "net": -794,
+        "cer_pct": 6.6655981764433525
+      },
+      {
+        "thr": 0.0,
+        "acted": 55607,
+        "fixed": 2296,
+        "failed": 328,
+        "damaged": 52983,
+        "net": -50687,
+        "cer_pct": 95.515902696157
+      },
+      {
+        "thr": 0.25,
+        "acted": 55888,
+        "fixed": 2297,
+        "failed": 328,
+        "damaged": 53263,
+        "net": -50966,
+        "cer_pct": 96.01275064999822
+      },
+      {
+        "thr": 0.5,
+        "acted": 55888,
+        "fixed": 2297,
+        "failed": 328,
+        "damaged": 53263,
+        "net": -50966,
+        "cer_pct": 96.01275064999822
+      },
+      {
+        "thr": 0.75,
+        "acted": 55888,
+        "fixed": 2297,
+        "failed": 328,
+        "damaged": 53263,
+        "net": -50966,
+        "cer_pct": 96.01275064999822
+      },
+      {
+        "thr": 1.0,
+        "acted": 55888,
+        "fixed": 2297,
+        "failed": 328,
+        "damaged": 53263,
+        "net": -50966,
+        "cer_pct": 96.01275064999822
+      }
+    ]
+  },
+  "margin": {
+    "best": {
+      "thr": -4.75,
+      "acted": 62,
+      "fixed": 53,
+      "failed": 5,
+      "damaged": 4,
+      "net": 49,
+      "cer_pct": 5.164369412686541,
+      "feature": "margin"
+    },
+    "curve": [
+      {
+        "thr": -8.0,
+        "acted": 36,
+        "fixed": 34,
+        "failed": 2,
+        "damaged": 0,
+        "net": 34,
+        "cer_pct": 5.191081668269402
+      },
+      {
+        "thr": -7.75,
+        "acted": 41,
+        "fixed": 38,
+        "failed": 3,
+        "damaged": 0,
+        "net": 38,
+        "cer_pct": 5.183958400113973
+      },
+      {
+        "thr": -7.5,
+        "acted": 45,
+        "fixed": 41,
+        "failed": 4,
+        "damaged": 0,
+        "net": 41,
+        "cer_pct": 5.1786159489974
+      },
+      {
+        "thr": -7.25,
+        "acted": 47,
+        "fixed": 43,
+        "failed": 4,
+        "damaged": 0,
+        "net": 43,
+        "cer_pct": 5.175054314919685
+      },
+      {
+        "thr": -7.0,
+        "acted": 47,
+        "fixed": 43,
+        "failed": 4,
+        "damaged": 0,
+        "net": 43,
+        "cer_pct": 5.175054314919685
+      },
+      {
+        "thr": -6.75,
+        "acted": 50,
+        "fixed": 45,
+        "failed": 5,
+        "damaged": 0,
+        "net": 45,
+        "cer_pct": 5.17149268084197
+      },
+      {
+        "thr": -6.5,
+        "acted": 51,
+        "fixed": 46,
+        "failed": 5,
+        "damaged": 0,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -6.25,
+        "acted": 51,
+        "fixed": 46,
+        "failed": 5,
+        "damaged": 0,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -6.0,
+        "acted": 51,
+        "fixed": 46,
+        "failed": 5,
+        "damaged": 0,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -5.75,
+        "acted": 51,
+        "fixed": 46,
+        "failed": 5,
+        "damaged": 0,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -5.5,
+        "acted": 51,
+        "fixed": 46,
+        "failed": 5,
+        "damaged": 0,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -5.25,
+        "acted": 55,
+        "fixed": 49,
+        "failed": 5,
+        "damaged": 1,
+        "net": 48,
+        "cer_pct": 5.166150229725398
+      },
+      {
+        "thr": -5.0,
+        "acted": 57,
+        "fixed": 49,
+        "failed": 5,
+        "damaged": 3,
+        "net": 46,
+        "cer_pct": 5.169711863803113
+      },
+      {
+        "thr": -4.75,
+        "acted": 62,
+        "fixed": 53,
+        "failed": 5,
+        "damaged": 4,
+        "net": 49,
+        "cer_pct": 5.164369412686541
+      },
+      {
+        "thr": -4.5,
+        "acted": 64,
+        "fixed": 54,
+        "failed": 5,
+        "damaged": 5,
+        "net": 49,
+        "cer_pct": 5.164369412686541
+      },
+      {
+        "thr": -4.25,
+        "acted": 69,
+        "fixed": 54,
+        "failed": 5,
+        "damaged": 10,
+        "net": 44,
+        "cer_pct": 5.173273497880828
+      },
+      {
+        "thr": -4.0,
+        "acted": 76,
+        "fixed": 55,
+        "failed": 5,
+        "damaged": 16,
+        "net": 39,
+        "cer_pct": 5.182177583075115
+      },
+      {
+        "thr": -3.75,
+        "acted": 85,
+        "fixed": 59,
+        "failed": 5,
+        "damaged": 21,
+        "net": 38,
+        "cer_pct": 5.183958400113973
+      },
+      {
+        "thr": -3.5,
+        "acted": 93,
+        "fixed": 59,
+        "failed": 5,
+        "damaged": 29,
+        "net": 30,
+        "cer_pct": 5.1982049364248315
+      },
+      {
+        "thr": -3.25,
+        "acted": 101,
+        "fixed": 62,
+        "failed": 5,
+        "damaged": 34,
+        "net": 28,
+        "cer_pct": 5.201766570502547
+      },
+      {
+        "thr": -3.0,
+        "acted": 112,
+        "fixed": 62,
+        "failed": 5,
+        "damaged": 45,
+        "net": 17,
+        "cer_pct": 5.221355557929979
+      },
+      {
+        "thr": -2.75,
+        "acted": 119,
+        "fixed": 65,
+        "failed": 5,
+        "damaged": 49,
+        "net": 16,
+        "cer_pct": 5.223136374968836
+      },
+      {
+        "thr": -2.5,
+        "acted": 132,
+        "fixed": 69,
+        "failed": 5,
+        "damaged": 58,
+        "net": 11,
+        "cer_pct": 5.232040460163123
+      },
+      {
+        "thr": -2.25,
+        "acted": 145,
+        "fixed": 72,
+        "failed": 5,
+        "damaged": 68,
+        "net": 4,
+        "cer_pct": 5.244506179435125
+      },
+      {
+        "thr": -2.0,
+        "acted": 161,
+        "fixed": 73,
+        "failed": 5,
+        "damaged": 83,
+        "net": -10,
+        "cer_pct": 5.269437617979129
+      },
+      {
+        "thr": -1.75,
+        "acted": 178,
+        "fixed": 75,
+        "failed": 5,
+        "damaged": 98,
+        "net": -23,
+        "cer_pct": 5.292588239484275
+      },
+      {
+        "thr": -1.5,
+        "acted": 196,
+        "fixed": 78,
+        "failed": 5,
+        "damaged": 113,
+        "net": -35,
+        "cer_pct": 5.3139580439505645
+      },
+      {
+        "thr": -1.25,
+        "acted": 216,
+        "fixed": 81,
+        "failed": 6,
+        "damaged": 129,
+        "net": -48,
+        "cer_pct": 5.337108665455711
+      },
+      {
+        "thr": -1.0,
+        "acted": 236,
+        "fixed": 85,
+        "failed": 8,
+        "damaged": 143,
+        "net": -58,
+        "cer_pct": 5.354916835844286
+      },
+      {
+        "thr": -0.75,
+        "acted": 256,
+        "fixed": 90,
+        "failed": 9,
+        "damaged": 157,
+        "net": -67,
+        "cer_pct": 5.370944189194002
+      },
+      {
+        "thr": -0.5,
+        "acted": 292,
+        "fixed": 98,
+        "failed": 10,
+        "damaged": 184,
+        "net": -86,
+        "cer_pct": 5.404779712932293
+      },
+      {
+        "thr": -0.25,
+        "acted": 351,
+        "fixed": 120,
+        "failed": 14,
+        "damaged": 217,
+        "net": -97,
+        "cer_pct": 5.424368700359725
+      },
+      {
+        "thr": 0.0,
+        "acted": 498,
+        "fixed": 178,
+        "failed": 29,
+        "damaged": 291,
+        "net": -113,
+        "cer_pct": 5.452861772981444
+      },
+      {
+        "thr": 0.25,
+        "acted": 928,
+        "fixed": 389,
+        "failed": 54,
+        "damaged": 485,
+        "net": -96,
+        "cer_pct": 5.422587883320868
+      },
+      {
+        "thr": 0.5,
+        "acted": 1466,
+        "fixed": 642,
+        "failed": 78,
+        "damaged": 746,
+        "net": -104,
+        "cer_pct": 5.436834419631727
+      },
+      {
+        "thr": 0.75,
+        "acted": 1975,
+        "fixed": 853,
+        "failed": 94,
+        "damaged": 1028,
+        "net": -175,
+        "cer_pct": 5.563272429390604
+      },
+      {
+        "thr": 1.0,
+        "acted": 2462,
+        "fixed": 1031,
+        "failed": 116,
+        "damaged": 1315,
+        "net": -284,
+        "cer_pct": 5.757381486626064
+      },
+      {
+        "thr": 1.25,
+        "acted": 2945,
+        "fixed": 1192,
+        "failed": 139,
+        "damaged": 1614,
+        "net": -422,
+        "cer_pct": 6.003134237988389
+      },
+      {
+        "thr": 1.5,
+        "acted": 3473,
+        "fixed": 1345,
+        "failed": 157,
+        "damaged": 1971,
+        "net": -626,
+        "cer_pct": 6.366420913915304
+      },
+      {
+        "thr": 1.75,
+        "acted": 3972,
+        "fixed": 1469,
+        "failed": 176,
+        "damaged": 2327,
+        "net": -858,
+        "cer_pct": 6.7795704669302275
+      },
+      {
+        "thr": 2.0,
+        "acted": 4443,
+        "fixed": 1575,
+        "failed": 191,
+        "damaged": 2677,
+        "net": -1102,
+        "cer_pct": 7.21408982441144
+      },
+      {
+        "thr": 2.25,
+        "acted": 4975,
+        "fixed": 1686,
+        "failed": 209,
+        "damaged": 3080,
+        "net": -1394,
+        "cer_pct": 7.734088399757809
+      },
+      {
+        "thr": 2.5,
+        "acted": 5498,
+        "fixed": 1762,
+        "failed": 221,
+        "damaged": 3515,
+        "net": -1753,
+        "cer_pct": 8.373401716707626
+      },
+      {
+        "thr": 2.75,
+        "acted": 5979,
+        "fixed": 1814,
+        "failed": 228,
+        "damaged": 3937,
+        "net": -2123,
+        "cer_pct": 9.032304021084874
+      },
+      {
+        "thr": 3.0,
+        "acted": 6509,
+        "fixed": 1875,
+        "failed": 237,
+        "damaged": 4397,
+        "net": -2522,
+        "cer_pct": 9.742850019588987
+      },
+      {
+        "thr": 3.25,
+        "acted": 7094,
+        "fixed": 1940,
+        "failed": 246,
+        "damaged": 4908,
+        "net": -2968,
+        "cer_pct": 10.5370944189194
+      },
+      {
+        "thr": 3.5,
+        "acted": 7704,
+        "fixed": 1989,
+        "failed": 256,
+        "damaged": 5459,
+        "net": -3470,
+        "cer_pct": 11.431064572425829
+      },
+      {
+        "thr": 3.75,
+        "acted": 8304,
+        "fixed": 2027,
+        "failed": 262,
+        "damaged": 6015,
+        "net": -3988,
+        "cer_pct": 12.353527798553976
+      },
+      {
+        "thr": 4.0,
+        "acted": 8969,
+        "fixed": 2056,
+        "failed": 264,
+        "damaged": 6649,
+        "net": -4593,
+        "cer_pct": 13.43092210706272
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+# 单条padding处理修补
+
+用户授权“单条也处理一下呗”。仅删除Qwen3.5 apply_mask_to_padding_states中batch>1条件，保持序列长度条件、dtype及乘mask操作。补丁只在本次Python进程内生效，不改安装库、不换模型、不训练。
+
+旧candidate_likelihood_20261005失败目录、锁定协议和日志完全保留。新目录candidate_likelihood_maskfix_20261005只进行首4个按输入顺序确定的候选对的数值修补审计。固定旧B/text 2162检查点、原候选和none提示，没有参考参与。
+
+同模型先测修补前batch、无padding单条及等长padding单条，再安装补丁测完全相同输入。报告最大token logp差、候选分差变化、获胜候选及重复计算；确认batch和无padding单条不被补丁改变，确认截取logits因果位置。拒绝后端hash不符。结果留痕，无全量预测、无新CER，不能把4对审计当正式实验。
+
+如果修补后仍超出原预设batch/single一致性容差，保留剩余偏移，不擅自放宽旧协议启动全量评估。

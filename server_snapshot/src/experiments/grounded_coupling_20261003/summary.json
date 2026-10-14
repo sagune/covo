@@ -1,0 +1,346 @@
+{
+  "summaries": {
+    "G_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 698,
+      "input_errors": 804,
+      "hits": 448,
+      "mentions": 599,
+      "lost": 107,
+      "gained": 15,
+      "improved": 266,
+      "worsened": 180,
+      "unchanged": 888,
+      "exact": 960,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.033077433418633305,
+      "recall": 0.7479131886477463,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5023220547815371,
+      "relative_cer_change": -0.1318407960199005
+    },
+    "G_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 717,
+      "input_errors": 804,
+      "hits": 436,
+      "mentions": 599,
+      "lost": 120,
+      "gained": 16,
+      "improved": 270,
+      "worsened": 206,
+      "unchanged": 858,
+      "exact": 930,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03397782200739267,
+      "recall": 0.7278797996661102,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.41228319590560086,
+      "relative_cer_change": -0.10820895522388059
+    },
+    "G_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 691,
+      "input_errors": 804,
+      "hits": 449,
+      "mentions": 599,
+      "lost": 106,
+      "gained": 15,
+      "improved": 267,
+      "worsened": 175,
+      "unchanged": 892,
+      "exact": 964,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03274571130698512,
+      "recall": 0.7495826377295493,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5354942659463555,
+      "relative_cer_change": -0.14054726368159204
+    },
+    "G_mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 21663,
+      "input_errors": 804,
+      "hits": 17,
+      "mentions": 599,
+      "lost": 523,
+      "gained": 0,
+      "improved": 7,
+      "worsened": 1302,
+      "unchanged": 25,
+      "exact": 25,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 1.0265851578049474,
+      "recall": 0.028380634390651086,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 98.84845038384988,
+      "relative_cer_change": 25.94402985074627
+    },
+    "D_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 663,
+      "input_errors": 804,
+      "hits": 466,
+      "mentions": 599,
+      "lost": 90,
+      "gained": 16,
+      "improved": 262,
+      "worsened": 157,
+      "unchanged": 915,
+      "exact": 960,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03141882286039238,
+      "recall": 0.7779632721202003,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.6681831106056295,
+      "relative_cer_change": -0.17537313432835822
+    },
+    "B_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 622,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 136,
+      "unchanged": 933,
+      "exact": 983,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029475879063595868,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8624774902852808,
+      "relative_cer_change": -0.2263681592039801
+    },
+    "B_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 646,
+      "input_errors": 804,
+      "hits": 451,
+      "mentions": 599,
+      "lost": 104,
+      "gained": 15,
+      "improved": 275,
+      "worsened": 179,
+      "unchanged": 880,
+      "exact": 959,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.030613212017818216,
+      "recall": 0.7529215358931552,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.748744194863046,
+      "relative_cer_change": -0.19651741293532338
+    },
+    "B_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 630,
+      "input_errors": 804,
+      "hits": 468,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 15,
+      "improved": 260,
+      "worsened": 133,
+      "unchanged": 941,
+      "exact": 979,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029854990048336652,
+      "recall": 0.7813021702838063,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8245663918112024,
+      "relative_cer_change": -0.21641791044776118
+    }
+  },
+  "diagnostics": {
+    "G_text": {
+      "S": 618,
+      "D": 53,
+      "I": 27,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 125,
+      "errors_on_correct_inputs": 177,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "G_true": {
+      "S": 668,
+      "D": 19,
+      "I": 30,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 154,
+      "errors_on_correct_inputs": 213,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "G_zero": {
+      "S": 612,
+      "D": 50,
+      "I": 29,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 123,
+      "errors_on_correct_inputs": 178,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "G_mismatch": {
+      "S": 18561,
+      "D": 1539,
+      "I": 1563,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 863,
+      "errors_on_correct_inputs": 13934,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "D_text": {
+      "S": 584,
+      "D": 59,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 117,
+      "errors_on_correct_inputs": 164,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_text": {
+      "S": 548,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_true": {
+      "S": 609,
+      "D": 18,
+      "I": 19,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 134,
+      "errors_on_correct_inputs": 179,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "B_zero": {
+      "S": 554,
+      "D": 54,
+      "I": 22,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "G_true_minus_control_95ci": {
+    "G_text": {
+      "cer_delta_pp_95ci": [
+        -0.14614015319662033,
+        0.31822448161260025
+      ],
+      "recall_delta_pp_95ci": [
+        -4.11663807890223,
+        0.16103708898239047
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "G_zero": {
+      "cer_delta_pp_95ci": [
+        -0.09952972730763443,
+        0.3387475562271762
+      ],
+      "recall_delta_pp_95ci": [
+        -4.132373895696779,
+        -0.1666597337770383
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "G_mismatch": {
+      "cer_delta_pp_95ci": [
+        -100.42279645967955,
+        -98.07741111776066
+      ],
+      "recall_delta_pp_95ci": [
+        66.21848739495799,
+        73.4597330941509
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "D_text": {
+      "cer_delta_pp_95ci": [
+        0.019011776033266394,
+        0.48716256515770184
+      ],
+      "recall_delta_pp_95ci": [
+        -7.603699330972058,
+        -2.60141518757165
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_text": {
+      "cer_delta_pp_95ci": [
+        0.23071037600231203,
+        0.6765913049407662
+      ],
+      "recall_delta_pp_95ci": [
+        -7.84697172883768,
+        -3.3000586242834826
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_true": {
+      "cer_delta_pp_95ci": [
+        0.21957543834627943,
+        0.4663647925708714
+      ],
+      "recall_delta_pp_95ci": [
+        -4.187956589671044,
+        -0.8800896566133285
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "B_zero": {
+      "cer_delta_pp_95ci": [
+        0.18502727728238955,
+        0.6232588300742375
+      ],
+      "recall_delta_pp_95ci": [
+        -7.627187431212855,
+        -3.119861522568748
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "prediction_hashes": {
+    "text": "e6f2d7e649f65a6c804c1d9fececa8c4d2d4672327cff6ce030f9aa8e498373e",
+    "true": "1b52d240a42bc9fb42fc45c1a2449c69cc0eef4ff301abb581b54190253348c4",
+    "zero": "24fa6e78a473d680361053d2ea5896a4c8e89c57a3a609267cd9b08581d1b86d",
+    "mismatch": "1e51532ee229bf7d3330c7d3b20b42a5b60572f5b41bd78feb583ac72f3755d7"
+  },
+  "protocol_sha256": "54f3bdad315c518c328eb12a36fe2acfbf997ce0e2956bf7ccf8bca8ce5676a6",
+  "no_output_repairs": true,
+  "limitations": [
+    "Previously examined 1334 contextual dev, not official full dev or held-out test",
+    "Historical frontend/context inherited; Afull was pretrained with checkpoint625, now transferred to30022 equally in A/B",
+    "Historical dev-CER selection of30022 is not evidence of optimal contextual recall",
+    "Error-enriched training retained to isolate adaptation; no causal architecture claim",
+    "Single seed; mismatch has imperfect frame-length matching",
+    "Point non-degradation is not a statistical noninferiority guarantee",
+    "Train phonetic classes are dictionary proxies, not listened/aligned acoustic labels",
+    "Text/true consistency uses a stop-gradient peer, not an independent frozen teacher",
+    "Contrast excludes same-phoneme including tone-only alternatives; no general homophone acoustic distinction claimed",
+    "Three objectives tested together: cannot separately attribute their effects",
+    "Afull initializer retains prior pure-audio pretraining and checkpoint625 history"
+  ]
+}

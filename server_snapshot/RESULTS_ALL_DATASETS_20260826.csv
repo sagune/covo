@@ -1,0 +1,32 @@
+language,dataset,split,samples,system,adapter_or_checkpoint,metric,input_error_rate_pct,output_error_rate_pct,delta_pp,relative_change_pct,improved,worsened,unchanged,classification,notes
+Chinese,AISHELL-NE,808 Full,808,CB-SenseVoice w14 + DPO-30 COVO,DPO-30 4B,CER,10.3609,3.1354,-7.2255,-69.74,,,,full_contextual_joint_main,Recall@400=90.50%; R1 Recall@226=83.63%
+Chinese,AISHELL-1,Full,7176,Routed SenseVoice / CB-SenseVoice w14 + DPO-30 COVO,DPO-30 4B,CER,6.2922,3.2062,-3.0860,-49.04,,,,full_contextual,808 contextual rows + 6368 bare SenseVoice rows
+Chinese,AISHELL-1,test,7174,SenseVoice 10-best + Qwen3.5-9B,AISHELL checkpoint-30022,CER,5.8354,2.6231,-3.2123,-55.05,2425,282,4467,full_held_out,2 empty references skipped
+Chinese,AISHELL-1,Full,7176,Error-targeted CB-SenseVoice + preserve2 COVO,preserve2 4B,CER,2.6345,1.8336,-0.8008,-30.40,890,198,6088,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,AISHELL-1,Full,7176,Error-targeted CB-SenseVoice + Qwen3.5-9B,AISHELL checkpoint-30022,CER,2.6345,1.8460,-0.7884,-29.93,1150,504,5522,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,ST-CMDS,test,5130,SenseVoice 10-best + Qwen3.5-9B,ST-CMDS checkpoint-34400,CER,5.6407,4.4994,-1.1413,-20.23,828,355,3947,full_held_out,checkpoint selected on dev only
+Chinese,ST-CMDS,Full,5130,Standard-3139 CB-SenseVoice + ChineseHP COVO,historical 4B,CER,5.7921,5.2757,-0.5164,-8.91,541,316,4273,full_contextual,different input from naked 9B
+Chinese,ST-CMDS,Full,5130,Standard-3139 CB-SenseVoice + Qwen3.5-9B,ST-CMDS checkpoint-34400,CER,5.7921,4.9054,-0.8867,-15.31,753,388,3989,full_contextual,different input from naked 9B
+Chinese,ST-CMDS,Full,5130,Error-targeted CB-SenseVoice + ChineseHP COVO,historical 4B,CER,4.4834,4.6917,0.2083,4.65,403,495,4232,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,ST-CMDS,Full,5130,Error-targeted CB-SenseVoice + Qwen3.5-9B,ST-CMDS checkpoint-34400,CER,4.4834,4.4994,0.0160,0.36,447,462,4221,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,MAGICDATA-READ,test,24279,WOITN SenseVoice 10-best + domain COVO,checkpoint-18000 4B,CER,3.7245,3.4673,-0.2572,-6.91,1755,1264,21260,full_held_out,old domain-COVO protocol
+Chinese,MAGICDATA-READ,test,24279,WOITN SenseVoice 10-best + original-style COVO,checkpoint-20000 4B,CER,3.7245,2.4903,-1.2343,-33.14,3438,1309,19532,full_held_out,full test on 2026-08-07
+Chinese,MAGICDATA-READ,test,24279,WOITN SenseVoice 10-best + Qwen3.5-9B,MAGICDATA checkpoint-39185,CER,3.7245,2.4334,-1.2911,-34.67,3452,1250,19577,full_held_out,checkpoint selected on dev only
+Chinese,MAGICDATA-READ,test,24279,OracleLex-6000 CB-SenseVoice + Qwen3.5-9B,MAGICDATA checkpoint-39185,CER,3.7003,2.7416,-0.9586,-25.91,3080,1388,19811,leaked_diagnostic,6000-word vocabulary extracted from test references
+Chinese,THCHS-30,test,2495,SenseVoice 10-best + acoustic-listwise COVO,AISHELL acoustic 4B,CER,5.1664,4.2175,-0.9489,-18.37,792,316,1387,full_cross_domain,no THCHS-30 training
+Chinese,THCHS-30,test,2495,SenseVoice 10-best + original-style COVO,MAGICDATA checkpoint-20000 4B,CER,5.1664,4.7536,-0.4129,-7.99,683,502,1310,full_cross_domain,no THCHS-30 training
+Chinese,THCHS-30,test,2495,CB-SenseVoice-style bridge + COVO,MAGICDATA checkpoint-20000 4B,CER,5.1664,4.7215,-0.4449,-8.61,647,461,1387,full_cross_domain,no THCHS-30 tuning
+Chinese,THCHS-30,test,2495,SenseVoice 10-best + Qwen3.5-9B,MAGICDATA checkpoint-39185,CER,5.1664,4.4023,-0.7641,-14.79,735,413,1347,full_cross_domain,no THCHS-30 training
+Chinese,THCHS-30,test,2495,SenseVoice 10-best + Qwen3.5-9B,ST-CMDS checkpoint-34400,CER,5.1664,4.3358,-0.8307,-16.08,662,243,1590,full_cross_domain,no THCHS-30 training
+Chinese,THCHS-30,test,2495,SenseVoice 10-best + Qwen3.5-9B,AISHELL checkpoint-30022,CER,5.1664,4.3111,-0.8553,-16.56,813,415,1267,full_cross_domain,best full cross-domain result; no THCHS-30 training
+Chinese,THCHS-30,test,2495,Error-targeted CB-SenseVoice + COVO,MAGICDATA checkpoint-20000 4B,CER,3.4681,3.6986,0.2305,6.65,380,507,1608,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,THCHS-30,test,2495,Error-targeted CB-SenseVoice + acoustic-listwise COVO,AISHELL acoustic 4B,CER,3.4681,3.0898,-0.3784,-10.91,405,185,1905,leaked_diagnostic,lowest observed but not held-out
+Chinese,THCHS-30,test,2495,Error-targeted CB-SenseVoice + Qwen3.5-9B,MAGICDATA checkpoint-39185,CER,3.4681,3.4176,-0.0505,-1.46,437,433,1625,leaked_diagnostic,test-reference/error-derived hotwords
+Chinese,THCHS-30,test,2495,Error-targeted CB-SenseVoice + Qwen3.5-9B,ST-CMDS checkpoint-34400,CER,3.4681,3.2931,-0.1750,-5.05,329,214,1952,leaked_diagnostic,best CB-Sense + 9B result
+Chinese,THCHS-30,test,2495,Error-targeted CB-SenseVoice + Qwen3.5-9B,AISHELL checkpoint-30022,CER,3.4681,3.4804,0.0123,0.36,472,464,1559,leaked_diagnostic,slight regression
+English,LibriSpeech,dev-clean,2703,SenseVoice 10-best + Qwen3.5-9B,final 2-epoch adapter,WER,3.3804,2.6047,-0.7757,-22.95,506,213,1984,full_dev,character CER 1.2998% to 1.0641%
+English,LibriSpeech,dev-other,2864,SenseVoice 10-best + Qwen3.5-9B,final 2-epoch adapter,WER,7.0111,5.5881,-1.4230,-20.30,730,240,1894,full_dev,character CER 3.4088% to 2.9476%
+English,LibriSpeech,test-clean,2620,SenseVoice 10-best oracle,,WER,3.2277,1.7517,-1.4760,-45.73,,,,oracle,candidate-pool upper bound only
+English,LibriSpeech,test-clean,2620,SenseVoice 10-best + Qwen3.5-9B,final 2-epoch adapter,WER,3.2277,2.6419,-0.5858,-18.15,445,208,1967,full_test,character CER 1.2237% to 1.0258%
+English,LibriSpeech,test-other,2939,SenseVoice 10-best oracle,,WER,7.2789,4.9061,-2.3728,-32.60,,,,oracle,candidate-pool upper bound only
+English,LibriSpeech,test-other,2939,SenseVoice 10-best + Qwen3.5-9B,final 2-epoch adapter,WER,7.2789,5.9206,-1.3583,-18.66,761,283,1895,full_test,character CER 3.4059% to 2.9635%

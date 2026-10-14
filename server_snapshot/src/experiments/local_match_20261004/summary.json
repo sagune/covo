@@ -1,0 +1,482 @@
+{
+  "protocol_sha256": "34912a67f6064d64a1f86eaa937c91c87ff2e500a1895d897ca73737e2ffa0ea",
+  "summaries": {
+    "old_text": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 622,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 136,
+      "unchanged": 933,
+      "exact": 983,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029475879063595868,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8624774902852808,
+      "relative_cer_change": -0.2263681592039801
+    },
+    "CE_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 705,
+      "input_errors": 804,
+      "hits": 455,
+      "mentions": 599,
+      "lost": 103,
+      "gained": 18,
+      "improved": 267,
+      "worsened": 190,
+      "unchanged": 877,
+      "exact": 953,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03340915553028149,
+      "recall": 0.7595993322203672,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.4691498436167188,
+      "relative_cer_change": -0.12313432835820895
+    },
+    "CE_neutral": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 701,
+      "input_errors": 804,
+      "hits": 455,
+      "mentions": 599,
+      "lost": 103,
+      "gained": 18,
+      "improved": 269,
+      "worsened": 191,
+      "unchanged": 874,
+      "exact": 951,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.0332196000379111,
+      "recall": 0.7595993322203672,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.48810539285375765,
+      "relative_cer_change": -0.1281094527363184
+    },
+    "CE_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 706,
+      "input_errors": 804,
+      "hits": 455,
+      "mentions": 599,
+      "lost": 103,
+      "gained": 18,
+      "improved": 266,
+      "worsened": 189,
+      "unchanged": 879,
+      "exact": 951,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03345654440337409,
+      "recall": 0.7595993322203672,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.46441095630745877,
+      "relative_cer_change": -0.12189054726368159
+    },
+    "CE_mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 703,
+      "input_errors": 804,
+      "hits": 454,
+      "mentions": 599,
+      "lost": 104,
+      "gained": 18,
+      "improved": 267,
+      "worsened": 191,
+      "unchanged": 876,
+      "exact": 949,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.033314377784096294,
+      "recall": 0.7579298831385642,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.47862761823523825,
+      "relative_cer_change": -0.1256218905472637
+    },
+    "MATCH_true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 701,
+      "input_errors": 804,
+      "hits": 453,
+      "mentions": 599,
+      "lost": 105,
+      "gained": 18,
+      "improved": 268,
+      "worsened": 189,
+      "unchanged": 877,
+      "exact": 952,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.0332196000379111,
+      "recall": 0.7562604340567612,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.48810539285375765,
+      "relative_cer_change": -0.1281094527363184
+    },
+    "MATCH_neutral": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 701,
+      "input_errors": 804,
+      "hits": 455,
+      "mentions": 599,
+      "lost": 103,
+      "gained": 18,
+      "improved": 267,
+      "worsened": 192,
+      "unchanged": 875,
+      "exact": 948,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.0332196000379111,
+      "recall": 0.7595993322203672,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.48810539285375765,
+      "relative_cer_change": -0.1281094527363184
+    },
+    "MATCH_zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 695,
+      "input_errors": 804,
+      "hits": 456,
+      "mentions": 599,
+      "lost": 102,
+      "gained": 18,
+      "improved": 267,
+      "worsened": 190,
+      "unchanged": 877,
+      "exact": 950,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03293526679935551,
+      "recall": 0.7612687813021702,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.5165387167093166,
+      "relative_cer_change": -0.13557213930348258
+    },
+    "MATCH_mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 709,
+      "input_errors": 804,
+      "hits": 454,
+      "mentions": 599,
+      "lost": 104,
+      "gained": 18,
+      "improved": 267,
+      "worsened": 193,
+      "unchanged": 874,
+      "exact": 949,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.033598711022651884,
+      "recall": 0.7579298831385642,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.4501942943796793,
+      "relative_cer_change": -0.1181592039800995
+    }
+  },
+  "error_diagnostics": {
+    "old_text": {
+      "S": 548,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 136,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "CE_true": {
+      "S": 624,
+      "D": 57,
+      "I": 24,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 135,
+      "errors_on_correct_inputs": 201,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "CE_neutral": {
+      "S": 616,
+      "D": 60,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 137,
+      "errors_on_correct_inputs": 197,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "CE_zero": {
+      "S": 623,
+      "D": 58,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 135,
+      "errors_on_correct_inputs": 198,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "CE_mismatch": {
+      "S": 621,
+      "D": 57,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 138,
+      "errors_on_correct_inputs": 199,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "MATCH_true": {
+      "S": 619,
+      "D": 58,
+      "I": 24,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 134,
+      "errors_on_correct_inputs": 195,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "MATCH_neutral": {
+      "S": 620,
+      "D": 57,
+      "I": 24,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 137,
+      "errors_on_correct_inputs": 195,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "MATCH_zero": {
+      "S": 615,
+      "D": 55,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 136,
+      "errors_on_correct_inputs": 193,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "MATCH_mismatch": {
+      "S": 625,
+      "D": 59,
+      "I": 25,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 138,
+      "errors_on_correct_inputs": 203,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "compatibility": {
+    "CE_true": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 6344,
+      "pair_slots": 1749,
+      "pair_correct": 834,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "CE_neutral": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 6344,
+      "pair_slots": 1749,
+      "pair_correct": 834,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "CE_zero": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 6184,
+      "pair_slots": 1749,
+      "pair_correct": 818,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "CE_mismatch": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 6049,
+      "pair_slots": 1749,
+      "pair_correct": 808,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "MATCH_true": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 17993,
+      "pair_slots": 1749,
+      "pair_correct": 985,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "MATCH_neutral": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 17993,
+      "pair_slots": 1749,
+      "pair_correct": 985,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "MATCH_zero": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 5933,
+      "pair_slots": 1749,
+      "pair_correct": 907,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    },
+    "MATCH_mismatch": {
+      "valid": 23220,
+      "positive": 20892,
+      "negative": 2328,
+      "correct": 15373,
+      "pair_slots": 1749,
+      "pair_correct": 882,
+      "pair_ties": 0,
+      "unknown": 22,
+      "warning": "Reference/dictionary retrospective slot labels; not wave-verified or deployable selection"
+    }
+  },
+  "MATCH_true_minus_controls_95ci": {
+    "old_text": {
+      "cer_delta_pp_95ci": [
+        0.23085599698020579,
+        0.5317450426498282
+      ],
+      "recall_delta_pp_95ci": [
+        -4.568574318618398,
+        -0.9755306953393688
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "CE_true": {
+      "cer_delta_pp_95ci": [
+        -0.08125574992525027,
+        0.03801929004565557
+      ],
+      "recall_delta_pp_95ci": [
+        -0.8577067397253803,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "CE_neutral": {
+      "cer_delta_pp_95ci": [
+        -0.06572554910613197,
+        0.061433987438496714
+      ],
+      "recall_delta_pp_95ci": [
+        -0.8577067397253803,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "CE_zero": {
+      "cer_delta_pp_95ci": [
+        -0.09072367029762765,
+        0.03765809059365927
+      ],
+      "recall_delta_pp_95ci": [
+        -0.8375560689352805,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "CE_mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.0754371931225526,
+        0.057586693072904295
+      ],
+      "recall_delta_pp_95ci": [
+        -0.5217391304347826,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "MATCH_neutral": {
+      "cer_delta_pp_95ci": [
+        -0.04233884796349661,
+        0.04724407632279628
+      ],
+      "recall_delta_pp_95ci": [
+        -0.8577067397253803,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "MATCH_zero": {
+      "cer_delta_pp_95ci": [
+        -0.018818217660380655,
+        0.07647014479197246
+      ],
+      "recall_delta_pp_95ci": [
+        -1.1420184064313044,
+        0.0
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "MATCH_mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.09957467467917376,
+        0.01878671041778255
+      ],
+      "recall_delta_pp_95ci": [
+        -0.6993006993006993,
+        0.3412969283276451
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "prediction_hashes": {
+    "old_text": "1ae96f4b0c46314017efcf5db5f3fdafe619c9bde04e4d89a3da4c76563c392d",
+    "CE_true": "c5e888a75b69983d77494581327df9081da79dab4f10dac1a2d470d5023a707b",
+    "CE_neutral": "87fab57a654c597cf2dada4929d6d954296619483ef867aad18d3d8c361df900",
+    "CE_zero": "954e6dfaca39093e0c9eda493aec7bd7df1f834e0ccc7f9270dfb3e789a4d1ce",
+    "CE_mismatch": "90199c11950686545606c5e9a192cacd1141ad4348fccaa97e39e2a5cc638ec0",
+    "MATCH_true": "e08ac98e93460d6509bb7795b8f47681890a79bf645a9ba3898d29ad8806bc64",
+    "MATCH_neutral": "42908eaaaebc2401bdec2564d6227c2d414195c525ddde54daa7a0f2ea9a8e20",
+    "MATCH_zero": "f8791ce176cc2cc74352e48f083ab23b6de53a16cd8eb0026d66375ca6e29e1c",
+    "MATCH_mismatch": "375ea8838243d8fee2c755d6411f7c16fac77a663bc45d3c95759a60f17af032"
+  },
+  "initial_tensor_sha256": "842752389228b1cba81ab107fe079ea234cf66660882ddba336a2bbf7fd2d71f",
+  "no_protection": true,
+  "limitations": [
+    "Historical1334 contextual dev, not official14326 dev or new heldout test",
+    "Input-top1 CTC timing can be wrong, including uniform fallback; boundaries are weak, not listened gold",
+    "Character slots, not word lattice; Nbest insertions absent as new slots; final decoder remains open-vocabulary",
+    "TRAIN labels align references to input positions and use dictionary toneless phones; deleted/nonphonetic slots unlabelled",
+    "Phonetic groups limited to first4 from first8 input Nbest; original Nbest still supplied to9B; no oracle candidate injection",
+    "Timing kept identical for zero/neutral; mismatch rescales the same input timing to permuted cache duration",
+    "Neutral is learned state midpoint with identical prompt/layout, not exact old text route",
+    "9B still may choose wrong same-phone spellings; shared audio value is not a CER guarantee",
+    "Both arms use pre-existing audited FLA audio operators; text uses historical fallback",
+    "Main CE may train compatibility via language preferences; matched loss comparison is the locked hypothesis test"
+  ]
+}

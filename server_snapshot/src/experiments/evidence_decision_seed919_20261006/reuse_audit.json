@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "seed": 919,
+  "parent_protocol_sha256": "a1b8bb836a2b2bb9403e68988f57ab49d0d2f9a5263d0e4846d1486d15b95311",
+  "unchanged_candidate_order_labels": true,
+  "changed_training_order": true,
+  "reused_files": {
+    "dev_queries.jsonl": "1dc00c2d03f6e2682847c44bedbb95b425b46231ac303df8d47b6b6f78b93f3c",
+    "train_drafts.jsonl": "941abec6a189b56dbbb69514cced55ec5cc8978807cd6c05dee1c030e927fca4",
+    "train_edit_manifest.jsonl": "4ea595f973d79308ab494fc6c5d61cfdb1159dc35f7d21b95059fb6c546557ba",
+    "train_evidence.jsonl": "50d64ac93c5d7f0eeeffd3a677a670179298b65084b722945bb12ea9e553a989",
+    "train_evidence_seal.json": "6a11499594687c3ae57081f51229aa77b403a4bae390d9b10fd6b68f1e9d555c",
+    "train_queries.jsonl": "2f11776891c86fcd1ca20243025c4cfd85526c1259058f41b494e55ae6f19d0b",
+    "train_labels.jsonl": "2f48909d5f2e2a0dabc2cc61cfcfc7e84c8189630e013f861df2e1c30b7d72ce",
+    "token_bank.pt": "ad6a97feb252623b67c982abc179abbb7e4baf8cf9a686a7b52c92cd1194dbd5",
+    "token_bank_metadata.json": "53a4df7520ca7cc41f6a56695ee33d6695941b555462f882fd3ff18cdc000604"
+  },
+  "pairs": 5325,
+  "updates": 666,
+  "official_initialization": "/root/autodl-tmp/src/experiments/joint_lora_20260923/B/checkpoints/step_2162_1790196916345042195",
+  "no_parent_trained_weights_reused": true,
+  "source_and_acceleration_hashes_locked": true,
+  "token_bank_reference_used": false
+}

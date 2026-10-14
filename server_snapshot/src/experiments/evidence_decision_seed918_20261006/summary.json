@@ -1,0 +1,760 @@
+{
+  "status": "COMPLETE",
+  "protocol_sha256": "2c35f9522f9d4786b50f40905f8bbcf418a507511d33e19c093b9602cd4a3dba",
+  "data_lock_sha256": "f6acff4cfaa1c1999edfc29d0910be1c537a5da12f525b54d9d60145417f3a0c",
+  "baseline": {
+    "n": 1334,
+    "chars": 21102,
+    "errors": 622,
+    "input_errors": 804,
+    "hits": 469,
+    "mentions": 599,
+    "lost": 87,
+    "gained": 16,
+    "improved": 265,
+    "worsened": 136,
+    "unchanged": 933,
+    "exact": 983,
+    "empty": 0,
+    "parse_failures": 0,
+    "cer": 0.029475879063595868,
+    "recall": 0.7829716193656093,
+    "input_cer": 0.038100653966448676,
+    "cer_delta_pp": -0.8624774902852808,
+    "relative_cer_change": -0.2263681592039801
+  },
+  "summaries": {
+    "UNADAPTED__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 646,
+      "input_errors": 804,
+      "hits": 477,
+      "mentions": 599,
+      "lost": 76,
+      "gained": 13,
+      "improved": 238,
+      "worsened": 122,
+      "unchanged": 974,
+      "exact": 969,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.030613212017818216,
+      "recall": 0.7963272120200334,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.748744194863046,
+      "relative_cer_change": -0.19651741293532338
+    },
+    "UNADAPTED__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 648,
+      "input_errors": 804,
+      "hits": 477,
+      "mentions": 599,
+      "lost": 76,
+      "gained": 13,
+      "improved": 236,
+      "worsened": 122,
+      "unchanged": 976,
+      "exact": 968,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03070798976400341,
+      "recall": 0.7963272120200334,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.7392664202445266,
+      "relative_cer_change": -0.19402985074626866
+    },
+    "UNADAPTED__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 643,
+      "input_errors": 804,
+      "hits": 477,
+      "mentions": 599,
+      "lost": 76,
+      "gained": 13,
+      "improved": 239,
+      "worsened": 121,
+      "unchanged": 974,
+      "exact": 970,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03047104539854042,
+      "recall": 0.7963272120200334,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.7629608567908255,
+      "relative_cer_change": -0.20024875621890548
+    },
+    "UNADAPTED__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 643,
+      "input_errors": 804,
+      "hits": 477,
+      "mentions": 599,
+      "lost": 76,
+      "gained": 13,
+      "improved": 239,
+      "worsened": 121,
+      "unchanged": 974,
+      "exact": 970,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.03047104539854042,
+      "recall": 0.7963272120200334,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.7629608567908255,
+      "relative_cer_change": -0.20024875621890548
+    },
+    "AUDIO__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 620,
+      "input_errors": 804,
+      "hits": 469,
+      "mentions": 599,
+      "lost": 87,
+      "gained": 16,
+      "improved": 265,
+      "worsened": 135,
+      "unchanged": 934,
+      "exact": 983,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02938110131741067,
+      "recall": 0.7829716193656093,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8719552649038006,
+      "relative_cer_change": -0.22885572139303484
+    },
+    "AUDIO__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 597,
+      "input_errors": 804,
+      "hits": 478,
+      "mentions": 599,
+      "lost": 75,
+      "gained": 13,
+      "improved": 263,
+      "worsened": 118,
+      "unchanged": 953,
+      "exact": 993,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.028291157236280923,
+      "recall": 0.7979966611018364,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9809496730167754,
+      "relative_cer_change": -0.2574626865671642
+    },
+    "AUDIO__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 616,
+      "input_errors": 804,
+      "hits": 471,
+      "mentions": 599,
+      "lost": 85,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 133,
+      "unchanged": 937,
+      "exact": 986,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029191545825040282,
+      "recall": 0.7863105175292153,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8909108141408394,
+      "relative_cer_change": -0.23383084577114427
+    },
+    "AUDIO__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 617,
+      "input_errors": 804,
+      "hits": 471,
+      "mentions": 599,
+      "lost": 85,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 132,
+      "unchanged": 938,
+      "exact": 985,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.02923893469813288,
+      "recall": 0.7863105175292153,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8861719268315797,
+      "relative_cer_change": -0.2325870646766169
+    },
+    "TEXT__none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 616,
+      "input_errors": 804,
+      "hits": 472,
+      "mentions": 599,
+      "lost": 84,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 131,
+      "unchanged": 939,
+      "exact": 986,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029191545825040282,
+      "recall": 0.7879799666110183,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.8909108141408394,
+      "relative_cer_change": -0.23383084577114427
+    },
+    "TEXT__true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 611,
+      "input_errors": 804,
+      "hits": 474,
+      "mentions": 599,
+      "lost": 82,
+      "gained": 16,
+      "improved": 264,
+      "worsened": 127,
+      "unchanged": 943,
+      "exact": 990,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.028954601459577293,
+      "recall": 0.7913188647746243,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9146052506871384,
+      "relative_cer_change": -0.24004975124378108
+    },
+    "TEXT__zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 614,
+      "input_errors": 804,
+      "hits": 473,
+      "mentions": 599,
+      "lost": 83,
+      "gained": 16,
+      "improved": 263,
+      "worsened": 129,
+      "unchanged": 942,
+      "exact": 988,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029096768078855084,
+      "recall": 0.7896494156928213,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9003885887593592,
+      "relative_cer_change": -0.236318407960199
+    },
+    "TEXT__mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 614,
+      "input_errors": 804,
+      "hits": 473,
+      "mentions": 599,
+      "lost": 83,
+      "gained": 16,
+      "improved": 263,
+      "worsened": 129,
+      "unchanged": 942,
+      "exact": 988,
+      "empty": 0,
+      "parse_failures": 0,
+      "cer": 0.029096768078855084,
+      "recall": 0.7896494156928213,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": -0.9003885887593592,
+      "relative_cer_change": -0.236318407960199
+    }
+  },
+  "diagnostics": {
+    "UNADAPTED__none": {
+      "S": 572,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 86,
+      "errors_on_correct_inputs": 115,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__true": {
+      "S": 574,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 86,
+      "errors_on_correct_inputs": 115,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__zero": {
+      "S": 569,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 86,
+      "errors_on_correct_inputs": 115,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "UNADAPTED__mismatch": {
+      "S": 569,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 86,
+      "errors_on_correct_inputs": 115,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__none": {
+      "S": 546,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 134,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__true": {
+      "S": 523,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 88,
+      "errors_on_correct_inputs": 115,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__zero": {
+      "S": 542,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 131,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "AUDIO__mismatch": {
+      "S": 543,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 97,
+      "errors_on_correct_inputs": 131,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__none": {
+      "S": 542,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 96,
+      "errors_on_correct_inputs": 130,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__true": {
+      "S": 537,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 92,
+      "errors_on_correct_inputs": 126,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__zero": {
+      "S": 540,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 94,
+      "errors_on_correct_inputs": 128,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "TEXT__mismatch": {
+      "S": 540,
+      "D": 54,
+      "I": 20,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 94,
+      "errors_on_correct_inputs": 128,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "decisions": {
+    "UNADAPTED__none": {
+      "harmful": {
+        "n": 54,
+        "original": 25,
+        "modified": 29
+      },
+      "helpful": {
+        "n": 98,
+        "original": 45,
+        "modified": 53
+      },
+      "neutral": {
+        "n": 38,
+        "original": 19,
+        "modified": 19
+      }
+    },
+    "UNADAPTED__true": {
+      "harmful": {
+        "n": 54,
+        "original": 25,
+        "modified": 29
+      },
+      "helpful": {
+        "n": 98,
+        "original": 47,
+        "modified": 51
+      },
+      "neutral": {
+        "n": 38,
+        "original": 19,
+        "modified": 19
+      }
+    },
+    "UNADAPTED__zero": {
+      "harmful": {
+        "n": 54,
+        "original": 25,
+        "modified": 29
+      },
+      "helpful": {
+        "n": 98,
+        "original": 43,
+        "modified": 55
+      },
+      "neutral": {
+        "n": 38,
+        "original": 19,
+        "modified": 19
+      }
+    },
+    "UNADAPTED__mismatch": {
+      "harmful": {
+        "n": 54,
+        "original": 25,
+        "modified": 29
+      },
+      "helpful": {
+        "n": 98,
+        "original": 43,
+        "modified": 55
+      },
+      "neutral": {
+        "n": 38,
+        "original": 19,
+        "modified": 19
+      }
+    },
+    "AUDIO__none": {
+      "harmful": {
+        "n": 54,
+        "original": 2,
+        "modified": 52
+      },
+      "helpful": {
+        "n": 98,
+        "original": 1,
+        "modified": 97
+      },
+      "neutral": {
+        "n": 38,
+        "original": 1,
+        "modified": 37
+      }
+    },
+    "AUDIO__true": {
+      "harmful": {
+        "n": 54,
+        "original": 27,
+        "modified": 27
+      },
+      "helpful": {
+        "n": 98,
+        "original": 11,
+        "modified": 87
+      },
+      "neutral": {
+        "n": 38,
+        "original": 18,
+        "modified": 20
+      }
+    },
+    "AUDIO__zero": {
+      "harmful": {
+        "n": 54,
+        "original": 6,
+        "modified": 48
+      },
+      "helpful": {
+        "n": 98,
+        "original": 2,
+        "modified": 96
+      },
+      "neutral": {
+        "n": 38,
+        "original": 3,
+        "modified": 35
+      }
+    },
+    "AUDIO__mismatch": {
+      "harmful": {
+        "n": 54,
+        "original": 5,
+        "modified": 49
+      },
+      "helpful": {
+        "n": 98,
+        "original": 1,
+        "modified": 97
+      },
+      "neutral": {
+        "n": 38,
+        "original": 4,
+        "modified": 34
+      }
+    },
+    "TEXT__none": {
+      "harmful": {
+        "n": 54,
+        "original": 8,
+        "modified": 46
+      },
+      "helpful": {
+        "n": 98,
+        "original": 3,
+        "modified": 95
+      },
+      "neutral": {
+        "n": 38,
+        "original": 5,
+        "modified": 33
+      }
+    },
+    "TEXT__true": {
+      "harmful": {
+        "n": 54,
+        "original": 12,
+        "modified": 42
+      },
+      "helpful": {
+        "n": 98,
+        "original": 4,
+        "modified": 94
+      },
+      "neutral": {
+        "n": 38,
+        "original": 7,
+        "modified": 31
+      }
+    },
+    "TEXT__zero": {
+      "harmful": {
+        "n": 54,
+        "original": 9,
+        "modified": 45
+      },
+      "helpful": {
+        "n": 98,
+        "original": 2,
+        "modified": 96
+      },
+      "neutral": {
+        "n": 38,
+        "original": 5,
+        "modified": 33
+      }
+    },
+    "TEXT__mismatch": {
+      "harmful": {
+        "n": 54,
+        "original": 9,
+        "modified": 45
+      },
+      "helpful": {
+        "n": 98,
+        "original": 2,
+        "modified": 96
+      },
+      "neutral": {
+        "n": 38,
+        "original": 5,
+        "modified": 33
+      }
+    }
+  },
+  "paired95ci": {
+    "AUDIO__true_vs_old": {
+      "cer_delta_pp_95ci": [
+        -0.21777364366311103,
+        -0.028351643862729165
+      ],
+      "recall_delta_pp_95ci": [
+        0.32410989700423487,
+        2.786899525903924
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__none": {
+      "cer_delta_pp_95ci": [
+        -0.20452135032426844,
+        -0.01896053635053138
+      ],
+      "recall_delta_pp_95ci": [
+        0.32410989700423487,
+        2.786899525903924
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__zero": {
+      "cer_delta_pp_95ci": [
+        -0.18091836873852724,
+        -0.009385397360339979
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.3451569930187843
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_AUDIO__mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.18860898158258613,
+        -0.009500928398093137
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.3451569930187843
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_old": {
+      "cer_delta_pp_95ci": [
+        -0.10488278308440781,
+        0.0
+      ],
+      "recall_delta_pp_95ci": [
+        0.16834309481368306,
+        1.6366612111292962
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__none": {
+      "cer_delta_pp_95ci": [
+        -0.06171220635612877,
+        0.014071360571928105
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        0.851825095499183
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__zero": {
+      "cer_delta_pp_95ci": [
+        -0.0521303543319565,
+        0.019385631498370595
+      ],
+      "recall_delta_pp_95ci": [
+        -0.34305317324185247,
+        0.7182954752426292
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "TEXT__true_vs_TEXT__mismatch": {
+      "cer_delta_pp_95ci": [
+        -0.0521303543319565,
+        0.019385631498370595
+      ],
+      "recall_delta_pp_95ci": [
+        -0.34305317324185247,
+        0.7182954752426292
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_TEXT__none": {
+      "cer_delta_pp_95ci": [
+        -0.18098214747882024,
+        -0.009275361326576255
+      ],
+      "recall_delta_pp_95ci": [
+        0.0,
+        2.1205039832431063
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_TEXT__true": {
+      "cer_delta_pp_95ci": [
+        -0.15189200692158986,
+        0.009518438423918802
+      ],
+      "recall_delta_pp_95ci": [
+        -0.3273591167941865,
+        1.694915254237288
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_UNADAPTED__true": {
+      "cer_delta_pp_95ci": [
+        -0.3423867637540897,
+        -0.1460633053485259
+      ],
+      "recall_delta_pp_95ci": [
+        -0.9868827495014306,
+        1.2846328479519427
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "AUDIO__true_vs_UNADAPTED__none": {
+      "cer_delta_pp_95ci": [
+        -0.3319116451928328,
+        -0.13426102273514517
+      ],
+      "recall_delta_pp_95ci": [
+        -0.9868827495014306,
+        1.2846328479519427
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "true_order_agreement_of190": {
+    "UNADAPTED": 1,
+    "AUDIO": 164,
+    "TEXT": 171
+  },
+  "prediction_hashes": {
+    "UNADAPTED__none": "ce64d47f18a7064c5eab31fd68a87dd1576bbf87a6c370cded9a4378b2c11dbd",
+    "UNADAPTED__true": "692e029a32c5abe7d1053720dfef7e882193930734f370bad6056c06c7b52edd",
+    "UNADAPTED__zero": "faf1a056b16d82f311407ad5355f686403de1cd898a1006eccbda7f02f3e81e0",
+    "UNADAPTED__mismatch": "9a851ea918222bd6c72fc40d7c742ee542d2f82dea90ee9baf9dc339d3a77037",
+    "AUDIO__none": "1810223ddd8e9171ae1de1d937b8483534d2ed21b4a807ae01b87f934239f52f",
+    "AUDIO__true": "266fa9b0b7c8a537c8ffd3f564037f911a0f61a0622485770de4e34bf992d649",
+    "AUDIO__zero": "032c9c975ebbe72fe9c9ebff6eee1d6c4f4771d333a66ce36ee1114957e1d8ee",
+    "AUDIO__mismatch": "969cc07025ec9f2b8b3497566679eda52b720c19dfea443ebaec83b486fbdfb0",
+    "TEXT__none": "3bba7cf66667775668aa617af25f5bf1a78ab83c948d17dd6047771f061380bd",
+    "TEXT__true": "477bc84dd3ed725e3e63eca6ad9d47fb79a40c3da1ef432a8105bad6dcee2b39",
+    "TEXT__zero": "cc6a38aee79e4f96936549cff6521d20abd94e93d989171abad9e82a7b79ddd6",
+    "TEXT__mismatch": "5afa297a39989fd98c7931704e7128cdf14bb5429138d81bb4cbf8b6109e8ba3"
+  },
+  "limitations": [
+    "Repeated historical contextual1334 dev, not official14326dev or new heldout",
+    "Cached512D float16 native frames; dictionary toneless phones and polyphone/same-phone/orthography issues",
+    "NativeCTC contains recognizer prior, not calibrated acoustic confidence; LOCAL hides text context but evidence is whole-utterance CTC",
+    "Supervised CE plus local auxiliary encourages but does not prove evidence necessity; no fabricated counterfactual score flips",
+    "Generated train drafts are in-sample for initializer; fixed train-only labels, historical error-enriched distribution",
+    "Forced candidate decisions not open-vocabulary correction, no claim of raw waveform understanding",
+    "Zero/mismatch scores can beOOD; no dev checkpoint/threshold/weight search",
+    "Fused attention/norm kernels can round differently from historical fallback; UNADAPTED A/B controls rerun with the identical new backend, old ASR drafts unchanged.",
+    "Seed repeats share the same historical dev and frozen in-sample drafts; report every seed, not independent heldout replication or best-seed selection."
+  ]
+}

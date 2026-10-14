@@ -1,0 +1,75 @@
+{
+  "created_utc": "2026-10-05 16:52:40 UTC",
+  "start_epoch": 1791219160,
+  "deadline_epoch": 1791247960,
+  "budget_hours": 8,
+  "budget_policy": "Finite predeclared jobs; no new job after deadline; let already-started complete pair/diagnostic finish, no abrupt kill",
+  "parent": "/root/autodl-tmp/src/experiments/evidence_decision_20261005_v3",
+  "parent_pid": 90774,
+  "parent_identity": {
+    "start_ticks": 46688520,
+    "cmdline": "/root/autodl-tmp/great/bin/python -u experiment.py pipeline "
+  },
+  "parent_protocol_sha256": "a1b8bb836a2b2bb9403e68988f57ab49d0d2f9a5263d0e4846d1486d15b95311",
+  "sources": {
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/experiment.py": "46e3ec414799d36cf6d9af3ade019bc5028c3bb8addca37c0d76ff48adbd110c",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/interface.py": "b5048b327a4cdb2fd3c515c1095f2ea9394971f65d020a0e85ce64a1e11538d9",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/test_interface.py": "caf16892208974d03a5680694658d8095efcbbef1d29de35941103a660e2a61e",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/PLAN.md": "cfb3fb52dbba68ff3ec34640512677527c4fe571f2ecf2fb57ff9be437ff5e36",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/experiment.py": "46e3ec414799d36cf6d9af3ade019bc5028c3bb8addca37c0d76ff48adbd110c",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/interface.py": "b5048b327a4cdb2fd3c515c1095f2ea9394971f65d020a0e85ce64a1e11538d9",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/test_interface.py": "caf16892208974d03a5680694658d8095efcbbef1d29de35941103a660e2a61e",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/PLAN.md": "cfb3fb52dbba68ff3ec34640512677527c4fe571f2ecf2fb57ff9be437ff5e36",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/run_spec.json": "ad6f6e5d9d4742cee9e49e9a33966f245e60562fb22948cfc816d21aac080bfc",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/run_spec.json": "28dcaff7cd7f64a6988611421a1da912ee08184c28628db5d06005bb5024b5c7",
+    "/root/autodl-tmp/src/experiments/evidence_decision_queue_20261006/train_diagnostic.py": "9ada3b02b687e80d4503054817bb0dcc8ecd850970b29df1d9a479bfe4f97072",
+    "/root/autodl-tmp/src/experiments/evidence_decision_queue_20261006/PLAN.md": "cfb3fb52dbba68ff3ec34640512677527c4fe571f2ecf2fb57ff9be437ff5e36",
+    "/root/autodl-tmp/src/experiments/evidence_decision_queue_20261006/serial_queue.py": "c7d4a1ba44f5deabc3d52e007ede56b3bf856bc27e527c50f197252fca175f07",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/protocol.json": "2c35f9522f9d4786b50f40905f8bbcf418a507511d33e19c093b9602cd4a3dba",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/data_lock.json": "f6acff4cfaa1c1999edfc29d0910be1c537a5da12f525b54d9d60145417f3a0c",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/reuse_audit.json": "1c53fbb62694bfd5dc7bc7fb6c4fdb6bf4ba5c969a703f94200bc5f17f2f2799",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/protocol.json": "0c9f03ef33cd033af24da04284193d2974eebc7ae8386753a5beaada89418c77",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/data_lock.json": "43c9efe5ee3f451662c5cb75edcb4411f4bcbadde01ea06285bf0a54a3bc4b78",
+    "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/reuse_audit.json": "7008c5ac5aae7300bd7a2c64f3c0fff68afecb3af1e9e8211302b229d343272c"
+  },
+  "jobs": [
+    {
+      "name": "seed918_paired_repeat",
+      "kind": "repeat",
+      "cwd": "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006",
+      "command": [
+        "/root/autodl-tmp/great/bin/python",
+        "-u",
+        "/root/autodl-tmp/src/experiments/evidence_decision_seed918_20261006/experiment.py",
+        "pipeline-prepared"
+      ],
+      "log": "seed918.pipeline.log"
+    },
+    {
+      "name": "seed919_paired_repeat",
+      "kind": "repeat",
+      "cwd": "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006",
+      "command": [
+        "/root/autodl-tmp/great/bin/python",
+        "-u",
+        "/root/autodl-tmp/src/experiments/evidence_decision_seed919_20261006/experiment.py",
+        "pipeline-prepared"
+      ],
+      "log": "seed919.pipeline.log"
+    },
+    {
+      "name": "seed917_all_train_evidence_dependence",
+      "kind": "diagnostic",
+      "cwd": "/root/autodl-tmp/src/experiments/evidence_decision_queue_20261006",
+      "command": [
+        "/root/autodl-tmp/great/bin/python",
+        "-u",
+        "/root/autodl-tmp/src/experiments/evidence_decision_queue_20261006/train_diagnostic.py"
+      ],
+      "log": "train_diagnostic.log"
+    }
+  ],
+  "no_best_seed_selection": true,
+  "no_extra_training": true,
+  "predeclared_cpu_audit": "PREDECLARED_CPU_AUDIT_PASS_NOT_TRAINED"
+}

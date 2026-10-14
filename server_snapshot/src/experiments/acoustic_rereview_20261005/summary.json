@@ -1,0 +1,409 @@
+{
+  "status": "COMPLETE",
+  "baseline": {
+    "n": 1334,
+    "chars": 21102,
+    "errors": 622,
+    "input_errors": 804,
+    "hits": 469,
+    "mentions": 599,
+    "lost": 87,
+    "gained": 16,
+    "improved": 265,
+    "worsened": 136,
+    "unchanged": 933,
+    "exact": 983,
+    "empty": 0,
+    "parse_failures": 0,
+    "cer": 0.029475879063595868,
+    "recall": 0.7829716193656093,
+    "input_cer": 0.038100653966448676,
+    "cer_delta_pp": -0.8624774902852808,
+    "relative_cer_change": -0.2263681592039801
+  },
+  "baseline_diagnostics": {
+    "S": 548,
+    "D": 54,
+    "I": 20,
+    "input_correct_sentences": 883,
+    "correct_input_broken_sentences": 99,
+    "errors_on_correct_inputs": 136,
+    "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+  },
+  "summaries": {
+    "none": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 2274,
+      "input_errors": 804,
+      "hits": 436,
+      "mentions": 599,
+      "lost": 116,
+      "gained": 12,
+      "improved": 211,
+      "worsened": 212,
+      "unchanged": 911,
+      "exact": 948,
+      "empty": 105,
+      "parse_failures": 105,
+      "cer": 0.10776229741256753,
+      "recall": 0.7278797996661102,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 6.966164344611886,
+      "relative_cer_change": 1.828358208955224
+    },
+    "true": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 2197,
+      "input_errors": 804,
+      "hits": 433,
+      "mentions": 599,
+      "lost": 118,
+      "gained": 11,
+      "improved": 212,
+      "worsened": 208,
+      "unchanged": 914,
+      "exact": 950,
+      "empty": 99,
+      "parse_failures": 99,
+      "cer": 0.1041133541844375,
+      "recall": 0.7228714524207012,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 6.601270021798883,
+      "relative_cer_change": 1.7325870646766168
+    },
+    "zero": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 2291,
+      "input_errors": 804,
+      "hits": 432,
+      "mentions": 599,
+      "lost": 119,
+      "gained": 11,
+      "improved": 209,
+      "worsened": 214,
+      "unchanged": 911,
+      "exact": 949,
+      "empty": 107,
+      "parse_failures": 107,
+      "cer": 0.10856790825514169,
+      "recall": 0.7212020033388982,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 7.046725428869302,
+      "relative_cer_change": 1.849502487562189
+    },
+    "mismatch": {
+      "n": 1334,
+      "chars": 21102,
+      "errors": 2276,
+      "input_errors": 804,
+      "hits": 432,
+      "mentions": 599,
+      "lost": 119,
+      "gained": 11,
+      "improved": 212,
+      "worsened": 213,
+      "unchanged": 909,
+      "exact": 951,
+      "empty": 106,
+      "parse_failures": 106,
+      "cer": 0.10785707515875273,
+      "recall": 0.7212020033388982,
+      "input_cer": 0.038100653966448676,
+      "cer_delta_pp": 6.975642119230405,
+      "relative_cer_change": 1.8308457711442787
+    }
+  },
+  "diagnostics": {
+    "none": {
+      "S": 415,
+      "D": 1842,
+      "I": 17,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 99,
+      "errors_on_correct_inputs": 356,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "true": {
+      "S": 425,
+      "D": 1756,
+      "I": 16,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 98,
+      "errors_on_correct_inputs": 334,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "zero": {
+      "S": 413,
+      "D": 1863,
+      "I": 15,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 98,
+      "errors_on_correct_inputs": 342,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    },
+    "mismatch": {
+      "S": 409,
+      "D": 1853,
+      "I": 14,
+      "input_correct_sentences": 883,
+      "correct_input_broken_sentences": 98,
+      "errors_on_correct_inputs": 368,
+      "alignment_tie_break": "diagonal, deletion, insertion; S/D/I may vary between optimal alignments"
+    }
+  },
+  "decisions": {
+    "none": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 0,
+          "modified_selected": 18,
+          "abstained": 0,
+          "invalid": 36
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 0,
+          "modified_selected": 44,
+          "abstained": 0,
+          "invalid": 54
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 15,
+          "abstained": 0,
+          "invalid": 23
+        }
+      },
+      "utterance_changes": {
+        "changed_utterances": 105,
+        "better": 0,
+        "worse": 105,
+        "equal": 0,
+        "removed_errors": 0,
+        "added_errors": 1652
+      },
+      "valid_decisions": 77,
+      "total_decisions": 190
+    },
+    "true": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 1,
+          "modified_selected": 20,
+          "abstained": 0,
+          "invalid": 33
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 44,
+          "abstained": 0,
+          "invalid": 53
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 16,
+          "abstained": 0,
+          "invalid": 22
+        }
+      },
+      "utterance_changes": {
+        "changed_utterances": 101,
+        "better": 1,
+        "worse": 100,
+        "equal": 0,
+        "removed_errors": 1,
+        "added_errors": 1576
+      },
+      "valid_decisions": 82,
+      "total_decisions": 190
+    },
+    "zero": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 1,
+          "modified_selected": 16,
+          "abstained": 0,
+          "invalid": 37
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 1,
+          "modified_selected": 43,
+          "abstained": 0,
+          "invalid": 54
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 13,
+          "abstained": 0,
+          "invalid": 25
+        }
+      },
+      "utterance_changes": {
+        "changed_utterances": 109,
+        "better": 1,
+        "worse": 108,
+        "equal": 0,
+        "removed_errors": 1,
+        "added_errors": 1670
+      },
+      "valid_decisions": 74,
+      "total_decisions": 190
+    },
+    "mismatch": {
+      "cells": {
+        "harmful": {
+          "n": 54,
+          "original_selected": 1,
+          "modified_selected": 18,
+          "abstained": 0,
+          "invalid": 35
+        },
+        "helpful": {
+          "n": 98,
+          "original_selected": 0,
+          "modified_selected": 43,
+          "abstained": 0,
+          "invalid": 55
+        },
+        "neutral": {
+          "n": 38,
+          "original_selected": 0,
+          "modified_selected": 13,
+          "abstained": 0,
+          "invalid": 25
+        }
+      },
+      "utterance_changes": {
+        "changed_utterances": 107,
+        "better": 1,
+        "worse": 106,
+        "equal": 0,
+        "removed_errors": 1,
+        "added_errors": 1655
+      },
+      "valid_decisions": 75,
+      "total_decisions": 190
+    }
+  },
+  "paired_95ci": {
+    "none": {
+      "cer_delta_pp_95ci": [
+        6.3537859516860875,
+        9.370243149454115
+      ],
+      "recall_delta_pp_95ci": [
+        -7.619053094974607,
+        -3.53125295061845
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "true": {
+      "cer_delta_pp_95ci": [
+        5.986022694268019,
+        8.913162640779952
+      ],
+      "recall_delta_pp_95ci": [
+        -8.149918994196433,
+        -3.931372549019609
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "zero": {
+      "cer_delta_pp_95ci": [
+        6.393314538944972,
+        9.33383637331155
+      ],
+      "recall_delta_pp_95ci": [
+        -8.333674304418986,
+        -4.118566693323462
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "mismatch": {
+      "cer_delta_pp_95ci": [
+        6.298552861275221,
+        9.353598075679079
+      ],
+      "recall_delta_pp_95ci": [
+        -8.442383887299142,
+        -4.131891023459095
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "true_minus_controls_95ci": {
+    "none": {
+      "cer_delta_pp_95ci": [
+        -1.166589854504952,
+        0.3719710420813964
+      ],
+      "recall_delta_pp_95ci": [
+        -1.658374792703151,
+        0.6442267791009946
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "zero": {
+      "cer_delta_pp_95ci": [
+        -1.0499447399059965,
+        0.16184122537728196
+      ],
+      "recall_delta_pp_95ci": [
+        -0.6873147967421971,
+        1.0327914173347716
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    },
+    "mismatch": {
+      "cer_delta_pp_95ci": [
+        -1.0184404598003074,
+        0.2303795165816404
+      ],
+      "recall_delta_pp_95ci": [
+        -0.5181347150259067,
+        0.9449191485133757
+      ],
+      "warning": "point noninferiority is not a statistical noninferiority guarantee"
+    }
+  },
+  "decision_hashes": {
+    "none": "4b2db0378c2ee6e4de6c6e201ec26bf55f9af4afdc447e7eac542657db4fd521",
+    "true": "3c51967e3102a94c03088ad4756b4f9431a0fe05bcbd4b2c1a61d495d891a900",
+    "zero": "513411aee03caf7ff4d9712679e2558d46c54dbdd635ca2eda1fefdfc4d40e49",
+    "mismatch": "a0b9200a914fd29b707b7af9dbdb792ee5e9746226db41118af82fe1d7443bbd"
+  },
+  "prediction_hashes": {
+    "none": "9727bbd7e95fb210ac1f881b98859c916b43f8aa2c1742edc7965c007f2fbe29",
+    "true": "d42d2b9b613e164b14e6b509cc2308585d083c648d0577af1639df6b487cfb11",
+    "zero": "67221d4177055fcd22d9ee87e226641cc8733fe0b4bd58d39587adce7a2a1941",
+    "mismatch": "43d623da9f7c6b1dcaa2c1501158d45f3ca5c4d519d0e1712385e3eb3984f172"
+  },
+  "protocol_sha256": "15b2574893c42cb63dd070f28bde81add78206ddcdf5592edcc6dfdbb3c52f1d",
+  "no_score_threshold_or_restore": true,
+  "scope": "Candidate-selection local review, NOT unconstrained second-pass transcription; cannot introduce new words outside candidates or fix untouched positions",
+  "limitations": [
+    "Repeated historical contextual1334 dev, not official14326 full dev or new heldout",
+    "Native character CTC includes orthographic/context bias, not pure pronunciation or calibrated confidence",
+    "Toneless dictionary pronunciation is not waveform-verified; tone/polyphone/same-phone spelling limitations",
+    "Phonetic token aggregation changes repeat-collapse semantics and excludes non-Han tokens; exploratory fixed auxiliary",
+    "Single-edit same-context whole-utterance CTC marginal avoids reference boundaries but is not an independent local audio judge",
+    "Existing float16 cached encoder frames; no hotword bonus in these acoustic scores",
+    "Detecting damaging edits is not proof that 9B can use evidence or that end-to-end CER improves",
+    "Evidence-score task differs from old correction training; a failure can reflect task/format shift",
+    "none changes evidence availability; zero/mismatch have OOD score magnitudes, so comparisons do not prove raw auditory understanding",
+    "Both native and predefined phonetic scores included; this is evidence-interface pilot, not isolated-score ablation",
+    "Abstention retention is an explicit model decision, not score-threshold recovery; invalid responses are NOT copied from draft",
+    "Review edits constructed from previously examined dev predictions; retrospective diagnostic, no new heldout claim"
+  ]
+}

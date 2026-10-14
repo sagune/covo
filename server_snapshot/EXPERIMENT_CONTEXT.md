@@ -1,0 +1,196 @@
+# Experiment Context
+
+## Current Scope
+
+The maintained route is now **CB-SenseVoice + COVO**:
+
+```text
+audio
+  -> SenseVoice encoder states
+  -> TCResNet KWS
+  -> phrase cross-attention context adapter
+  -> context-biased SenseVoice CTC beam
+  -> CB-SenseVoice candidate reranking
+  -> COVO conservative correction
+  -> final transcript
+```
+
+The earlier CB-Whisper implementation is retired. Its dedicated entry points,
+configs and diagnostic patches are not part of the maintained branch. Historical
+results remain available in Git history and in the comparison tables in
+`RESULTS.md`.
+
+## Research Constraints
+
+- The method must remain lightweight and suitable for a paper.
+- Do not use confidence gates, reference-aware selection or test-set correction
+  dictionaries as the main method.
+- Keep SenseVoice, the KWS backbone and the Qwen base model frozen; train only
+  lightweight context adapters or LoRA adapters.
+- Record each full experiment with its dataset, metric normalization, checkpoint
+  and comparison against the previous accepted result.
+- The target for AISHELL-NE is at least 90% hotword recall while minimizing CER.
+- Run all experiments in `/root/autodl-tmp/great`, not the base environment.
+
+## Accepted Components
+
+### SenseVoice
+
+- Base model: `iic/SenseVoiceSmall`
+- Hidden states: extracted directly from the SenseVoice encoder
+- Decoder: CTC prefix beam search with acoustic phrase evidence
+
+### KWS
+
+- Backbone: TCResNet
+- Main checkpoint:
+  `src/outputs/aishell_sensevoice_kws/checkpoints/f1G/f1G-epoch=16-step=102085.ckpt`
+- KWS retrieves context candidates; it is not changed during CB-SenseVoice or
+  COVO experiments.
+
+### Context Adapter
+
+- Architecture: phrase cross-attention
+- Main checkpoint:
+  `src/outputs/sensevoice_context_adapter/phrase_crossattn_aishell_full_20260722.pt`
+- Accepted phrase-confidence weight: `14.0`
+
+### COVO
+
+- Base model directory: `models/Qwen3.5-4B`
+- COVO source: `covo/`
+- CER-oriented adapter:
+  `covo/outputs/qwen35_cbwhisper_preserve2_aishell_train_noop_1epoch_bf16_bs7`
+- Joint recall/CER adapter:
+  `covo/outputs/qwen35_cbwhisper_hotword_preserve_dpo_30steps_bf16`
+
+The adapter directory names retain their historical `cbwhisper` labels to match
+existing checkpoints; they are consumed by the CB-SenseVoice pipeline.
+
+## Accepted Results
+
+All AISHELL numbers use corpus CER after OpenCC traditional-to-simplified
+conversion, NFKC normalization and removal of whitespace and punctuation.
+
+### AISHELL-NE 808
+
+| System | CER | Recall@400 | R1 Recall@226 |
+|---|---:|---:|---:|
+| SenseVoiceSmall | 10.3609% | 39.75% | 10.18% |
+| Original CB-SenseVoice | 7.8231% | 78.25% | 62.39% |
+| CB-SenseVoice phrase cross-attention | 4.8273% | 80.75% | 66.37% |
+| CB-SenseVoice w14 | 3.7951% | 91.50% | 84.96% |
+| w14 + preserve2 COVO | 3.0268% | 89.25% | 81.42% |
+| **w14 + DPO-30 COVO** | **3.1354%** | **90.50%** | **83.63%** |
+
+The DPO-30 system is the joint main result because it satisfies the 90% recall
+target. Preserve2 is retained as the lowest-CER ablation.
+
+### Full AISHELL-1 Test
+
+| System | Corpus CER |
+|---|---:|
+| SenseVoiceSmall | 6.2922% |
+| SenseVoice + preserve2 COVO | 3.7647% |
+| Routed SenseVoice / CB-SenseVoice w14 | 5.4894% |
+| **Routed + DPO-30 COVO** | **3.2062%** |
+| Routed + preserve2 COVO | 3.1929% |
+
+Routing is based only on whether an external context list exists: the 808
+contextual utterances use CB-SenseVoice and the other 6,368 utterances use plain
+SenseVoice.
+
+## Reproduction
+
+Train SenseVoice KWS:
+
+```bash
+cd src
+/root/autodl-tmp/great/bin/python run_CLI.py fit \
+  --config configs/train-sensevoice-kws.yaml
+```
+
+Run CB-SenseVoice:
+
+```bash
+cd src
+/root/autodl-tmp/great/bin/python run_CLI.py test \
+  --config configs/cb-sensevoice-aishell.yaml
+```
+
+Export and convert COVO evidence:
+
+```bash
+cd src
+CBW_EVIDENCE_ONLY=1 \
+CBW_EVIDENCE_OUT=logs/cb_sensevoice_evidence.jsonl \
+/root/autodl-tmp/great/bin/python run_CLI.py test \
+  --config configs/cb-sensevoice-aishell.yaml
+
+/root/autodl-tmp/great/bin/python analysis/cbsensevoice_covo_bridge.py prepare \
+  --input logs/cb_sensevoice_evidence.jsonl \
+  --output ../covo/data/processed/cb_sensevoice_messages.jsonl \
+  --include-pinyin \
+  --protect-supported-hotwords
+```
+
+Run COVO inference:
+
+```bash
+cd /root/autodl-tmp
+PYTHONPATH=covo/src /root/autodl-tmp/great/bin/python \
+  covo/scripts/infer_lora_text.py --help
+```
+
+Model weights, datasets, generated evidence, predictions and runtime logs are
+local artifacts and must not be committed.
+
+## Acoustic-Aware Listwise COVO (2026-07-29)
+
+The ST-CMDS audit found that COVO usually stays inside the N-best pool but
+cannot reliably distinguish homophonic candidates. The CB-SenseVoice evidence
+already contains neutral CTC acoustic scores, search scores, contextual
+hotword bonuses and candidate sources; the previous ChineseHP formatter
+discarded those fields.
+
+The new route keeps those fields and trains candidate discrimination directly:
+
+1. `analysis/build_acoustic_listwise_covo.py` aligns every N-best text with its
+   CB-SenseVoice candidate scores, length-normalizes the CTC score, and exposes
+   candidate disagreement spans.
+2. `covo/scripts/train_lora_listwise.py` computes the COVO likelihood of all
+   candidates in one utterance and applies listwise cross-entropy plus a small
+   chosen-candidate SFT loss.
+3. `scripts/run_acoustic_listwise_covo.sh` uses only AISHELL training evidence
+   for optimization and evaluates on the ST-CMDS standard 3,139-word context
+   list. It first evaluates a prompt-only ablation, then the trained adapter.
+
+The RTX 5090 training profile uses at most four candidates per listwise batch
+and a 768-token sequence cap. A six-candidate, 1,024-token batch exceeded
+31 GB during the first backward pass; the reduced profile passed a real
+forward/backward smoke test while retaining the top four acoustic alternatives.
+
+This route does not use a rule gate and does not train on ST-CMDS test
+references. The main target is the 695 audited utterances where the correct
+text was already in N-best but the previous COVO failed to select it, while
+reducing corruption of correct top-1 hypotheses.
+
+### ST-CMDS domain continuation
+
+AISHELL supplies contextual CB-SenseVoice evidence, but its language
+distribution does not cover ST-CMDS names, conversational expressions and
+homophone conventions. The queued domain continuation therefore reuses the
+95,418 previously generated ST-CMDS training N-best records and computes a
+forced CTC likelihood for every fixed candidate. This avoids regenerating the
+candidate pool.
+
+`analysis/score_sensevoice_candidate_evidence.py` performs one SenseVoice
+encoder pass per utterance and evaluates each existing candidate with the CTC
+forward loss. `scripts/run_stcmds_acoustic_listwise_followup.sh` then:
+
+1. builds acoustic-aware records for all 95,418 ST-CMDS training utterances;
+2. continues from the AISHELL listwise adapter with one full epoch of
+   full-sentence SFT, including references outside the N-best pool;
+3. evaluates on the unchanged ST-CMDS standard-word-list test evidence.
+
+The ST-CMDS test references remain evaluation-only.

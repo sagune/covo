@@ -1,0 +1,362 @@
+{
+  "heads": {
+    "linear": {
+      "summaries": {
+        "true": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 492,
+          "S": 460,
+          "D": 11,
+          "I": 21,
+          "exact": 961,
+          "empty": 0,
+          "syer": 0.023315325561558145
+        },
+        "zero": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 21102,
+          "S": 0,
+          "D": 21102,
+          "I": 0,
+          "exact": 0,
+          "empty": 1334,
+          "syer": 1.0
+        },
+        "mismatch": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 22109,
+          "S": 18955,
+          "D": 1572,
+          "I": 1582,
+          "exact": 0,
+          "empty": 0,
+          "syer": 1.047720595204246
+        }
+      },
+      "diagnostics": {
+        "true": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 484,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 271,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 63,
+            "missing_positions": 47,
+            "missing_positions_recovered": 37,
+            "preference_pairs": 223,
+            "reference_preferred": 71,
+            "ties": 0,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 0.023162327718223585
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 487,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 323,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 96,
+            "missing_positions": 49,
+            "missing_positions_recovered": 35,
+            "preference_pairs": 205,
+            "reference_preferred": 112,
+            "ties": 0,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 0.023187163738513546
+          }
+        },
+        "zero": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 20896,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 20604,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 0,
+            "missing_positions": 47,
+            "missing_positions_recovered": 0,
+            "preference_pairs": 223,
+            "reference_preferred": 115,
+            "ties": 4,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 1.0
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 21003,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 20729,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 0,
+            "missing_positions": 49,
+            "missing_positions_recovered": 0,
+            "preference_pairs": 205,
+            "reference_preferred": 108,
+            "ties": 3,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 1.0
+          }
+        },
+        "mismatch": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 21900,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 20040,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 3,
+            "missing_positions": 47,
+            "missing_positions_recovered": 1,
+            "preference_pairs": 223,
+            "reference_preferred": 101,
+            "ties": 0,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 1.0480474732006126
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 22006,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 20164,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 6,
+            "missing_positions": 49,
+            "missing_positions_recovered": 1,
+            "preference_pairs": 205,
+            "reference_preferred": 88,
+            "ties": 0,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 1.0477550826072466
+          }
+        }
+      },
+      "prediction_hashes": {
+        "true": "2787f13c9ca83872b62452922b23d5188f6635a76a4ec0f4e25ff7634f00de78",
+        "zero": "bf75a6a691f87d73fb60dfbb81d55dd0a0ec1100b8680d0dd882e99e80a39e37",
+        "mismatch": "5524762795a9e18e42d19b2bc376cd0d7b02e47e6be52629be39f8db3555fbfb"
+      },
+      "true_minus_control_syer_pp_95ci": {
+        "zero": [
+          -97.89711126265833,
+          -97.42047819753047
+        ],
+        "mismatch": [
+          -103.12658854083956,
+          -101.77085618275618
+        ]
+      }
+    },
+    "mlp": {
+      "summaries": {
+        "true": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 495,
+          "S": 461,
+          "D": 11,
+          "I": 23,
+          "exact": 961,
+          "empty": 0,
+          "syer": 0.02345749218083594
+        },
+        "zero": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 21102,
+          "S": 0,
+          "D": 21102,
+          "I": 0,
+          "exact": 0,
+          "empty": 1334,
+          "syer": 1.0
+        },
+        "mismatch": {
+          "n": 1334,
+          "syllables": 21102,
+          "errors": 22109,
+          "S": 18955,
+          "D": 1571,
+          "I": 1583,
+          "exact": 0,
+          "empty": 0,
+          "syer": 1.047720595204246
+        }
+      },
+      "diagnostics": {
+        "true": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 484,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 275,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 69,
+            "missing_positions": 47,
+            "missing_positions_recovered": 37,
+            "preference_pairs": 223,
+            "reference_preferred": 76,
+            "ties": 0,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 0.023162327718223585
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 487,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 328,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 101,
+            "missing_positions": 49,
+            "missing_positions_recovered": 37,
+            "preference_pairs": 205,
+            "reference_preferred": 113,
+            "ties": 0,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 0.023187163738513546
+          }
+        },
+        "zero": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 20896,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 20604,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 0,
+            "missing_positions": 47,
+            "missing_positions_recovered": 0,
+            "preference_pairs": 223,
+            "reference_preferred": 123,
+            "ties": 2,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 1.0
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 21003,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 20729,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 0,
+            "missing_positions": 49,
+            "missing_positions_recovered": 0,
+            "preference_pairs": 205,
+            "reference_preferred": 105,
+            "ties": 1,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 1.0
+          }
+        },
+        "mismatch": {
+          "frontend": {
+            "n": 1322,
+            "syllables": 20896,
+            "baseline_errors": 307,
+            "probe_errors": 21900,
+            "baseline_correct_positions": 20604,
+            "baseline_correct_positions_changed": 20039,
+            "substitution_positions": 245,
+            "substitution_positions_recovered": 3,
+            "missing_positions": 47,
+            "missing_positions_recovered": 1,
+            "preference_pairs": 223,
+            "reference_preferred": 95,
+            "ties": 0,
+            "same_phone_pairs": 1099,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.014691807044410414,
+            "probe_syer": 1.0480474732006126
+          },
+          "old_B_text": {
+            "n": 1328,
+            "syllables": 21003,
+            "baseline_errors": 294,
+            "probe_errors": 22006,
+            "baseline_correct_positions": 20729,
+            "baseline_correct_positions_changed": 20163,
+            "substitution_positions": 225,
+            "substitution_positions_recovered": 6,
+            "missing_positions": 49,
+            "missing_positions_recovered": 1,
+            "preference_pairs": 205,
+            "reference_preferred": 94,
+            "ties": 0,
+            "same_phone_pairs": 1123,
+            "same_phone_score_nonzero": 0,
+            "baseline_syer": 0.013998000285673474,
+            "probe_syer": 1.0477550826072466
+          }
+        }
+      },
+      "prediction_hashes": {
+        "true": "b91b20f91925242596b1d1f1060257402934c0045ee281251f5755621420ce4c",
+        "zero": "3e448276945cebc8b36ba2b6d9fb1073c0b2fbbf23be6dd33a1873e1a7ef1d24",
+        "mismatch": "f939b832d6195b3afa3caf5ac05c74f51aed9ab8bf563b2fe6a2c8cbf530d2a5"
+      },
+      "true_minus_control_syer_pp_95ci": {
+        "zero": [
+          -97.8855326691222,
+          -97.40579322456684
+        ],
+        "mismatch": [
+          -103.11681521896752,
+          -101.74464204284396
+        ]
+      }
+    }
+  },
+  "protocol_sha256": "db1c6b5445b4376ae6d99158a18c8f82561b1741931662bf72b4583673d3bf6d",
+  "limitations": [
+    "Repeated historical contextualdev, not official full dev or new heldout test",
+    "Dictionary pronunciations are not waveform-verified; polyphones and numeral readings need separate checks",
+    "Same-phoneme spellings cannot be identified by this target; tone-only errors deliberately outside first probe",
+    "Simple probes can underfit; failure does not prove features contain no information",
+    "Full greedy transcription and reference-aware CTC pair preference are different diagnostic tasks",
+    "Zero is erased cached encoder frames, not re-encoded silence; mismatch has imperfect duration matching",
+    "One seed, both heads use all17294 train rows repeatedly; no train-size model search"
+  ]
+}

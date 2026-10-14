@@ -1,0 +1,62 @@
+{
+  "status": "PASS",
+  "protocol_sha256": "db1c6b5445b4376ae6d99158a18c8f82561b1741931662bf72b4583673d3bf6d",
+  "heads": {
+    "linear": {
+      "epoch": 10,
+      "updates": 5410,
+      "checkpoint_sha256": "4c96a5df8ad553e5820e14ca98752f5d4899330383b47a41cb30e310c0d362fa",
+      "conditions": {
+        "true": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 492,
+          "syer": 0.023315325561558145,
+          "sha256": "2787f13c9ca83872b62452922b23d5188f6635a76a4ec0f4e25ff7634f00de78"
+        },
+        "zero": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 21102,
+          "syer": 1.0,
+          "sha256": "bf75a6a691f87d73fb60dfbb81d55dd0a0ec1100b8680d0dd882e99e80a39e37"
+        },
+        "mismatch": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 22109,
+          "syer": 1.047720595204246,
+          "sha256": "5524762795a9e18e42d19b2bc376cd0d7b02e47e6be52629be39f8db3555fbfb"
+        }
+      }
+    },
+    "mlp": {
+      "epoch": 10,
+      "updates": 5410,
+      "checkpoint_sha256": "b967c5df6b79b6ad97549a53387aed602b4636f5ea86cd7537ca5b53fa2af064",
+      "conditions": {
+        "true": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 495,
+          "syer": 0.02345749218083594,
+          "sha256": "b91b20f91925242596b1d1f1060257402934c0045ee281251f5755621420ce4c"
+        },
+        "zero": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 21102,
+          "syer": 1.0,
+          "sha256": "3e448276945cebc8b36ba2b6d9fb1073c0b2fbbf23be6dd33a1873e1a7ef1d24"
+        },
+        "mismatch": {
+          "n": 1334,
+          "reference_syllables": 21102,
+          "errors": 22109,
+          "syer": 1.047720595204246,
+          "sha256": "f939b832d6195b3afa3caf5ac05c74f51aed9ab8bf563b2fe6a2c8cbf530d2a5"
+        }
+      }
+    }
+  }
+}
